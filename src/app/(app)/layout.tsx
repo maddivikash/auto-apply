@@ -28,7 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Link href="/dashboard" className="serif text-lg">Auto Apply</Link>
           <nav className="flex gap-3 text-sm"><Link href="/notifications">Alerts{unread ? ` (${unread})` : ""}</Link><Link href="/profile">Profile</Link><Link href="/answers">Answers</Link><Link href="/runner">Runner</Link><UserButton /></nav>
         </header>
-        {!profile && <div className="border-b border-line bg-signal-soft px-6 py-2 text-sm text-signal">No profile yet. <Link href="/profile" className="underline">Upload your resume</Link> before pasting a job link.</div>}
+        {!profile && <div className="border-b border-line bg-signal-soft px-6 py-2 text-sm text-signal">No profile yet. <Link href="/profile#import" className="underline">Upload your resume</Link> before pasting a job link.</div>}
         <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
       </div>
     </div>

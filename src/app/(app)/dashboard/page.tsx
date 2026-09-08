@@ -5,6 +5,7 @@ import { summarize, openQuestions } from "@/lib/stats";
 import { createApplicationAction } from "../../actions";
 import { StatusBadge, StageTrack } from "@/components/status";
 import { LinkInput } from "@/components/link-input";
+import { SubmitButton } from "@/components/submit-button";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -29,7 +30,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <section className="panel p-5">
         <form action={createApplicationAction} className="flex flex-col gap-3 md:flex-row">
           <LinkInput disabled={!profile} />
-          <button className="btn-primary" disabled={!profile}>Prepare application</button>
+          {profile ? <SubmitButton pending="Starting...">Prepare application</SubmitButton> : <button className="btn-primary" disabled>Prepare application</button>}
         </form>
         <p className="mt-2 text-xs text-muted">{profile ? "Greenhouse, Lever and Ashby links work. You'll get an email when the resume is ready." : "Upload your resume on the Profile page first."}{error === "url" && <span className="text-danger"> That was not a URL.</span>}</p>
       </section>

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import type { Profile, Role, Project } from "@/lib/profile/types";
 import { saveProfileAction } from "@/app/actions";
+import { SubmitButton } from "@/components/submit-button";
 
 const lines = (a: string[]) => a.join("\n");
 const unlines = (s: string) => s.split("\n").map((x) => x.trim()).filter(Boolean);
@@ -67,7 +68,7 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
           <label className="text-sm"><span className="text-muted">Coursework</span><textarea className="field mt-1 text-xs" rows={4} defaultValue={lines(p.coursework)} onBlur={(e) => set("coursework", unlines(e.target.value))} /></label>
         </div>
       </Section>
-      <div className="flex justify-end"><button className="btn-primary">Save profile</button></div>
+      <div className="flex justify-end"><SubmitButton pending="Saving...">Save profile</SubmitButton></div>
     </form>
   );
 }

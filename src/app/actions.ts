@@ -77,9 +77,15 @@ export async function importResumeAction(formData: FormData) {
   const userId = await requireUserId();
   const file = formData.get("resume");
   if (!(file instanceof File) || file.size === 0) redirect("/profile?error=file");
-  const text = file.type === "application/pdf" || file.name.endsWith(".pdf") ? await pdfToText(new Uint8Array(await file.arrayBuffer())) : await file.text();
-  if (text.length < 200) redirect("/profile?error=empty");
-  const profile = await textToProfile(text);
+  let profile;
+  try {
+    const text = file.type === "application/pdf" || file.name.endsWith(".pdf") ? await pdfToText(new Uint8Array(await file.arrayBuffer())) : await file.text();
+    if (text.length < 200) redirect("/profile?error=empty");
+    profile = await textToProfile(text);
+  } catch (e) {
+    if ((e as Error)?.message === "NEXT_REDIRECT" || String((e as any)?.digest || "").startsWith("NEXT_REDIRECT")) throw e;
+    redirect(`/profile?error=${encodeURIComponent(`Could not read that resume: ${(e as Error).message.slice(0, 160)}. Try again or use a text-based PDF.`)}`);
+  }
   const email = await userEmail();
   if (!profile.email && email) profile.email = email;
   await saveProfile(userId, profile);
