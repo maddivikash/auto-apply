@@ -36,7 +36,7 @@ export async function processApplication(userId: string, id: string): Promise<vo
     app.questions = job.questions
       .filter((q) => !/^(longitude|latitude)$/i.test(q.label))
       .map((q): QuestionState => {
-        const a = answerFor(settings, q.label, q.options, q.type);
+        const a = answerFor(settings, q.label, q.options, q.type, { jobLocation: job.location });
         const human = q.type !== "file" && !a && (needsHuman(q.label, q.type) || q.required);
         return { ...q, answer: a?.value, source: a?.source, needsHuman: human };
       });

@@ -22,8 +22,15 @@ export default async function AnswersPage({ searchParams }: { searchParams: Prom
         <section className="panel grid gap-4 p-5 md:grid-cols-2">
           {FIELDS.map(([k, label]) => <label key={k} className="text-sm"><span className="text-muted">{label}</span><input name={k} defaultValue={s[k] as string} className="field mt-1" /></label>)}
         </section>
-        <section className="panel grid gap-4 p-5 md:grid-cols-3">
-          {([["needsSponsorship", "Do you need visa sponsorship?"], ["willingToRelocate", "Willing to relocate?"], ["openToOnsite", "Open to on-site or hybrid?"]] as [keyof Settings, string][]).map(([k, label]) => (
+        <section className="panel space-y-4 p-5">
+          <div><h2 className="font-medium">Work authorization</h2><p className="mt-1 text-xs text-muted">Sponsorship questions are answered per job: "No" when the job is in a country listed here, your answer below everywhere else, and left for you when the country is unclear (for example, fully remote roles).</p></div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="text-sm"><span className="text-muted">Countries where you can work without sponsorship</span><input name="workAuthorizedCountries" defaultValue={s.workAuthorizedCountries} placeholder="India, United Kingdom" className="field mt-1" /></label>
+            <label className="text-sm"><span className="text-muted">Outside those countries, do you need sponsorship?</span><select name="sponsorshipElsewhere" defaultValue={s.sponsorshipElsewhere} className="field mt-1"><option>Yes</option><option>No</option></select></label>
+          </div>
+        </section>
+        <section className="panel grid gap-4 p-5 md:grid-cols-2">
+          {([["willingToRelocate", "Willing to relocate?"], ["openToOnsite", "Open to on-site or hybrid?"]] as [keyof Settings, string][]).map(([k, label]) => (
             <label key={k} className="text-sm"><span className="text-muted">{label}</span><select name={k} defaultValue={s[k] as string} className="field mt-1"><option>Yes</option><option>No</option></select></label>
           ))}
         </section>

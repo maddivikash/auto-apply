@@ -55,6 +55,10 @@ export const Settings = z.object({
   github: z.string().default(""),
   website: z.string().default(""),
   heardFrom: z.string().default("LinkedIn"),
+  /** Countries where the user can work without sponsorship, comma separated. Sponsorship answers depend on the job's country. */
+  workAuthorizedCountries: z.string().default(""),
+  /** Answer for jobs outside those countries. */
+  sponsorshipElsewhere: z.enum(["Yes", "No"]).default("Yes"),
   needsSponsorship: z.enum(["Yes", "No"]).default("No"),
   willingToRelocate: z.enum(["Yes", "No"]).default("Yes"),
   openToOnsite: z.enum(["Yes", "No"]).default("Yes"),

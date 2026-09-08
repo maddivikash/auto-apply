@@ -60,7 +60,7 @@ async function downloadResume(app: Application): Promise<string> {
   return p;
 }
 
-const answerOf = (_app: Application, q: QuestionState) => q.answer || answerFor(SETTINGS, q.label, q.options, q.type)?.value;
+const answerOf = (app: Application, q: QuestionState) => q.answer || answerFor(SETTINGS, q.label, q.options, q.type, { jobLocation: app.job?.location })?.value;
 
 // ---- Greenhouse ----------------------------------------------------------
 
@@ -163,7 +163,7 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
   for (const f of fields) {
     if (!f.label) continue;
     const stored = app.questions.find((q) => q.label.toLowerCase() === f.label.toLowerCase());
-    const value = stored?.answer || answerFor(SETTINGS, f.label, f.options, f.type)?.value;
+    const value = stored?.answer || answerFor(SETTINGS, f.label, f.options, f.type, { jobLocation: app.job?.location })?.value;
     if (!value) { if (f.type !== "checkbox" && f.type !== "radio") unanswered.push({ label: f.label, required: f.required, type: f.type, options: f.options }); continue; }
     const el = page.locator(f.selector).first();
     try {

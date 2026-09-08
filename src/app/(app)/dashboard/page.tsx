@@ -27,13 +27,20 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </dl>
       </section>
 
-      <section className="panel p-5">
-        <form action={createApplicationAction} className="flex flex-col gap-3 md:flex-row">
-          <LinkInput disabled={!profile} />
-          {profile ? <SubmitButton pending="Starting...">Prepare application</SubmitButton> : <button className="btn-primary" disabled>Prepare application</button>}
-        </form>
-        <p className="mt-2 text-xs text-muted">{profile ? "Greenhouse, Lever and Ashby links work. You'll get an email when the resume is ready." : "Upload your resume on the Profile page first."}{error === "url" && <span className="text-danger"> That was not a URL.</span>}</p>
-      </section>
+      {profile ? (
+        <section className="panel p-5">
+          <form action={createApplicationAction} className="flex flex-col gap-3 md:flex-row">
+            <LinkInput />
+            <SubmitButton pending="Starting...">Prepare application</SubmitButton>
+          </form>
+          <p className="mt-2 text-xs text-muted">Greenhouse, Lever and Ashby links work. You get an email when the resume is ready.{error === "url" && <span className="text-danger"> That was not a URL.</span>}</p>
+        </section>
+      ) : (
+        <section className="panel flex flex-col items-start gap-3 p-6 md:flex-row md:items-center md:justify-between">
+          <div><h2 className="font-medium">First, build your profile</h2><p className="mt-1 text-sm text-muted">Upload your current resume once. Every tailored resume is written only from what it contains.</p></div>
+          <Link href="/profile#import" className="btn-primary">Upload resume</Link>
+        </section>
+      )}
 
       <section>
         {apps.length === 0 ? (

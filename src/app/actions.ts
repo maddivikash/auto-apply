@@ -9,6 +9,7 @@ import { getApplication, saveApplication, deleteApplication, saveProfile, getSet
 import { Profile, Settings } from "@/lib/profile/types";
 import { processApplication } from "@/lib/apply/pipeline";
 import { pdfToText, textToProfile } from "@/lib/profile/import";
+import { countryOf } from "@/lib/defaults";
 
 export async function createApplicationAction(formData: FormData) {
   const userId = await requireUserId();
@@ -92,8 +93,15 @@ export async function importResumeAction(formData: FormData) {
   // Seed the answers page from the profile so the user only fills gaps.
   const current = Settings.parse((await getSettings(userId)) ?? {});
   const [first, ...rest] = profile.name.split(" ");
-  await saveSettings(userId, { ...current, firstName: current.firstName || first, lastName: current.lastName || rest.join(" "), email: current.email || profile.email || email || "", phone: current.phone || profile.phone, location: current.location || profile.location, linkedin: current.linkedin || (profile.linkedin ? `https://${profile.linkedin.replace(/^https?:\/\//, "")}` : ""), github: current.github || (profile.github ? `https://${profile.github.replace(/^https?:\/\//, "")}` : ""), website: current.website || (profile.website ? `https://${profile.website.replace(/^https?:\/\//, "")}` : ""), currentCompany: current.currentCompany || profile.roles[0]?.company || "", currentTitle: current.currentTitle || profile.roles[0]?.title || "", notifyEmail: current.notifyEmail || email || "" });
+  await saveSettings(userId, { ...current, firstName: current.firstName || first, lastName: current.lastName || rest.join(" "), email: current.email || profile.email || email || "", phone: current.phone || profile.phone, location: current.location || profile.location, linkedin: current.linkedin || (profile.linkedin ? `https://${profile.linkedin.replace(/^https?:\/\//, "")}` : ""), github: current.github || (profile.github ? `https://${profile.github.replace(/^https?:\/\//, "")}` : ""), website: current.website || (profile.website ? `https://${profile.website.replace(/^https?:\/\//, "")}` : ""), currentCompany: current.currentCompany || profile.roles[0]?.company || "", currentTitle: current.currentTitle || profile.roles[0]?.title || "", workAuthorizedCountries: current.workAuthorizedCountries || countryOf(profile.location) || "", yearsExperience: current.yearsExperience || yearsFrom(profile.roles.map((r) => r.start)), notifyEmail: current.notifyEmail || email || "" });
   redirect("/profile?imported=1");
+}
+
+/** Years since the earliest role started, as a whole number string. Empty when no year is found. */
+function yearsFrom(starts: string[]): string {
+  const years = starts.map((d) => Number((d.match(/(19|20)\d{2}/) || [])[0])).filter(Boolean);
+  if (!years.length) return "";
+  return String(Math.max(0, new Date().getFullYear() - Math.min(...years)));
 }
 
 export async function saveProfileAction(formData: FormData) {

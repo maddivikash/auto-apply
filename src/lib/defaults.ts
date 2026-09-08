@@ -5,7 +5,30 @@
 import type { Settings } from "./profile/types";
 
 export type Answer = { value: string; source: "profile" | "rule" };
-type Rule = { test: RegExp; answer: (s: Settings, opts?: string[]) => string | undefined };
+export type AnswerContext = { jobLocation?: string };
+type Rule = { test: RegExp; answer: (s: Settings, opts?: string[], ctx?: AnswerContext) => string | undefined };
+
+const COUNTRY_HINTS: [RegExp, string][] = [
+  [/\b(india|bengaluru|bangalore|hyderabad|gurugram|gurgaon|mumbai|pune|chennai|delhi|noida|kolkata)\b/i, "India"],
+  [/\b(united states|usa|u\.s\.|new york|san francisco|seattle|austin|boston|chicago|los angeles|denver|atlanta)\b|,\s*[A-Z]{2}(\s*\(|$|\s*\||\s*;)/, "United States"],
+  [/\b(united kingdom|uk|london|manchester|edinburgh)\b/i, "United Kingdom"],
+  [/\b(ireland|dublin)\b/i, "Ireland"], [/\b(netherlands|amsterdam)\b/i, "Netherlands"], [/\b(germany|berlin|munich)\b/i, "Germany"],
+  [/\b(france|paris)\b/i, "France"], [/\b(canada|toronto|vancouver|montreal)\b/i, "Canada"], [/\b(singapore)\b/i, "Singapore"],
+  [/\b(australia|sydney|melbourne)\b/i, "Australia"], [/\b(uae|dubai|abu dhabi)\b/i, "United Arab Emirates"], [/\b(japan|tokyo)\b/i, "Japan"]
+];
+export function countryOf(location?: string): string | undefined {
+  if (!location) return undefined;
+  for (const [re, c] of COUNTRY_HINTS) if (re.test(location)) return c;
+  return undefined;
+}
+/** "No" when the job is in a country the user can already work in, the user's abroad default otherwise, undefined when unknown. */
+export function sponsorshipAnswer(s: Settings, jobLocation?: string): "Yes" | "No" | undefined {
+  const authorized = s.workAuthorizedCountries.split(",").map((c) => c.trim().toLowerCase()).filter(Boolean);
+  const country = countryOf(jobLocation);
+  if (!authorized.length) return s.needsSponsorship;
+  if (!country) return /remote/i.test(jobLocation || "") ? undefined : undefined;
+  return authorized.includes(country.toLowerCase()) ? "No" : s.sponsorshipElsewhere;
+}
 
 const pick = (opts: string[] | undefined, ...prefer: RegExp[]) => {
   if (!opts?.length) return undefined;
@@ -27,7 +50,7 @@ const RULES: Rule[] = [
   { test: /linkedin/i, answer: (s) => or(s.linkedin) },
   { test: /github/i, answer: (s) => or(s.github) },
   { test: /portfolio|personal (web)?site|^website$/i, answer: (s) => or(s.website) },
-  { test: /sponsor(ship)?|visa|work (permit|authori[sz]ation)|immigration/i, answer: (s, o) => o?.length ? pick(o, s.needsSponsorship === "No" ? /^no\b/i : /^yes\b/i) : s.needsSponsorship },
+  { test: /sponsor(ship)?|visa|work (permit|authori[sz]ation)|immigration/i, answer: (s, o, ctx) => { const a = sponsorshipAnswer(s, ctx?.jobLocation); if (!a) return undefined; return o?.length ? pick(o, a === "No" ? /^no\b/i : /^yes\b/i) : a; } },
   { test: /relocat/i, answer: (s, o) => o?.length ? pick(o, s.willingToRelocate === "Yes" ? /willing to relocate/i : /not willing|do not/i, s.willingToRelocate === "Yes" ? /^yes\b/i : /^no\b/i) : s.willingToRelocate },
   { test: /open to (working )?(in[- ]?person|hybrid|in one of our offices)|onsite|on-site/i, answer: (s, o) => pick(o, s.openToOnsite === "Yes" ? /^yes\b/i : /^no\b/i) },
   { test: /remote/i, answer: (_s, o) => pick(o, /^yes\b/i, /open|either|flexible/i) },
@@ -44,11 +67,11 @@ const RULES: Rule[] = [
   { test: /gender|race|ethnicity|veteran|disability|hispanic|pronoun/i, answer: (_s, o) => pick(o, /decline|prefer not|do not wish|don't wish/i) }
 ];
 
-export function answerFor(settings: Settings, label: string, options?: string[], type?: string): Answer | undefined {
+export function answerFor(settings: Settings, label: string, options?: string[], type?: string, ctx?: AnswerContext): Answer | undefined {
   if (type === "file") return undefined;
   for (const r of RULES) {
     if (r.test.test(label)) {
-      const v = r.answer(settings, options);
+      const v = r.answer(settings, options, ctx);
       return v ? { value: v, source: "rule" } : undefined;
     }
   }
