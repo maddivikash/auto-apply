@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "runner": "bash -c \"set -a; . ./.env.local; set +a; npx tsx scripts/runner.ts\"",
+    "generate": "bash -c \"set -a; . ./.env.local; set +a; npx tsx scripts/generate.ts\""
   },
   "dependencies": {
     "@sparticuz/chromium": "^152.0.0",

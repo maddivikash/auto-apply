@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Auto Apply
 
-## Getting Started
+Paste a Greenhouse, Lever or Ashby job link. The app reads the posting, writes a one-page resume tailored to it from a fixed master profile, emails you the PDF with the questions it cannot answer, and a local runner fills the form. Nothing is submitted until you press Submit.
 
-First, run the development server:
+## Flow
+
+1. Paste the link at the web app. Unsupported links get a "not possible" email.
+2. Resume is tailored with Workers AI (gpt-oss-120b writes, every number is checked against the master profile), rendered with Chromium, stored on Vercel Blob.
+3. You get an email: PDF attached, open questions listed, link to the review page.
+4. Answer the questions, press **Approve for filling**.
+5. The runner on your Mac opens the real form in a visible Chromium window, fills it, attaches the PDF, screenshots it and reports "filled". The tab stays open.
+6. You press **Submit application** in the app. The runner clicks submit and confirms.
+
+## Run
+
+Web app is deployed on Vercel. For the runner:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd ~/Projects/auto-apply
+npm run runner        # reads APP_URL and RUNNER_TOKEN from .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Generate a resume from the terminal without the app:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npx tsx scripts/generate.ts <job-url> --out samples
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Layout
 
-## Learn More
+```
+src/lib/profile/master.ts   master profile, the only source of facts
+src/lib/jobs/fetch.ts       Greenhouse, Lever, Ashby public APIs
+src/lib/resume/             schema, tailoring prompt and validation, HTML/PDF renderer with fit-to-page
+src/lib/defaults.ts         known answers and label rules for form questions
+src/lib/apply/pipeline.ts   link -> job -> resume -> PDF -> email
+src/lib/store.ts            JSON documents and files on Vercel Blob (local .data/ fallback)
+src/app/                    login, list, review page, runner API
+scripts/runner.ts           local Playwright runner
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Env
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`CF_ACCOUNT_ID`, `CF_API_TOKEN` (Workers AI), `RESEND_API_KEY`, `EMAIL_TO`, `APP_URL`, `APP_PASSWORD`, `APP_SECRET`, `RUNNER_TOKEN`, `BLOB_READ_WRITE_TOKEN` (added by the Blob store).
