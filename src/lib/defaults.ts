@@ -1,82 +1,62 @@
 /**
- * Answers the app already knows. Anything a form asks that is not covered here
- * goes into the email as an open question for Vikash to answer.
+ * Answers the app already knows for a user, derived from their Settings.
+ * Anything a form asks that is not covered becomes an open question in the email.
  */
-import { MASTER } from "./profile/master";
+import type { Settings } from "./profile/types";
 
 export type Answer = { value: string; source: "profile" | "rule" };
-
-export const KNOWN = {
-  firstName: "Vikash",
-  lastName: "Maddi",
-  fullName: MASTER.name,
-  email: MASTER.email,
-  phone: "+91 8374501729",
-  phoneNational: "8374501729",
-  phoneCountry: "India",
-  location: "Gurugram, Haryana, India",
-  linkedin: `https://www.${MASTER.linkedin}`,
-  github: `https://${MASTER.github}`,
-  website: `https://${MASTER.website}`,
-  heardFrom: "LinkedIn",
-  sponsorship: "No",
-  relocate: "Yes",
-  authorizedIndia: "Yes",
-  noticePeriod: "60 days, negotiable",
-  currentCompany: "VMock",
-  currentTitle: "Full Stack Developer",
-  yearsExperience: "4"
-};
-
-type Rule = { test: RegExp; answer: (opts?: string[]) => string | undefined };
+type Rule = { test: RegExp; answer: (s: Settings, opts?: string[]) => string | undefined };
 
 const pick = (opts: string[] | undefined, ...prefer: RegExp[]) => {
   if (!opts?.length) return undefined;
   for (const re of prefer) { const hit = opts.find((o) => re.test(o)); if (hit) return hit; }
   return undefined;
 };
+const or = (v: string | undefined, fallback?: string) => (v && v.trim()) || fallback;
+const links = (s: Settings) => [s.website, s.linkedin, s.github].filter(Boolean).join(" | ");
 
 /** Ordered: first matching rule wins. Each rule may decline by returning undefined. */
 const RULES: Rule[] = [
-  { test: /^first\s*name/i, answer: () => KNOWN.firstName },
-  { test: /^last\s*name|surname|family name/i, answer: () => KNOWN.lastName },
-  { test: /^(full |legal )?name$/i, answer: () => KNOWN.fullName },
-  { test: /preferred name/i, answer: () => KNOWN.firstName },
-  { test: /e-?mail/i, answer: () => KNOWN.email },
-  { test: /phone|mobile/i, answer: () => KNOWN.phone },
-  { test: /include your linkedin.*(website|blog)|linkedin.*personal website|website or blog/i, answer: () => `${KNOWN.linkedin} | ${KNOWN.website} | ${KNOWN.github}` },
-  { test: /linkedin/i, answer: () => KNOWN.linkedin },
-  { test: /github/i, answer: () => KNOWN.github },
-  { test: /portfolio|personal (web)?site|^website$/i, answer: () => KNOWN.website },
-  { test: /sponsor(ship)?|visa|work (permit|authori[sz]ation)|immigration/i, answer: (o) => pick(o, /^no\b/i, /not require|do not/i) ?? (o?.length ? undefined : KNOWN.sponsorship) },
-  { test: /relocat/i, answer: (o) => pick(o, /willing to relocate/i, /^yes\b/i) ?? (o?.length ? undefined : KNOWN.relocate) },
-  { test: /open to (working )?(in[- ]?person|hybrid|in one of our offices)|onsite|on-site/i, answer: (o) => pick(o, /^yes\b/i) },
-  { test: /^(current )?location( \(city\))?$|^city$|where (are you|do you) (currently )?(based|live|reside)|current(ly)? (city|located|residing)/i, answer: () => KNOWN.location },
-  { test: /how did you (hear|find|learn)|referral source|^source$/i, answer: (o) => pick(o, /linkedin/i) ?? (o?.length ? undefined : KNOWN.heardFrom) },
-  { test: /remote/i, answer: (o) => pick(o, /^yes\b/i, /open|either|flexible/i) },
-  { test: /privacy (policy|notice)|acknowledge|consent|agree to (the )?(terms|processing)|gdpr/i, answer: (o) => o?.[0] },
-  { test: /interviewed (at|with|for).*(before|last|previously)|previously (applied|interviewed)|worked (at|for) .* before|former employee/i, answer: (o) => pick(o, /^no\b/i) },
-  { test: /notice period|earliest.*start|start date|availability|when (can|could|would) you (start|join)/i, answer: () => KNOWN.noticePeriod },
-  { test: /years? of (professional |relevant |work )?experience/i, answer: (o) => pick(o, /^4\b|3-5|4-6|3\s*(-|to)\s*5/) ?? (o?.length ? undefined : KNOWN.yearsExperience) },
-  { test: /current (employer|company)/i, answer: () => KNOWN.currentCompany },
-  { test: /current (title|role|position)/i, answer: () => KNOWN.currentTitle },
-  { test: /18 years|legal age|at least 18/i, answer: (o) => pick(o, /^yes\b/i) },
-  { test: /gender|race|ethnicity|veteran|disability|hispanic|pronoun/i, answer: (o) => pick(o, /decline|prefer not|do not wish|don't wish/i) }
+  { test: /^first\s*name/i, answer: (s) => or(s.firstName) },
+  { test: /^last\s*name|surname|family name/i, answer: (s) => or(s.lastName) },
+  { test: /^(full |legal )?name$/i, answer: (s) => or(`${s.firstName} ${s.lastName}`.trim()) },
+  { test: /preferred name/i, answer: (s) => or(s.firstName) },
+  { test: /e-?mail/i, answer: (s) => or(s.email) },
+  { test: /phone|mobile/i, answer: (s) => or(s.phone) },
+  { test: /include your linkedin.*(website|blog)|linkedin.*personal website|website or blog/i, answer: (s) => or(links(s)) },
+  { test: /linkedin/i, answer: (s) => or(s.linkedin) },
+  { test: /github/i, answer: (s) => or(s.github) },
+  { test: /portfolio|personal (web)?site|^website$/i, answer: (s) => or(s.website) },
+  { test: /sponsor(ship)?|visa|work (permit|authori[sz]ation)|immigration/i, answer: (s, o) => o?.length ? pick(o, s.needsSponsorship === "No" ? /^no\b/i : /^yes\b/i) : s.needsSponsorship },
+  { test: /relocat/i, answer: (s, o) => o?.length ? pick(o, s.willingToRelocate === "Yes" ? /willing to relocate/i : /not willing|do not/i, s.willingToRelocate === "Yes" ? /^yes\b/i : /^no\b/i) : s.willingToRelocate },
+  { test: /open to (working )?(in[- ]?person|hybrid|in one of our offices)|onsite|on-site/i, answer: (s, o) => pick(o, s.openToOnsite === "Yes" ? /^yes\b/i : /^no\b/i) },
+  { test: /remote/i, answer: (_s, o) => pick(o, /^yes\b/i, /open|either|flexible/i) },
+  { test: /^(current )?location( \(city\))?$|^city$|where (are you|do you) (currently )?(based|live|reside)|current(ly)? (city|located|residing)/i, answer: (s) => or(s.location) },
+  { test: /how did you (hear|find|learn)|referral source|^source$/i, answer: (s, o) => o?.length ? pick(o, new RegExp(s.heardFrom || "linkedin", "i")) : or(s.heardFrom, "LinkedIn") },
+  { test: /privacy (policy|notice)|acknowledge|consent|agree to (the )?(terms|processing)|gdpr/i, answer: (_s, o) => o?.[0] },
+  { test: /interviewed (at|with|for).*(before|last|previously)|previously (applied|interviewed)|worked (at|for) .* before|former employee/i, answer: (_s, o) => pick(o, /^no\b/i) },
+  { test: /notice period|earliest.*start|start date|availability|when (can|could|would) you (start|join)/i, answer: (s) => or(s.noticePeriod) },
+  { test: /years? of (professional |relevant |work )?experience/i, answer: (s, o) => o?.length ? (s.yearsExperience ? pick(o, new RegExp(`^${s.yearsExperience}\\b`)) : undefined) : or(s.yearsExperience) },
+  { test: /current (employer|company)/i, answer: (s) => or(s.currentCompany) },
+  { test: /current (title|role|position)/i, answer: (s) => or(s.currentTitle) },
+  { test: /salary|compensation expect/i, answer: (s) => or(s.salaryExpectation) },
+  { test: /18 years|legal age|at least 18/i, answer: (_s, o) => pick(o, /^yes\b/i) },
+  { test: /gender|race|ethnicity|veteran|disability|hispanic|pronoun/i, answer: (_s, o) => pick(o, /decline|prefer not|do not wish|don't wish/i) }
 ];
 
-export function answerFor(label: string, options?: string[], type?: string): Answer | undefined {
+export function answerFor(settings: Settings, label: string, options?: string[], type?: string): Answer | undefined {
   if (type === "file") return undefined;
   for (const r of RULES) {
     if (r.test.test(label)) {
-      const v = r.answer(options);
+      const v = r.answer(settings, options);
       return v ? { value: v, source: "rule" } : undefined;
     }
   }
   return undefined;
 }
 
-/** Free-text questions that need a human: cover letter, why us, salary, deadlines, anything essay-like. */
+/** Free-text questions that need a human: cover letter, why us, deadlines, anything essay-like. */
 export function needsHuman(label: string, type?: string): boolean {
   if (type === "textarea") return true;
-  return /why (do you want|are you interested|us|this role|company)|cover letter|salary|compensation|expect(ed|ation)|deadline|timeline|tell us|describe|explain|anything else|additional information|personal preferences|address/i.test(label);
+  return /why (do you want|are you interested|us|this role|company)|cover letter|deadline|timeline|tell us|describe|explain|anything else|additional information|personal preferences|address/i.test(label);
 }

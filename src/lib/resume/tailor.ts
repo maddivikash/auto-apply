@@ -1,4 +1,4 @@
-import { MASTER, bankNumbers } from "../profile/master";
+import { profileNumbers, type Profile } from "../profile/types";
 import type { JobPosting } from "../jobs/fetch";
 import { chatJson } from "../llm/workersai";
 import { TailoredResume } from "./schema";
@@ -17,7 +17,7 @@ Writing rules, all mandatory:
 - Order skills groups by relevance to the JD. Drop skill groups and items the JD would not care about. Do not add skills that are not in the master.
 - Do not pad a bullet with a purpose clause that is not in the master, such as "ensuring reliable processing", "enabling safe actions", "improving user experience", "delivering value". End the bullet where the fact ends.
 - Do not merge facts from two different master bullets into one sentence unless both facts remain exactly true of the same piece of work.
-- Budget, strictly: VMock has 3 or 4 groups and 8 to 9 bullets in total. The internship has 1 bullet. Projects: pick 1 project with 2 bullets, or 2 projects with 1 bullet each. 5 or 6 skill groups. Exactly 2 achievements. Coursework only if the JD asks for fundamentals or the role is junior; otherwise omit it.
+- Budget, strictly: the most recent role has 3 or 4 groups and 8 to 9 bullets in total. Each earlier role has 1 or 2 bullets in a single group whose heading is the job title. Projects: pick 1 project with 2 bullets, or 2 projects with 1 bullet each. 5 or 6 skill groups. Exactly 2 achievements. Coursework only if the JD asks for fundamentals or the role is junior; otherwise omit it.
 `;
 
 export type TailorResult = {
@@ -27,11 +27,11 @@ export type TailorResult = {
   warnings: string[];
 };
 
-export async function tailorResume(job: JobPosting): Promise<TailorResult> {
+export async function tailorResume(job: JobPosting, profile: Profile): Promise<TailorResult> {
   const system = `You tailor one candidate's resume to one job description. You are given the candidate's complete master profile as JSON and the job. You select and regroup the most relevant material and return JSON only, matching the schema exactly. ${STYLE_RULES}`;
 
   const user = `MASTER PROFILE (the only source of facts):
-${JSON.stringify({ roles: MASTER.roles, projects: MASTER.projects, skills: MASTER.skills, coursework: MASTER.coursework, achievements: MASTER.achievements }, null, 1)}
+${JSON.stringify({ roles: profile.roles, projects: profile.projects, skills: profile.skills, coursework: profile.coursework, achievements: profile.achievements }, null, 1)}
 
 JOB:
 Company: ${job.company}
@@ -46,10 +46,10 @@ Return this JSON shape:
   "jdSummary": "two sentences on what this job really wants",
   "fitNotes": ["3 to 5 short notes on which master facts map to which JD requirements"],
   "roles": [
-    { "company": "VMock", "title": "Full Stack Developer", "start": "August 2022", "end": "Present",
+    { "company": "<most recent company, exactly as in the profile>", "title": "<title>", "start": "<start>", "end": "<end>",
       "groups": [ { "heading": "...", "bullets": ["...", "..."] } ] },
-    { "company": "Karomi Technologies", "title": "Deep Learning Intern", "start": "May 2021", "end": "August 2021",
-      "groups": [ { "heading": "Deep Learning Intern", "bullets": ["..."] } ] }
+    { "company": "<earlier company>", "title": "<title>", "start": "<start>", "end": "<end>",
+      "groups": [ { "heading": "<title>", "bullets": ["..."] } ] }
   ],
   "projects": [ { "name": "...", "stack": "...", "year": "2026", "bullets": ["..."] } ],
   "skills": [ { "label": "Languages", "items": ["..."] } ],
@@ -75,7 +75,7 @@ Return this JSON shape:
     if (!parsed.success) throw new Error(`Resume JSON still invalid after repair: ${parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`);
   }
   const resume = parsed.data;
-  const warnings = validate(resume);
+  const warnings = validate(resume, profile);
   return { resume, jdSummary, fitNotes, warnings };
 }
 
@@ -98,10 +98,10 @@ function normalize(r: any): any {
 }
 
 /** Deterministic checks the model cannot talk its way past. */
-export function validate(resume: TailoredResume): string[] {
+export function validate(resume: TailoredResume, profile: Profile): string[] {
   const warnings: string[] = [];
-  const allowed = bankNumbers();
-  const bankText = JSON.stringify(MASTER).toLowerCase();
+  const allowed = profileNumbers(profile);
+  const bankText = JSON.stringify(profile).toLowerCase();
   const bullets: string[] = [];
   for (const r of resume.roles) for (const g of r.groups) bullets.push(...g.bullets);
   for (const p of resume.projects) bullets.push(...p.bullets);

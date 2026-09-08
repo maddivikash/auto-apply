@@ -1,12 +1,45 @@
 @import "tailwindcss";
 
-/* Single light theme. The review page shows a PDF and form fields; dark mode adds nothing here. */
 :root {
   color-scheme: light;
+  --paper: #f3f4f1;
+  --card: #ffffff;
+  --ink: #171a21;
+  --muted: #6b7280;
+  --line: #dde1e6;
+  --go: #166534;
+  --go-soft: #e6f4ea;
+  --signal: #b45309;
+  --signal-soft: #fdf2e3;
+  --danger: #b91c1c;
+  --danger-soft: #fde8e8;
+  --tint: #e9ecf3;
 }
 
-body {
-  background: #fafafa;
-  color: #171717;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+@theme inline {
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-go: var(--go);
+  --color-go-soft: var(--go-soft);
+  --color-signal: var(--signal);
+  --color-signal-soft: var(--signal-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-tint: var(--tint);
+  --font-sans: var(--font-plex-sans), system-ui, sans-serif;
+  --font-serif: var(--font-plex-serif), Georgia, serif;
 }
+
+body { background: var(--paper); color: var(--ink); font-family: var(--font-sans); }
+.serif { font-family: var(--font-serif); }
+input, select, textarea { background: #fff; }
+.field { @apply w-full rounded-md border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/10; }
+.btn-primary, .btn-go, .btn-ghost { @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40; }
+.btn-primary { @apply bg-ink text-white hover:bg-black; }
+.btn-go { @apply bg-go text-white hover:bg-emerald-900; }
+.btn-ghost { @apply border border-line bg-white text-ink hover:bg-tint; }
+.panel { @apply rounded-xl border border-line bg-card; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

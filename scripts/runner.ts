@@ -9,8 +9,11 @@ import { chromium, type Browser, type Page } from "playwright";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { KNOWN, answerFor } from "../src/lib/defaults";
+import { answerFor } from "../src/lib/defaults";
 import type { Application, QuestionState } from "../src/lib/store";
+import type { Settings } from "../src/lib/profile/types";
+
+let SETTINGS: Settings;
 
 const APP_URL = (process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
 const TOKEN = process.env.RUNNER_TOKEN;
@@ -51,13 +54,13 @@ async function getBrowser() {
 
 async function downloadResume(app: Application): Promise<string> {
   const dir = join(tmpdir(), "auto-apply"); mkdirSync(dir, { recursive: true });
-  const p = join(dir, `Vikash_Maddi_${app.job!.company}.pdf`);
-  const r = await fetch(app.resumePdfUrl!);
+  const p = join(dir, `Resume_${app.job!.company}.pdf`);
+  const r = await fetch(`${APP_URL}/api/applications/${app.id}/pdf`, { headers: { Authorization: `Bearer ${TOKEN}` } });
   writeFileSync(p, Buffer.from(await r.arrayBuffer()));
   return p;
 }
 
-const answerOf = (app: Application, q: QuestionState) => q.answer || answerFor(q.label, q.options, q.type)?.value;
+const answerOf = (_app: Application, q: QuestionState) => q.answer || answerFor(SETTINGS, q.label, q.options, q.type)?.value;
 
 // ---- Greenhouse ----------------------------------------------------------
 
@@ -75,17 +78,19 @@ async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
     await opts.nth(i).click(); await page.waitForTimeout(300); return true;
   };
 
-  await type("#first_name", KNOWN.firstName);
-  await type("#last_name", KNOWN.lastName);
-  await type("#email", KNOWN.email);
-  if (await page.locator("#country").count()) { (await pickOption("#country", "India", /^India\s*\+?\s*91$/)) || notes.push("Could not pick phone country"); }
-  await type("#phone", KNOWN.phoneNational);
-  if (await page.locator("#candidate-location").count()) {
-    await type("#candidate-location", KNOWN.location.split(",")[0]);
+  await type("#first_name", SETTINGS.firstName);
+  await type("#last_name", SETTINGS.lastName);
+  await type("#email", SETTINGS.email);
+  const phoneDigits = SETTINGS.phone.replace(/[^\d+]/g, "");
+  if (await page.locator("#country").count() && SETTINGS.phoneCountry) { (await pickOption("#country", SETTINGS.phoneCountry, new RegExp(`^${SETTINGS.phoneCountry}\\b`, "i"))) || notes.push("Could not pick phone country"); }
+  await type("#phone", phoneDigits.replace(/^\+\d{1,3}/, ""));
+  if (await page.locator("#candidate-location").count() && SETTINGS.location) {
+    const city = SETTINGS.location.split(",")[0].trim();
+    await type("#candidate-location", city);
     await page.waitForTimeout(1800);
     const opts = page.getByRole("option"); const texts = await opts.allInnerTexts();
-    const i = texts.findIndex((t) => /Gurugram|Gurgaon/i.test(t) && /India/i.test(t));
-    if (i >= 0) await opts.nth(i).click(); else notes.push("Location autocomplete had no Gurugram option");
+    const i = texts.findIndex((t) => t.toLowerCase().includes(city.toLowerCase()));
+    if (i >= 0) await opts.nth(i).click(); else notes.push(`Location autocomplete had no match for ${city}`);
   }
   const resumePath = await downloadResume(app);
   await page.locator("input#resume").setInputFiles(resumePath);
@@ -158,7 +163,7 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
   for (const f of fields) {
     if (!f.label) continue;
     const stored = app.questions.find((q) => q.label.toLowerCase() === f.label.toLowerCase());
-    const value = stored?.answer || answerFor(f.label, f.options, f.type)?.value;
+    const value = stored?.answer || answerFor(SETTINGS, f.label, f.options, f.type)?.value;
     if (!value) { if (f.type !== "checkbox" && f.type !== "radio") unanswered.push({ label: f.label, required: f.required, type: f.type, options: f.options }); continue; }
     const el = page.locator(f.selector).first();
     try {
@@ -231,7 +236,8 @@ async function loop() {
   log(`runner online, polling ${APP_URL}`);
   for (;;) {
     try {
-      const { work } = (await api("/next")) as { work: Application[] };
+      const { work, settings } = (await api("/next")) as { work: Application[]; settings: Settings };
+      SETTINGS = settings;
       for (const app of work) {
         if (inFlight.has(app.id)) continue;
         inFlight.add(app.id);

@@ -1,14 +1,19 @@
 import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
+import { IBM_Plex_Sans, IBM_Plex_Serif } from "next/font/google";
 import "./globals.css";
 
-export const metadata: Metadata = { title: "Auto Apply", description: "Tailored resumes and reviewed applications for Greenhouse, Lever and Ashby jobs" };
+const sans = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-plex-sans" });
+const serif = IBM_Plex_Serif({ subsets: ["latin"], weight: ["400", "500"], style: ["normal", "italic"], variable: "--font-plex-serif" });
+
+export const metadata: Metadata = { title: "Auto Apply", description: "Paste a job link. Get a tailored resume, a filled form, and the final say." };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-neutral-50 text-neutral-900 antialiased">
-        <div className="mx-auto max-w-4xl px-5 py-8">{children}</div>
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en" className={`${sans.variable} ${serif.variable}`}>
+        <body className="min-h-screen antialiased">{children}</body>
+      </html>
+    </ClerkProvider>
   );
 }

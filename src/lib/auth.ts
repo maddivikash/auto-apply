@@ -1,35 +1,28 @@
-import { cookies, headers } from "next/headers";
-import { createHash } from "node:crypto";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
+import { userForRunnerToken } from "./store";
 
-const COOKIE = "aa_session";
-const token = () => createHash("sha256").update(`${process.env.APP_PASSWORD || "dev"}:${process.env.APP_SECRET || "salt"}`).digest("hex");
-
-export async function isLoggedIn(): Promise<boolean> {
-  const c = await cookies();
-  return c.get(COOKIE)?.value === token();
+/** Signed-in user id, or null. */
+export async function userId(): Promise<string | null> {
+  const { userId } = await auth();
+  return userId ?? null;
 }
 
-export async function loginWithPassword(password: string): Promise<boolean> {
-  if (!process.env.APP_PASSWORD) return true; // local dev without a password
-  if (password !== process.env.APP_PASSWORD) return false;
-  const c = await cookies();
-  c.set(COOKIE, token(), { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 60 * 60 * 24 * 90, path: "/" });
-  return true;
+export async function requireUserId(): Promise<string> {
+  const id = await userId();
+  if (!id) throw new Error("Not signed in");
+  return id;
 }
 
-export async function logout() {
-  const c = await cookies();
-  c.delete(COOKIE);
+export async function userEmail(): Promise<string | null> {
+  const u = await currentUser();
+  return u?.primaryEmailAddress?.emailAddress ?? u?.emailAddresses?.[0]?.emailAddress ?? null;
 }
 
-/** Runner and other machine callers use a bearer token instead of the cookie. */
-export async function isRunner(): Promise<boolean> {
+/** The runner authenticates with a per-user bearer token instead of a session. */
+export async function runnerUserId(): Promise<string | null> {
   const h = await headers();
-  const auth = h.get("authorization") || "";
-  return !!process.env.RUNNER_TOKEN && auth === `Bearer ${process.env.RUNNER_TOKEN}`;
-}
-
-export async function authorized(): Promise<boolean> {
-  if (!process.env.APP_PASSWORD) return true;
-  return (await isLoggedIn()) || (await isRunner());
+  const m = /^Bearer\s+([A-Za-z0-9_-]{20,})$/.exec(h.get("authorization") || "");
+  if (!m) return null;
+  return userForRunnerToken(m[1]);
 }

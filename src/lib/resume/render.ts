@@ -1,4 +1,5 @@
 import { MASTER } from "../profile/master";
+import type { Profile } from "../profile/types";
 import type { TailoredResume } from "./schema";
 
 const FONT_BASE = "https://cdn.jsdelivr.net/npm/computer-modern@0.1.3/fonts";
@@ -15,8 +16,8 @@ const icon = {
   github: `<svg viewBox="0 0 24 24" width="10" height="10"><path fill="currentColor" d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3z"/></svg>`
 };
 
-export function resumeHtml(r: TailoredResume, scale = 1): string {
-  const m = MASTER;
+export function resumeHtml(r: TailoredResume, profile: Profile, scale = 1): string {
+  const m = profile;
   const roles = r.roles.map((role) => `
     <div class="sub">
       <div class="row"><span class="b">${esc(role.company)}, ${esc(role.title)}</span><span class="b">${esc(role.start)} – ${esc(role.end)}</span></div>
@@ -68,17 +69,18 @@ export function resumeHtml(r: TailoredResume, scale = 1): string {
 </style></head><body><div class="page">
   <h1>${esc(m.name)}</h1>
   <div class="contact">
-    <span>${icon.phone}${esc(m.phone)}</span>
-    <span>${icon.mail}<a href="mailto:${m.email}">${esc(m.email)}</a></span>
-    <span>${icon.linkedin}<a href="https://${m.linkedin}">${esc(m.linkedin)}</a></span>
-    <span>${icon.github}<a href="https://${m.github}">${esc(m.github)}</a></span>
+    ${m.phone ? `<span>${icon.phone}${esc(m.phone)}</span>` : ""}
+    ${m.email ? `<span>${icon.mail}<a href="mailto:${m.email}">${esc(m.email)}</a></span>` : ""}
+    ${m.linkedin ? `<span>${icon.linkedin}<a href="https://${m.linkedin.replace(/^https?:\/\//, "")}">${esc(m.linkedin.replace(/^https?:\/\/(www\.)?/, ""))}</a></span>` : ""}
+    ${m.github ? `<span>${icon.github}<a href="https://${m.github.replace(/^https?:\/\//, "")}">${esc(m.github.replace(/^https?:\/\/(www\.)?/, ""))}</a></span>` : ""}
+    ${m.website ? `<span><a href="https://${m.website.replace(/^https?:\/\//, "")}">${esc(m.website.replace(/^https?:\/\/(www\.)?/, ""))}</a></span>` : ""}
   </div>
 
   <h2>Education</h2>
-  <div class="sub">
-    <div class="row"><span class="b">${esc(m.education.school)}, ${esc(m.education.place)}</span><span class="b">${esc(m.education.dates)}</span></div>
-    <div class="row"><i>${esc(m.education.degree)}</i><i>${esc(m.education.gpa)}</i></div>
-  </div>
+  ${m.education.map((e) => `<div class="sub">
+    <div class="row"><span class="b">${esc(e.school)}${e.place ? `, ${esc(e.place)}` : ""}</span><span class="b">${esc(e.dates)}</span></div>
+    <div class="row"><i>${esc(e.degree)}</i><i>${esc(e.gpa)}</i></div>
+  </div>`).join("")}
 
   <h2>Professional Experience</h2>
   ${roles}
@@ -111,13 +113,13 @@ const PAGE_PX = 1056; // 11in at 96dpi, which is what page.pdf uses
  * Render with a local Chromium (Playwright). The Vercel runtime swaps in @sparticuz/chromium.
  * If the content runs past one page, apply the cheapest cuts first and re-measure until it fits.
  */
-export async function renderPdf(input: TailoredResume, launch?: () => Promise<any>): Promise<RenderResult> {
+export async function renderPdf(input: TailoredResume, profile: Profile, launch?: () => Promise<any>): Promise<RenderResult> {
   const { chromium } = await import("playwright");
   const browser = launch ? await launch() : await chromium.launch();
   try {
     const page = await browser.newPage({ viewport: { width: 816, height: PAGE_PX } });
     const measure = async (r: TailoredResume, scale: number) => {
-      const html = resumeHtml(r, scale);
+      const html = resumeHtml(r, profile, scale);
       await page.setContent(html, { waitUntil: "networkidle" });
       await page.evaluate(() => (document as any).fonts?.ready);
       const h: number = await page.evaluate(() => {
@@ -189,5 +191,15 @@ export function masterAsTailored(): TailoredResume {
     projects: [{ name: MASTER.projects[0].name, stack: MASTER.projects[0].stack, year: MASTER.projects[0].year, bullets: [MASTER.projects[0].bullets[1]] }],
     skills: Object.entries(MASTER.skills).slice(0, 6).map(([label, items]) => ({ label, items })),
     achievements: MASTER.achievements
+  };
+}
+
+/** Group the profile as-is, used for previews before any tailoring. */
+export function profileAsTailored(p: Profile): TailoredResume {
+  return {
+    roles: p.roles.map((r, i) => ({ company: r.company, title: r.title, start: r.start, end: r.end, groups: [{ heading: r.title, bullets: r.bullets.slice(0, i === 0 ? 6 : 2).map((b) => b.text) }] })),
+    projects: p.projects.slice(0, 2).map((x) => ({ name: x.name, stack: x.stack, year: x.year, bullets: x.bullets.slice(0, 1) })),
+    skills: Object.entries(p.skills).slice(0, 6).map(([label, items]) => ({ label, items })),
+    achievements: p.achievements.slice(0, 2)
   };
 }

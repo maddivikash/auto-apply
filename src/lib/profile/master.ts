@@ -1,35 +1,11 @@
 /**
  * Master profile: every fact the tailoring step is allowed to use.
- *
- * The LLM may select, reorder, regroup and lightly rephrase bullets, but every
- * number, tool name and claim must already exist here. Nothing is invented.
  */
 
-export type BulletBank = {
-  id: string;
-  /** Themes this bullet supports, used for selection. */
-  tags: string[];
-  text: string;
-};
+import type { Profile } from "./types";
 
-export type Role = {
-  company: string;
-  title: string;
-  location?: string;
-  start: string;
-  end: string;
-  bullets: BulletBank[];
-};
-
-export type Project = {
-  name: string;
-  stack: string;
-  year: string;
-  tags: string[];
-  bullets: string[];
-};
-
-export const MASTER = {
+/** Vikash's profile, also used as the worked example in the profile importer prompt. */
+export const MASTER: Profile = {
   name: "Vikash Maddi",
   phone: "8374501729",
   email: "vikashmaddi@gmail.com",
@@ -38,13 +14,13 @@ export const MASTER = {
   website: "vikashmaddi.vercel.app",
   location: "Gurugram, India",
 
-  education: {
+  education: [{
     school: "Indian Institute of Technology Madras",
     place: "Chennai, India",
     degree: "Bachelor of Technology in Mechanical Engineering",
     dates: "July 2018 – May 2022",
     gpa: "8.31/10"
-  },
+  }],
 
   roles: [
     {
@@ -89,7 +65,7 @@ export const MASTER = {
         { id: "cv-pipeline", tags: ["ml", "data", "automation"], text: "Automated document data-extraction pipelines with Selenium and Ghostscript, producing image datasets for repeatable training and evaluation." }
       ]
     }
-  ] as Role[],
+  ],
 
   projects: [
     {
@@ -121,7 +97,7 @@ export const MASTER = {
         "Built an image-captioning system combining Inception and VGG16 bottleneck features with a recurrent decoder, reaching BLEU-1 of 0.55 against a 0.69 human benchmark."
       ]
     }
-  ] as Project[],
+  ],
 
   skills: {
     "Languages": ["Python", "TypeScript", "SQL", "JavaScript", "Bash", "C++", "PHP", "Java"],
@@ -132,7 +108,7 @@ export const MASTER = {
     "Containers & Cloud": ["Kubernetes", "Docker", "AWS (S3, SQS, IAM basics)", "Cloudflare Workers", "Linux", "Deployment Automation", "Rollback Strategy"],
     "CI/CD & Tooling": ["GitHub Actions", "Git-based Review", "pytest", "Self-Serve Internal Tooling", "Policy-as-Code"],
     "Data & Retrieval": ["MySQL", "PostgreSQL", "Redis", "Elasticsearch", "Embeddings and Vector Retrieval", "Chunking and Relevance Tuning", "Event-Driven Pipelines", "PyTorch"]
-  } as Record<string, string[]>,
+  },
 
   coursework: ["Data Structures and Algorithms", "Operating Systems", "Computer Networks", "Introduction to DBMS", "Python and OOP Concepts", "Probability & Statistics", "Machine Learning", "Computer Vision"],
 
@@ -142,8 +118,3 @@ export const MASTER = {
   ]
 };
 
-/** Every distinct number-like token in the bank, used to catch invented figures. */
-export function bankNumbers(): Set<string> {
-  const text = JSON.stringify(MASTER);
-  return new Set((text.match(/\d[\d,.]*\s*(%|x|k\+|\+)?/g) || []).map((n) => n.replace(/\s+/g, "")));
-}
