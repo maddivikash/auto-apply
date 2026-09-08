@@ -39,7 +39,7 @@ async function main() {
   const slug = `${job.company}-${job.title}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
   writeFileSync(join(out, `${slug}.pdf`), res.pdf);
   writeFileSync(join(out, `${slug}.html`), res.html);
-  writeFileSync(join(out, `${slug}.json`), JSON.stringify({ job: { ...job, description: job.description.slice(0, 2000) }, result, resume, warnings, heightPx: res.heightPx, overflow: res.overflow }, null, 2));
-  console.log(`${slug}.pdf written, content height ${res.heightPx}px, overflow=${res.overflow}`);
+  writeFileSync(join(out, `${slug}.json`), JSON.stringify({ job: { ...job, description: job.description.slice(0, 2000) }, result, resume: res.resume, warnings, heightPx: res.heightPx, overflow: res.overflow, trims: res.trims, scale: res.scale }, null, 2));
+  console.log(`${slug}.pdf written, content height ${res.heightPx}px, overflow=${res.overflow}, scale=${res.scale}, trims=${res.trims.join(" > ") || "none"}`);
 }
 main().catch((e) => { console.error(e); process.exit(1); });

@@ -1,0 +1,335 @@
+{
+  "job": {
+    "board": "ashby",
+    "company": "ramp",
+    "jobId": "bca0346c-b843-4795-96df-6091f51e421b",
+    "title": "Software Engineer, Data Platform ",
+    "location": "New York, NY (HQ), Remote",
+    "url": "https://jobs.ashbyhq.com/ramp/bca0346c-b843-4795-96df-6091f51e421b",
+    "applyUrl": "https://jobs.ashbyhq.com/ramp/bca0346c-b843-4795-96df-6091f51e421b/application",
+    "description": "ABOUT RAMP\n\nRamp is building the smart infrastructure for finance teams, embedded in the transaction flow of every dollar a business spends. We automate how over $200B in annualized spend flows in and out of 70,000+ companies: authorizing payments, flagging risk, categorizing spend, and closing books.\n\nThe problems are high-stakes, data-dense, and unforgiving.\n\nWe hire people with high agency and high urgency. We look for slope over intercept. We care less about where you trained and more about what you’ve built. At Ramp, everyone is a builder who owns problems end to end and makes consequential decisions that shape the outcome.\n\nThe median Ramp customer saves 5% and grows revenue 16% in their first year – far in excess of businesses operating without Ramp. We believe every ambitious company deserves the same.\n\nIf you want to build systems that directly shape how companies move and manage billions, Ramp is the place to do it.\n\n\n\nAbout the Role\n\nThe Data Platform builds infrastructure and tools that enable Ramp to realize business value from data. We partner closely with stakeholder teams to build this infrastructure and the applications on top of it. This role is particularly focused on building platforms that support the data science development lifecycle. You’ll partner with applied scientists, AI engineers, Risk engineers, and other ML developers on building infrastructure and tools that enable and accelerate the development of machine learning models. \n\n\n\nWhat You’ll Do\n\n - Build and integrate the components of Ramp's Analytics Platform and Machine Learning Platform.\n\n - Build tools that improve the agility and data experience of Ramp's Applied Scientists, AI Engineers, and Risk Engineers.\n\n - Collaborate with stakeholder teams on building and productionizing machine learning applications.\n\n - Build reliable, scalable, maintainable, and cost-efficient systems across the stack.\n\n\n\nWhat You Need\n\n - Experience with workflow orchestrators like Airflow, Dagster, or ",
+    "questions": []
+  },
+  "result": {
+    "resume": {
+      "headline": "Python Backend & ML Platform Engineer",
+      "roles": [
+        {
+          "company": "VMock",
+          "title": "Full Stack Developer",
+          "start": "August 2022",
+          "end": "Present",
+          "groups": [
+            {
+              "heading": "Scalable Backend Services",
+              "bullets": [
+                "Reduced API response latency from **400ms to 30ms** (13x) by analyzing query plans, adding targeted indexes, introducing Redis caching and refining service boundaries.",
+                "Led a zero-downtime cross-datacenter migration of **90k+ accounts** across US and UK using dual-write, hash-based reconciliation and staged rollouts, achieving 99.9% data integrity."
+              ]
+            },
+            {
+              "heading": "Cloud & Container Operations",
+              "bullets": [
+                "Operated containerized services on Docker and **Kubernetes** across **AWS** (S3, SQS) with end-to-end CI/CD pipelines from repository to production.",
+                "Ran event-driven workers on **AWS SQS** with explicit retry, timeout and idempotency semantics to ensure reliable background processing."
+              ]
+            },
+            {
+              "heading": "ML Platform Reliability & Observability",
+              "bullets": [
+                "Designed an agent tool-use framework over a structured registry, adding retries, timeouts and rate-limit handling with schema-validated guardrails.",
+                "Implemented LLM observability using **Arize Phoenix**, adding span-level tracing across the agent lifecycle to attribute failures to model, prompt, tool or harness.",
+                "Tracked token, cost and latency per session as platform metrics and added a prompt-caching layer that cut inference cost on long-running sessions."
+              ]
+            }
+          ]
+        },
+        {
+          "company": "Karomi Technologies",
+          "title": "Deep Learning Intern",
+          "start": "May 2021",
+          "end": "August 2021",
+          "groups": [
+            {
+              "heading": "Deep Learning Intern",
+              "bullets": [
+                "Trained Faster R-CNN, RetinaNet and EfficientDet models in PyTorch with semi-supervised learning, reaching **mAP 96%** for tables and **95%** for symbols."
+              ]
+            }
+          ]
+        }
+      ],
+      "projects": [
+        {
+          "name": "Context Management Proxy and MCP Server",
+          "stack": "Python, MCP, Agent Infrastructure",
+          "year": "2026",
+          "bullets": [
+            "Built a transparent **HTTP proxy** and **MCP server** that compresses agent context without client changes, reducing token usage and cost on long-running tasks.",
+            "Added relevance-based eviction and prefix-stable **prompt caching**, then validated cost reduction with an evaluation harness measuring cost per completed task."
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "label": "Languages",
+          "items": [
+            "Python",
+            "TypeScript",
+            "SQL",
+            "JavaScript",
+            "Bash",
+            "C++",
+            "PHP",
+            "Java"
+          ]
+        },
+        {
+          "label": "Agentic AI Stack",
+          "items": [
+            "LangGraph",
+            "MCP (authoring and hosting servers)",
+            "Tool-Use Frameworks",
+            "Agent Orchestration",
+            "Guardrails",
+            "OpenAI/Anthropic APIs",
+            "Context Management",
+            "Prompt Caching",
+            "Claude Code",
+            "Cursor"
+          ]
+        },
+        {
+          "label": "Backend & APIs",
+          "items": [
+            "FastAPI",
+            "Flask",
+            "Laravel",
+            "REST APIs",
+            "Microservices",
+            "asyncio",
+            "Pydantic",
+            "API Versioning"
+          ]
+        },
+        {
+          "label": "Containers & Cloud",
+          "items": [
+            "Kubernetes",
+            "Docker",
+            "AWS (S3, SQS, IAM basics)",
+            "Cloudflare Workers",
+            "Linux",
+            "Deployment Automation",
+            "Rollback Strategy"
+          ]
+        },
+        {
+          "label": "Data & Retrieval",
+          "items": [
+            "MySQL",
+            "PostgreSQL",
+            "Redis",
+            "Elasticsearch",
+            "Embeddings and Vector Retrieval",
+            "Chunking and Relevance Tuning",
+            "Event-Driven Pipelines",
+            "PyTorch"
+          ]
+        },
+        {
+          "label": "CI/CD & Tooling",
+          "items": [
+            "GitHub Actions",
+            "Git-based Review",
+            "pytest",
+            "Self-Serve Internal Tooling",
+            "Policy-as-Code"
+          ]
+        },
+        {
+          "label": "AI Observability & Evaluation",
+          "items": [
+            "Arize Phoenix",
+            "Span-Level Tracing",
+            "LLM-as-Judge Graders",
+            "Regression Suites",
+            "Token/Cost/Latency Tracking"
+          ]
+        }
+      ],
+      "coursework": [],
+      "achievements": [
+        "Secured a global rank of 38 in the July Long Challenge on the CodeChef platform.",
+        "Secured an all-India open category rank of 1308 in JEE-ADVANCED 2018 among 1.8 million."
+      ]
+    },
+    "jdSummary": "Ramp needs engineers who can build reliable, scalable data and machine‑learning infrastructure on AWS using Python. The role focuses on platform tooling, observability and cost‑efficient services that support data‑science workflows.",
+    "fitNotes": [
+      "Built and operated production‑grade services on Kubernetes and AWS with CI/CD pipelines (VMock – k8s‑ops).",
+      "Delivered high‑performance backend APIs, cutting latency from 400 ms to 30 ms and migrating 90k+ accounts with 99.9 % integrity (VMock – latency, migration).",
+      "Implemented observability, cost tracking and guard‑rail frameworks for LLM agents, showing experience with ML platform reliability (VMock – observability, cost‑tracking, tool‑framework).",
+      "Strong Python background across backend, data pipelines and ML tooling (all VMock bullets, Karomi internship).",
+      "Experience with AWS services (S3, SQS, Kubernetes) and SQL databases (MySQL/PostgreSQL) relevant to Ramp’s data platform."
+    ],
+    "warnings": []
+  },
+  "resume": {
+    "headline": "Python Backend & ML Platform Engineer",
+    "roles": [
+      {
+        "company": "VMock",
+        "title": "Full Stack Developer",
+        "start": "August 2022",
+        "end": "Present",
+        "groups": [
+          {
+            "heading": "Scalable Backend Services",
+            "bullets": [
+              "Reduced API response latency from **400ms to 30ms** (13x) by analyzing query plans, adding targeted indexes, introducing Redis caching and refining service boundaries.",
+              "Led a zero-downtime cross-datacenter migration of **90k+ accounts** across US and UK using dual-write, hash-based reconciliation and staged rollouts, achieving 99.9% data integrity."
+            ]
+          },
+          {
+            "heading": "Cloud & Container Operations",
+            "bullets": [
+              "Operated containerized services on Docker and **Kubernetes** across **AWS** (S3, SQS) with end-to-end CI/CD pipelines from repository to production.",
+              "Ran event-driven workers on **AWS SQS** with explicit retry, timeout and idempotency semantics to ensure reliable background processing."
+            ]
+          },
+          {
+            "heading": "ML Platform Reliability & Observability",
+            "bullets": [
+              "Designed an agent tool-use framework over a structured registry, adding retries, timeouts and rate-limit handling with schema-validated guardrails.",
+              "Implemented LLM observability using **Arize Phoenix**, adding span-level tracing across the agent lifecycle to attribute failures to model, prompt, tool or harness.",
+              "Tracked token, cost and latency per session as platform metrics and added a prompt-caching layer that cut inference cost on long-running sessions."
+            ]
+          }
+        ]
+      },
+      {
+        "company": "Karomi Technologies",
+        "title": "Deep Learning Intern",
+        "start": "May 2021",
+        "end": "August 2021",
+        "groups": [
+          {
+            "heading": "Deep Learning Intern",
+            "bullets": [
+              "Trained Faster R-CNN, RetinaNet and EfficientDet models in PyTorch with semi-supervised learning, reaching **mAP 96%** for tables and **95%** for symbols."
+            ]
+          }
+        ]
+      }
+    ],
+    "projects": [
+      {
+        "name": "Context Management Proxy and MCP Server",
+        "stack": "Python, MCP, Agent Infrastructure",
+        "year": "2026",
+        "bullets": [
+          "Built a transparent **HTTP proxy** and **MCP server** that compresses agent context without client changes, reducing token usage and cost on long-running tasks.",
+          "Added relevance-based eviction and prefix-stable **prompt caching**, then validated cost reduction with an evaluation harness measuring cost per completed task."
+        ]
+      }
+    ],
+    "skills": [
+      {
+        "label": "Languages",
+        "items": [
+          "Python",
+          "TypeScript",
+          "SQL",
+          "JavaScript",
+          "Bash",
+          "C++",
+          "PHP",
+          "Java"
+        ]
+      },
+      {
+        "label": "Agentic AI Stack",
+        "items": [
+          "LangGraph",
+          "MCP (authoring and hosting servers)",
+          "Tool-Use Frameworks",
+          "Agent Orchestration",
+          "Guardrails",
+          "OpenAI/Anthropic APIs",
+          "Context Management",
+          "Prompt Caching",
+          "Claude Code",
+          "Cursor"
+        ]
+      },
+      {
+        "label": "Backend & APIs",
+        "items": [
+          "FastAPI",
+          "Flask",
+          "Laravel",
+          "REST APIs",
+          "Microservices",
+          "asyncio",
+          "Pydantic",
+          "API Versioning"
+        ]
+      },
+      {
+        "label": "Containers & Cloud",
+        "items": [
+          "Kubernetes",
+          "Docker",
+          "AWS (S3, SQS, IAM basics)",
+          "Cloudflare Workers",
+          "Linux",
+          "Deployment Automation",
+          "Rollback Strategy"
+        ]
+      },
+      {
+        "label": "Data & Retrieval",
+        "items": [
+          "MySQL",
+          "PostgreSQL",
+          "Redis",
+          "Elasticsearch",
+          "Embeddings and Vector Retrieval",
+          "Chunking and Relevance Tuning",
+          "Event-Driven Pipelines",
+          "PyTorch"
+        ]
+      },
+      {
+        "label": "CI/CD & Tooling",
+        "items": [
+          "GitHub Actions",
+          "Git-based Review",
+          "pytest",
+          "Self-Serve Internal Tooling",
+          "Policy-as-Code"
+        ]
+      },
+      {
+        "label": "AI Observability & Evaluation",
+        "items": [
+          "Arize Phoenix",
+          "Span-Level Tracing",
+          "LLM-as-Judge Graders",
+          "Regression Suites",
+          "Token/Cost/Latency Tracking"
+        ]
+      }
+    ],
+    "coursework": [],
+    "achievements": [
+      "Secured a global rank of 38 in the July Long Challenge on the CodeChef platform.",
+      "Secured an all-India open category rank of 1308 in JEE-ADVANCED 2018 among 1.8 million."
+    ]
+  },
+  "warnings": [],
+  "heightPx": 986,
+  "overflow": false,
+  "trims": [],
+  "scale": 1
+}

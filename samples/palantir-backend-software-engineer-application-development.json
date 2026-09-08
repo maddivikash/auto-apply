@@ -1,0 +1,299 @@
+{
+  "job": {
+    "board": "lever",
+    "company": "palantir",
+    "jobId": "ab7e3425-81d5-4705-a7b5-cd60c8a45cdb",
+    "title": "Backend Software Engineer - Application Development",
+    "location": "New York, NY",
+    "url": "https://jobs.lever.co/palantir/ab7e3425-81d5-4705-a7b5-cd60c8a45cdb",
+    "applyUrl": "https://jobs.lever.co/palantir/ab7e3425-81d5-4705-a7b5-cd60c8a45cdb/apply",
+    "description": "A World-Changing Company\n \nPalantir builds the world’s leading software for data-driven decisions and operations. By bringing the right data to the people who need it, our platforms empower our partners to develop lifesaving drugs, forecast supply chain disruptions, locate missing children, and more.\n\n\nThe Role\n \nBackend Software Engineers at Palantir build software at scale to transform how organisations use data. Our Software Engineers are involved throughout the product lifecycle, from idea generation, design, prototyping, and production delivery. You will collaborate closely with technical and non-technical teammates to understand our customers' problems and build products that solve them. We encourage movement across teams to share context, skills, and experience, so you'll learn about many different technologies and aspects of each product. Engineers work autonomously and make decisions independently, within a community that will support and challenge you as you grow and develop, becoming a strong technical contributor and engineering leader.\n \nYour day-to-day workflow will vary, adapting to the requirements of our users and the technical challenges that arise. One day, you may find yourself collaborating with other engineers to architect a new system that enables a novel workflow, the next you could be fine-tuning performance to enable low-latency operational outcomes.\n \nOur Product Development organisation is made up of small teams of Software Engineers. Each team focuses on a specific aspect of a product and work collaboratively to build cross functional capabilities, streamline user workflows and continuously improve our software's efficiency and reliability.\n \nWe’re hiring engineers who are passionate about solving real-world problems and empowering both developers and end-users to work optimally. If you’re motivated to develop reliable, performant, and scalable systems, and to design robust APIs and primitives, this role offers the opportunity to make a ",
+    "questions": []
+  },
+  "result": {
+    "resume": {
+      "headline": "Backend Engineer – Scalable Services & APIs",
+      "roles": [
+        {
+          "company": "VMock",
+          "title": "Full Stack Developer",
+          "start": "August 2022",
+          "end": "Present",
+          "groups": [
+            {
+              "heading": "Agentic Backend Services",
+              "bullets": [
+                "Built and operate a production **LLM** agent used by 5,000+ users, with a planning-first orchestration loop over a structured tool registry and Pydantic-validated schemas.",
+                "Run the agent containerized on **Kubernetes**, maintaining long-lived stateful sessions and secure outbound egress for tool calls."
+              ]
+            },
+            {
+              "heading": "API Design & Microservices",
+              "bullets": [
+                "Cut API response latency from **400ms to 30ms** (13x) by adding targeted indexes, introducing **Redis** caching and refining service boundaries.",
+                "Re-architected a monolithic utility module into a standalone **Python Flask** service with versioned **REST APIs**, providing a clear path for downstream teams."
+              ]
+            },
+            {
+              "heading": "Scalability & Reliability",
+              "bullets": [
+                "Led a zero-downtime cross-datacenter migration of 90k+ accounts across US and UK, using dual-write and hash-based reconciliation to achieve 99.9% data integrity.",
+                "Operate containerized services on **Docker** and **Kubernetes** across **AWS** (S3, SQS) with end-to-end **CI/CD** pipelines from repository to production.",
+                "Run event-driven workers over **AWS SQS** with explicit retry, timeout and idempotency semantics to guarantee reliable processing."
+              ]
+            },
+            {
+              "heading": "Observability & Tooling",
+              "bullets": [
+                "Stood up **LLM** observability with **Arize Phoenix**, instrumenting span-level traces so failures can be attributed to model, prompt, tool or harness.",
+                "Built self-serve internal tooling and admin dashboards that automated user onboarding and tenant provisioning, removing 30% of manual operational work."
+              ]
+            }
+          ]
+        },
+        {
+          "company": "Karomi Technologies",
+          "title": "Deep Learning Intern",
+          "start": "May 2021",
+          "end": "August 2021",
+          "groups": [
+            {
+              "heading": "Deep Learning Intern",
+              "bullets": [
+                "Trained Faster R-CNN, RetinaNet and EfficientDet models in PyTorch with semi-supervised learning, reaching mAP of 96% for tables and 95% for symbols."
+              ]
+            }
+          ]
+        }
+      ],
+      "projects": [
+        {
+          "name": "Context Management Proxy and MCP Server",
+          "stack": "Python, MCP, Agent Infrastructure",
+          "year": "2026",
+          "bullets": [
+            "Identified cost escalation in long-running agent tasks and built a transparent **HTTP proxy** and **MCP server** that compresses agent context without requiring client changes.",
+            "Implemented relevance-based eviction and prefix-stable **prompt caching**; measured **cost** per completed task before and after, proving a measurable reduction."
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "label": "Languages",
+          "items": [
+            "Python",
+            "TypeScript",
+            "SQL",
+            "JavaScript",
+            "Bash",
+            "C++",
+            "PHP",
+            "Java"
+          ]
+        },
+        {
+          "label": "Backend & APIs",
+          "items": [
+            "FastAPI",
+            "Flask",
+            "Laravel",
+            "REST APIs",
+            "Microservices",
+            "asyncio",
+            "Pydantic",
+            "API Versioning"
+          ]
+        },
+        {
+          "label": "Containers & Cloud",
+          "items": [
+            "Kubernetes",
+            "Docker",
+            "AWS (S3, SQS, IAM basics)",
+            "Cloudflare Workers",
+            "Linux",
+            "Deployment Automation",
+            "Rollback Strategy"
+          ]
+        },
+        {
+          "label": "CI/CD & Tooling",
+          "items": [
+            "GitHub Actions",
+            "Git-based Review",
+            "pytest",
+            "Self-Serve Internal Tooling",
+            "Policy-as-Code"
+          ]
+        },
+        {
+          "label": "Data & Retrieval",
+          "items": [
+            "MySQL",
+            "PostgreSQL",
+            "Redis",
+            "Elasticsearch",
+            "Embeddings and Vector Retrieval",
+            "Chunking and Relevance Tuning",
+            "Event-Driven Pipelines",
+            "PyTorch"
+          ]
+        }
+      ],
+      "coursework": [],
+      "achievements": [
+        "Secured a global rank of 38 in the July Long Challenge on the CodeChef platform.",
+        "Secured an all-India open category rank of 1308 in JEE-ADVANCED 2018 among 1.8 million."
+      ]
+    },
+    "jdSummary": "Palantir wants engineers who can design, build and maintain high‑performance backend services, robust APIs and reliable data pipelines. The role emphasizes scalability, observability and cross‑team collaboration.",
+    "fitNotes": [
+      "Built production LLM agent and containerized it on Kubernetes – matches scaling and container orchestration.",
+      "Reduced API latency from 400ms to 30ms and re‑architected monolith to Flask microservice – shows performance and API design.",
+      "Led zero‑downtime migration of 90k+ accounts with 99.9% integrity – demonstrates data reliability at scale.",
+      "Operated Docker/Kubernetes services on AWS with CI/CD pipelines – aligns with Palantir’s infrastructure stack.",
+      "Implemented observability with Arize Phoenix and built internal tooling – covers monitoring and developer productivity."
+    ],
+    "warnings": []
+  },
+  "resume": {
+    "headline": "Backend Engineer – Scalable Services & APIs",
+    "roles": [
+      {
+        "company": "VMock",
+        "title": "Full Stack Developer",
+        "start": "August 2022",
+        "end": "Present",
+        "groups": [
+          {
+            "heading": "Agentic Backend Services",
+            "bullets": [
+              "Built and operate a production **LLM** agent used by 5,000+ users, with a planning-first orchestration loop over a structured tool registry and Pydantic-validated schemas.",
+              "Run the agent containerized on **Kubernetes**, maintaining long-lived stateful sessions and secure outbound egress for tool calls."
+            ]
+          },
+          {
+            "heading": "API Design & Microservices",
+            "bullets": [
+              "Cut API response latency from **400ms to 30ms** (13x) by adding targeted indexes, introducing **Redis** caching and refining service boundaries.",
+              "Re-architected a monolithic utility module into a standalone **Python Flask** service with versioned **REST APIs**, providing a clear path for downstream teams."
+            ]
+          },
+          {
+            "heading": "Scalability & Reliability",
+            "bullets": [
+              "Led a zero-downtime cross-datacenter migration of 90k+ accounts across US and UK, using dual-write and hash-based reconciliation to achieve 99.9% data integrity.",
+              "Operate containerized services on **Docker** and **Kubernetes** across **AWS** (S3, SQS) with end-to-end **CI/CD** pipelines from repository to production.",
+              "Run event-driven workers over **AWS SQS** with explicit retry, timeout and idempotency semantics to guarantee reliable processing."
+            ]
+          },
+          {
+            "heading": "Observability & Tooling",
+            "bullets": [
+              "Stood up **LLM** observability with **Arize Phoenix**, instrumenting span-level traces so failures can be attributed to model, prompt, tool or harness.",
+              "Built self-serve internal tooling and admin dashboards that automated user onboarding and tenant provisioning, removing 30% of manual operational work."
+            ]
+          }
+        ]
+      },
+      {
+        "company": "Karomi Technologies",
+        "title": "Deep Learning Intern",
+        "start": "May 2021",
+        "end": "August 2021",
+        "groups": [
+          {
+            "heading": "Deep Learning Intern",
+            "bullets": [
+              "Trained Faster R-CNN, RetinaNet and EfficientDet models in PyTorch with semi-supervised learning, reaching mAP of 96% for tables and 95% for symbols."
+            ]
+          }
+        ]
+      }
+    ],
+    "projects": [
+      {
+        "name": "Context Management Proxy and MCP Server",
+        "stack": "Python, MCP, Agent Infrastructure",
+        "year": "2026",
+        "bullets": [
+          "Identified cost escalation in long-running agent tasks and built a transparent **HTTP proxy** and **MCP server** that compresses agent context without requiring client changes.",
+          "Implemented relevance-based eviction and prefix-stable **prompt caching**; measured **cost** per completed task before and after, proving a measurable reduction."
+        ]
+      }
+    ],
+    "skills": [
+      {
+        "label": "Languages",
+        "items": [
+          "Python",
+          "TypeScript",
+          "SQL",
+          "JavaScript",
+          "Bash",
+          "C++",
+          "PHP",
+          "Java"
+        ]
+      },
+      {
+        "label": "Backend & APIs",
+        "items": [
+          "FastAPI",
+          "Flask",
+          "Laravel",
+          "REST APIs",
+          "Microservices",
+          "asyncio",
+          "Pydantic",
+          "API Versioning"
+        ]
+      },
+      {
+        "label": "Containers & Cloud",
+        "items": [
+          "Kubernetes",
+          "Docker",
+          "AWS (S3, SQS, IAM basics)",
+          "Cloudflare Workers",
+          "Linux",
+          "Deployment Automation",
+          "Rollback Strategy"
+        ]
+      },
+      {
+        "label": "CI/CD & Tooling",
+        "items": [
+          "GitHub Actions",
+          "Git-based Review",
+          "pytest",
+          "Self-Serve Internal Tooling",
+          "Policy-as-Code"
+        ]
+      },
+      {
+        "label": "Data & Retrieval",
+        "items": [
+          "MySQL",
+          "PostgreSQL",
+          "Redis",
+          "Elasticsearch",
+          "Embeddings and Vector Retrieval",
+          "Chunking and Relevance Tuning",
+          "Event-Driven Pipelines",
+          "PyTorch"
+        ]
+      }
+    ],
+    "coursework": [],
+    "achievements": [
+      "Secured a global rank of 38 in the July Long Challenge on the CodeChef platform.",
+      "Secured an all-India open category rank of 1308 in JEE-ADVANCED 2018 among 1.8 million."
+    ]
+  },
+  "warnings": [],
+  "heightPx": 1005,
+  "overflow": false,
+  "trims": [],
+  "scale": 1
+}

@@ -1,0 +1,481 @@
+{
+  "job": {
+    "board": "greenhouse",
+    "company": "anthropic",
+    "jobId": "5097186008",
+    "title": "Full Stack Engineer, Education Labs",
+    "location": "San Francisco, CA | New York City, NY",
+    "url": "https://job-boards.greenhouse.io/anthropic/jobs/5097186008",
+    "applyUrl": "https://job-boards.greenhouse.io/anthropic/jobs/5097186008#app",
+    "description": "About Anthropic\n\nAnthropic’s mission is to create reliable, interpretable, and steerable AI systems. We want AI to be safe and beneficial for our users and for society as a whole. Our team is a quickly growing group of committed researchers, engineers, policy experts, and business leaders working together to build beneficial AI systems.\n\nAbout the role\n\nWe believe skill with AI is fundamental to human agency. Education Labs builds the paradigms that help people become genuinely more capable—not just more engaged.\n\nThis is a new kind of role: part researcher, part product builder, part interaction designer. You'll be the second technical builder on a small team studying how AI transforms human capability—and shipping features based on what we discover. You'll have significant creative license to define what \"good\" looks like, exploring new interaction patterns rather than optimizing existing ones.\n\nWe're skeptical of tutorials, onboarding flows, and engagement metrics. We care about experiences that make users progressively more capable, curious, and empowered over time. This means integrating skill development into product design, using Claude itself as a capability-building partner, and measuring success by how users actually grow.\n\nYou'll operate as a one-person technical shop: prototyping new ideas, establishing technical direction, and shipping production-quality features to millions of users. You'll need strong product instincts and clean interface design sensibilities, balanced with comfort in ambiguity and frontier thinking.\n\nResponsibilities:\n\n- \nShip features that help users develop real skill with AI—measuring success by capability growth, not time-on-site\n\n- \nArchitect end-to-end prototypes (front-end and back-end) that test new interaction paradigms, with particular attention to the front-of-the-frontend: motion, polish, and interaction feel\n\n- \nDefine technical direction for the team—establish patterns others can follow\n\n- \nBuild relationships across Pr",
+    "questions": [
+      {
+        "id": "first_name",
+        "label": "First Name",
+        "required": true,
+        "type": "text",
+        "options": []
+      },
+      {
+        "id": "last_name",
+        "label": "Last Name",
+        "required": true,
+        "type": "text",
+        "options": []
+      },
+      {
+        "id": "email",
+        "label": "Email",
+        "required": true,
+        "type": "text",
+        "options": []
+      },
+      {
+        "id": "phone",
+        "label": "Phone",
+        "required": false,
+        "type": "text",
+        "options": []
+      },
+      {
+        "id": "resume",
+        "label": "Resume/CV",
+        "required": false,
+        "type": "file",
+        "options": []
+      },
+      {
+        "id": "question_14786130008",
+        "label": "(Optional) Personal Preferences",
+        "required": false,
+        "type": "text",
+        "options": []
+      },
+      {
+        "id": "question_14786131008",
+        "label": "Website",
+        "required": false,
+        "type": "text",
+        "options": []
+      },
+      {
+        "id": "question_14786132008",
+        "label": "Are you open to working in-person in one of our offices 25% of the time?",
+        "required": true,
+        "type": "select",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "id": "question_14786133008",
+        "label": "When is the earliest you would want to start working with us?",
+        "required": false,
+        "type": "text",
+        "options": []
+      },
+      {
+        "id": "question_14786134008",
+        "label": "Do you have any deadlines or timeline considerations we should be aware of?",
+        "required": false,
+        "type": "text",
+        "options": []
+      },
+      {
+        "id": "question_14786135008",
+        "label": "AI Policy for Application",
+        "required": true,
+        "type": "select",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "id": "question_14786136008",
+        "label": "Why Anthropic?",
+        "required": true,
+        "type": "textarea",
+        "options": []
+      },
+      {
+        "id": "question_14786137008",
+        "label": "Do you require visa sponsorship? ",
+        "required": true,
+        "type": "select",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "id": "question_14786138008",
+        "label": "Will you now or will you in the future require employment visa sponsorship to work in the country in which the job you're applying for is located? ",
+        "required": true,
+        "type": "select",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "id": "question_14786139008",
+        "label": "Additional Information",
+        "required": false,
+        "type": "textarea",
+        "options": []
+      },
+      {
+        "id": "question_14786140008",
+        "label": "LinkedIn Profile",
+        "required": false,
+        "type": "text",
+        "options": []
+      },
+      {
+        "id": "question_14786141008",
+        "label": "Are you open to relocation for this role? ",
+        "required": true,
+        "type": "select",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "id": "question_14786142008",
+        "label": "What is the address from which you plan on working? If you would need to relocate, please type \"relocating\".",
+        "required": false,
+        "type": "text",
+        "options": []
+      },
+      {
+        "id": "question_14786143008",
+        "label": "Have you ever interviewed at Anthropic before?",
+        "required": true,
+        "type": "select",
+        "options": [
+          "Yes",
+          "No"
+        ]
+      },
+      {
+        "id": "question_18371605008",
+        "label": "Please read the arbitration agreement below",
+        "required": true,
+        "type": "select",
+        "options": [
+          "I will read the arbitration agreement below."
+        ]
+      },
+      {
+        "id": "question_18374530008",
+        "label": "Agreement to Arbitrate",
+        "required": true,
+        "type": "select",
+        "options": [
+          "I understand and agree to the terms of the Agreement to Arbitrate set forth above."
+        ]
+      }
+    ]
+  },
+  "result": {
+    "resume": {
+      "headline": "Full‑Stack Engineer with LLM Platform Expertise",
+      "roles": [
+        {
+          "company": "VMock",
+          "title": "Full Stack Developer",
+          "start": "August 2022",
+          "end": "Present",
+          "groups": [
+            {
+              "heading": "Full-Stack Product Delivery",
+              "bullets": [
+                "Delivered **GenAI-powered** resume suggestions through end-to-end **React** UI and backend integration, giving users real-time personalized feedback.",
+                "Built self-serve internal tooling and admin dashboards that automated onboarding and tenant provisioning, removing 30% of manual operational work.",
+                "Designed and released a versioned **Flask** microservice with **REST API** that replaced a monolithic utility module, providing clear documentation for downstream teams."
+              ]
+            },
+            {
+              "heading": "LLM Agent Platform & Observability",
+              "bullets": [
+                "Built and operate a production **LLM** agent used by 5,000+ users, orchestrating tool calls with **Pydantic**-validated schemas as guardrails.",
+                "Stood up **LLM** observability using **Arize Phoenix**, instrumenting span-level traces so failures can be attributed to model, prompt, tool, or harness.",
+                "Implemented token, cost and latency tracking per session and added prompt-caching that cut inference cost for long-running sessions."
+              ]
+            },
+            {
+              "heading": "Reliability & Performance Engineering",
+              "bullets": [
+                "Improved workflow reliability with stateful context management and a two-tier retry strategy, cutting incorrect tool executions by 40%.",
+                "Cut API response latency from **400ms** to **30ms** (13x) by adding indexes, **Redis** caching and refining service boundaries.",
+                "Run event-driven workers on **AWS SQS** with explicit retry, timeout and idempotency semantics, ensuring durable processing."
+              ]
+            }
+          ]
+        },
+        {
+          "company": "Karomi Technologies",
+          "title": "Deep Learning Intern",
+          "start": "May 2021",
+          "end": "August 2021",
+          "groups": [
+            {
+              "heading": "Deep Learning Intern",
+              "bullets": [
+                "Trained Faster R-CNN, RetinaNet and EfficientDet models in **PyTorch** with semi-supervised learning, achieving mAP of 96% for tables and 95% for symbols."
+              ]
+            }
+          ]
+        }
+      ],
+      "projects": [
+        {
+          "name": "Context Management Proxy and MCP Server",
+          "stack": "Python, MCP, Agent Infrastructure",
+          "year": "2026",
+          "bullets": [
+            "Identified cost growth in long-running coding-agent tasks and built a transparent HTTP proxy and **MCP** server that compresses agent context without client changes.",
+            "Implemented relevance-based eviction and prefix-stable prompt caching, then measured cost per completed task before and after compression to prove the improvement."
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "label": "Languages",
+          "items": [
+            "Python",
+            "TypeScript",
+            "SQL",
+            "JavaScript",
+            "Bash",
+            "C++",
+            "PHP",
+            "Java"
+          ]
+        },
+        {
+          "label": "Agentic AI Stack",
+          "items": [
+            "LangGraph",
+            "MCP (authoring and hosting servers)",
+            "Tool-Use Frameworks",
+            "Agent Orchestration",
+            "Guardrails",
+            "OpenAI/Anthropic APIs",
+            "Context Management",
+            "Prompt Caching",
+            "Claude Code",
+            "Cursor"
+          ]
+        },
+        {
+          "label": "Backend & APIs",
+          "items": [
+            "FastAPI",
+            "Flask",
+            "Laravel",
+            "REST APIs",
+            "Microservices",
+            "asyncio",
+            "Pydantic",
+            "API Versioning"
+          ]
+        },
+        {
+          "label": "Frontend",
+          "items": [
+            "React",
+            "Redux",
+            "Tailwind",
+            "HTML5",
+            "CSS3"
+          ]
+        },
+        {
+          "label": "Containers & Cloud",
+          "items": [
+            "Kubernetes",
+            "Docker",
+            "AWS (S3, SQS, IAM basics)",
+            "Cloudflare Workers",
+            "Linux",
+            "Deployment Automation",
+            "Rollback Strategy"
+          ]
+        },
+        {
+          "label": "AI Observability & Evaluation",
+          "items": [
+            "Arize Phoenix",
+            "Span-Level Tracing",
+            "LLM-as-Judge Graders",
+            "Regression Suites",
+            "Token/Cost/Latency Tracking"
+          ]
+        }
+      ],
+      "achievements": [
+        "Secured a global rank of 38 in the July Long Challenge on the CodeChef platform.",
+        "Secured an all-India open category rank of 1308 in JEE-ADVANCED 2018 among 1.8 million."
+      ]
+    },
+    "jdSummary": "Anthropic wants a full‑stack engineer who can build AI‑enabled learning experiences, shaping product direction while measuring real skill growth. The role blends front‑end craftsmanship, Python backend services, and LLM integration with a research‑driven mindset.",
+    "fitNotes": [
+      "Built production **LLM** agent used by 5,000+ users – shows AI‑native product experience.",
+      "Delivered end‑to‑end **React** features and internal tooling – demonstrates front‑end craft and full‑stack delivery.",
+      "Operated Kubernetes services with **Arize Phoenix** observability and cost tracking – aligns with analytics and reliable AI system needs.",
+      "Implemented prompt caching and token cost metrics – supports measuring capability outcomes over engagement.",
+      "Led zero‑downtime migration of 90k+ accounts with 99.9% data integrity – proves ability to ship production‑grade features at scale."
+    ],
+    "warnings": []
+  },
+  "resume": {
+    "headline": "Full‑Stack Engineer with LLM Platform Expertise",
+    "roles": [
+      {
+        "company": "VMock",
+        "title": "Full Stack Developer",
+        "start": "August 2022",
+        "end": "Present",
+        "groups": [
+          {
+            "heading": "Full-Stack Product Delivery",
+            "bullets": [
+              "Delivered **GenAI-powered** resume suggestions through end-to-end **React** UI and backend integration, giving users real-time personalized feedback.",
+              "Built self-serve internal tooling and admin dashboards that automated onboarding and tenant provisioning, removing 30% of manual operational work.",
+              "Designed and released a versioned **Flask** microservice with **REST API** that replaced a monolithic utility module, providing clear documentation for downstream teams."
+            ]
+          },
+          {
+            "heading": "LLM Agent Platform & Observability",
+            "bullets": [
+              "Built and operate a production **LLM** agent used by 5,000+ users, orchestrating tool calls with **Pydantic**-validated schemas as guardrails.",
+              "Stood up **LLM** observability using **Arize Phoenix**, instrumenting span-level traces so failures can be attributed to model, prompt, tool, or harness.",
+              "Implemented token, cost and latency tracking per session and added prompt-caching that cut inference cost for long-running sessions."
+            ]
+          },
+          {
+            "heading": "Reliability & Performance Engineering",
+            "bullets": [
+              "Improved workflow reliability with stateful context management and a two-tier retry strategy, cutting incorrect tool executions by 40%.",
+              "Cut API response latency from **400ms** to **30ms** (13x) by adding indexes, **Redis** caching and refining service boundaries.",
+              "Run event-driven workers on **AWS SQS** with explicit retry, timeout and idempotency semantics, ensuring durable processing."
+            ]
+          }
+        ]
+      },
+      {
+        "company": "Karomi Technologies",
+        "title": "Deep Learning Intern",
+        "start": "May 2021",
+        "end": "August 2021",
+        "groups": [
+          {
+            "heading": "Deep Learning Intern",
+            "bullets": [
+              "Trained Faster R-CNN, RetinaNet and EfficientDet models in **PyTorch** with semi-supervised learning, achieving mAP of 96% for tables and 95% for symbols."
+            ]
+          }
+        ]
+      }
+    ],
+    "projects": [
+      {
+        "name": "Context Management Proxy and MCP Server",
+        "stack": "Python, MCP, Agent Infrastructure",
+        "year": "2026",
+        "bullets": [
+          "Identified cost growth in long-running coding-agent tasks and built a transparent HTTP proxy and **MCP** server that compresses agent context without client changes.",
+          "Implemented relevance-based eviction and prefix-stable prompt caching, then measured cost per completed task before and after compression to prove the improvement."
+        ]
+      }
+    ],
+    "skills": [
+      {
+        "label": "Languages",
+        "items": [
+          "Python",
+          "TypeScript",
+          "SQL",
+          "JavaScript",
+          "Bash",
+          "C++",
+          "PHP",
+          "Java"
+        ]
+      },
+      {
+        "label": "Agentic AI Stack",
+        "items": [
+          "LangGraph",
+          "MCP (authoring and hosting servers)",
+          "Tool-Use Frameworks",
+          "Agent Orchestration",
+          "Guardrails",
+          "OpenAI/Anthropic APIs",
+          "Context Management",
+          "Prompt Caching",
+          "Claude Code",
+          "Cursor"
+        ]
+      },
+      {
+        "label": "Backend & APIs",
+        "items": [
+          "FastAPI",
+          "Flask",
+          "Laravel",
+          "REST APIs",
+          "Microservices",
+          "asyncio",
+          "Pydantic",
+          "API Versioning"
+        ]
+      },
+      {
+        "label": "Frontend",
+        "items": [
+          "React",
+          "Redux",
+          "Tailwind",
+          "HTML5",
+          "CSS3"
+        ]
+      },
+      {
+        "label": "Containers & Cloud",
+        "items": [
+          "Kubernetes",
+          "Docker",
+          "AWS (S3, SQS, IAM basics)",
+          "Cloudflare Workers",
+          "Linux",
+          "Deployment Automation",
+          "Rollback Strategy"
+        ]
+      },
+      {
+        "label": "AI Observability & Evaluation",
+        "items": [
+          "Arize Phoenix",
+          "Span-Level Tracing",
+          "LLM-as-Judge Graders",
+          "Regression Suites",
+          "Token/Cost/Latency Tracking"
+        ]
+      }
+    ],
+    "achievements": [
+      "Secured a global rank of 38 in the July Long Challenge on the CodeChef platform.",
+      "Secured an all-India open category rank of 1308 in JEE-ADVANCED 2018 among 1.8 million."
+    ]
+  },
+  "warnings": [],
+  "heightPx": 1003,
+  "overflow": false,
+  "trims": [],
+  "scale": 1
+}

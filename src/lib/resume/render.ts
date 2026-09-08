@@ -15,7 +15,7 @@ const icon = {
   github: `<svg viewBox="0 0 24 24" width="10" height="10"><path fill="currentColor" d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3z"/></svg>`
 };
 
-export function resumeHtml(r: TailoredResume): string {
+export function resumeHtml(r: TailoredResume, scale = 1): string {
   const m = MASTER;
   const roles = r.roles.map((role) => `
     <div class="sub">
@@ -45,7 +45,7 @@ export function resumeHtml(r: TailoredResume): string {
   @font-face { font-family: "CMU Serif"; font-style: italic; font-weight: 700; src: url("${FONT_BASE}/cmu-serif-700-italic.woff2") format("woff2"); }
   @page { size: Letter; margin: 0; }
   html, body { margin: 0; padding: 0; }
-  body { font-family: "CMU Serif", "Latin Modern Roman", "Times New Roman", Times, serif; font-size: 10.6pt; color: #000; line-height: 1.22; }
+  body { font-family: "CMU Serif", "Latin Modern Roman", "Times New Roman", Times, serif; font-size: ${(10.6 * scale).toFixed(2)}pt; color: #000; line-height: 1.22; }
   .page { width: 8.5in; min-height: 11in; box-sizing: border-box; padding: 0.32in 0.42in 0.3in 0.42in; }
   h1 { text-align: center; font-size: 24pt; font-weight: normal; font-variant: small-caps; letter-spacing: 0.5px; margin: 0 0 2pt; }
   .contact { text-align: center; font-size: 9.6pt; margin-bottom: 6pt; }
@@ -59,9 +59,9 @@ export function resumeHtml(r: TailoredResume): string {
   .sep { margin: 0 2pt; }
   .grp { font-style: italic; margin: 2pt 0 0 0.02in; }
   ul { margin: 0.5pt 0 1.5pt 0.16in; padding-left: 0.1in; }
-  li { font-size: 9.9pt; margin: 0 0 0.6pt; padding-left: 0.02in; }
+  li { font-size: ${(9.9 * scale).toFixed(2)}pt; margin: 0 0 0.6pt; padding-left: 0.02in; }
   li::marker { font-size: 9pt; }
-  .skill { font-size: 9.9pt; margin: 0 0 0.8pt 0.06in; }
+  .skill { font-size: ${(9.9 * scale).toFixed(2)}pt; margin: 0 0 0.8pt 0.06in; }
   ul.cols { columns: 3; column-gap: 0.2in; margin-left: 0.32in; }
   ul.cols li { break-inside: avoid; }
   .ach { margin-left: 0.32in; }
@@ -94,20 +94,77 @@ export function resumeHtml(r: TailoredResume): string {
 </div></body></html>`;
 }
 
-export type RenderResult = { pdf: Buffer; heightPx: number; overflow: boolean; html: string };
+export type RenderResult = {
+  pdf: Buffer;
+  heightPx: number;
+  overflow: boolean;
+  html: string;
+  /** What fitToOnePage had to remove, in order. Empty when it fit as written. */
+  trims: string[];
+  resume: TailoredResume;
+  scale: number;
+};
 
-/** Render with a local Chromium (Playwright). The Vercel runtime swaps in @sparticuz/chromium. */
-export async function renderPdf(r: TailoredResume, launch?: () => Promise<any>): Promise<RenderResult> {
-  const html = resumeHtml(r);
+const PAGE_PX = 1056; // 11in at 96dpi, which is what page.pdf uses
+
+/**
+ * Render with a local Chromium (Playwright). The Vercel runtime swaps in @sparticuz/chromium.
+ * If the content runs past one page, apply the cheapest cuts first and re-measure until it fits.
+ */
+export async function renderPdf(input: TailoredResume, launch?: () => Promise<any>): Promise<RenderResult> {
   const { chromium } = await import("playwright");
   const browser = launch ? await launch() : await chromium.launch();
   try {
-    const page = await browser.newPage({ viewport: { width: 816, height: 1056 } });
-    await page.setContent(html, { waitUntil: "networkidle" });
-    await page.evaluate(() => (document as any).fonts?.ready);
-    const heightPx = await page.evaluate(() => document.querySelector(".page")!.scrollHeight);
+    const page = await browser.newPage({ viewport: { width: 816, height: PAGE_PX } });
+    const measure = async (r: TailoredResume, scale: number) => {
+      const html = resumeHtml(r, scale);
+      await page.setContent(html, { waitUntil: "networkidle" });
+      await page.evaluate(() => (document as any).fonts?.ready);
+      const h: number = await page.evaluate(() => {
+        const el = document.querySelector(".page") as HTMLElement;
+        el.style.minHeight = "0";
+        return el.scrollHeight;
+      });
+      return { html, heightPx: h };
+    };
+
+    let r: TailoredResume = JSON.parse(JSON.stringify(input));
+    let scale = 1;
+    const trims: string[] = [];
+    let { html, heightPx } = await measure(r, scale);
+
+    const steps: Array<[string, (x: TailoredResume) => boolean]> = [
+      ["drop coursework", (x) => { if (x.coursework?.length) { x.coursework = []; return true; } return false; }],
+      ["font 97%", () => { if (scale > 0.97) { scale = 0.97; return true; } return false; }],
+      ["limit skills to 6 groups", (x) => { if (x.skills.length > 6) { x.skills = x.skills.slice(0, 6); return true; } return false; }],
+      ["one bullet per project", (x) => { let c = false; for (const p of x.projects) if (p.bullets.length > 1) { p.bullets = p.bullets.slice(0, 1); c = true; } return c; }],
+      ["limit skills to 5 groups", (x) => { if (x.skills.length > 5) { x.skills = x.skills.slice(0, 5); return true; } return false; }],
+      ["drop second project", (x) => { if (x.projects.length > 1) { x.projects = x.projects.slice(0, 1); return true; } return false; }],
+      ["font 94%", () => { if (scale > 0.94) { scale = 0.94; return true; } return false; }],
+      ["trim longest group to 2 bullets", (x) => {
+        const groups = x.roles[0].groups.filter((g) => g.bullets.length > 2);
+        if (!groups.length) return false;
+        groups.sort((a, b) => b.bullets.join("").length - a.bullets.join("").length)[0].bullets.pop();
+        return true;
+      }],
+      ["drop last VMock group", (x) => { if (x.roles[0].groups.length > 3) { x.roles[0].groups.pop(); return true; } return false; }],
+      ["font 91%", () => { if (scale > 0.91) { scale = 0.91; return true; } return false; }]
+    ];
+
+    let guard = 0;
+    while (heightPx > PAGE_PX && guard++ < 20) {
+      let applied = false;
+      for (const [name, step] of steps) {
+        if (step(r)) { trims.push(name); applied = true; break; }
+      }
+      if (!applied) break;
+      ({ html, heightPx } = await measure(r, scale));
+      // Once a step is used it should not be tried again unless it can still change something,
+      // so steps are written to return false when already applied.
+    }
+
     const pdf = await page.pdf({ format: "Letter", printBackground: true, margin: { top: 0, right: 0, bottom: 0, left: 0 }, preferCSSPageSize: true });
-    return { pdf: Buffer.from(pdf), heightPx, overflow: heightPx > 1056, html };
+    return { pdf: Buffer.from(pdf), heightPx, overflow: heightPx > PAGE_PX, html, trims, resume: r, scale };
   } finally {
     await browser.close();
   }

@@ -15,7 +15,9 @@ Writing rules, all mandatory:
 - Bold one to three key terms per bullet by wrapping them in double asterisks, like **Kubernetes** or **400ms to 30ms**. Bold facts and tools, not verbs. Asterisks count toward the length limit.
 - Group headings are short noun phrases that mirror the JD's themes, like "Agentic AI Workloads in Production" or "Platform, Deployment and Reliability".
 - Order skills groups by relevance to the JD. Drop skill groups and items the JD would not care about. Do not add skills that are not in the master.
-- Total length must fit one US Letter page: at most 4 groups for VMock with 2 to 3 bullets each, 1 bullet for the internship, 1 or 2 projects with 1 or 2 bullets, 5 to 6 skill groups, 2 achievements.
+- Do not pad a bullet with a purpose clause that is not in the master, such as "ensuring reliable processing", "enabling safe actions", "improving user experience", "delivering value". End the bullet where the fact ends.
+- Do not merge facts from two different master bullets into one sentence unless both facts remain exactly true of the same piece of work.
+- Budget, strictly: VMock has 3 or 4 groups and 8 to 9 bullets in total. The internship has 1 bullet. Projects: pick 1 project with 2 bullets, or 2 projects with 1 bullet each. 5 or 6 skill groups. Exactly 2 achievements. Coursework only if the JD asks for fundamentals or the role is junior; otherwise omit it.
 `;
 
 export type TailorResult = {
@@ -55,11 +57,44 @@ Return this JSON shape:
   "achievements": ["...", "..."]
 }`;
 
-  const raw = await chatJson<any>([{ role: "system", content: system }, { role: "user", content: user }], { maxTokens: 6000 });
-  const { jdSummary = "", fitNotes = [], ...rest } = raw;
-  const resume = TailoredResume.parse(rest);
+  const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+    { role: "system", content: system },
+    { role: "user", content: user }
+  ];
+  let raw = await chatJson<any>(messages, { maxTokens: 6000 });
+  let { jdSummary = "", fitNotes = [], ...rest } = raw;
+  let parsed = TailoredResume.safeParse(normalize(rest));
+  if (!parsed.success) {
+    // One repair round: show the model its own JSON and the exact schema errors.
+    const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("\n");
+    messages.push({ role: "assistant", content: JSON.stringify(raw) });
+    messages.push({ role: "user", content: `Your JSON failed validation. Fix only these problems and return the full corrected JSON, nothing else:\n${issues}` });
+    raw = await chatJson<any>(messages, { maxTokens: 6000 });
+    ({ jdSummary = jdSummary, fitNotes = fitNotes, ...rest } = raw);
+    parsed = TailoredResume.safeParse(normalize(rest));
+    if (!parsed.success) throw new Error(`Resume JSON still invalid after repair: ${parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`);
+  }
+  const resume = parsed.data;
   const warnings = validate(resume);
   return { resume, jdSummary, fitNotes, warnings };
+}
+
+/** Cheap, lossless-enough fixes before strict parsing: cap list lengths, strip dashes, trim whitespace. */
+function normalize(r: any): any {
+  // Also fold non-breaking hyphens (U+2010/U+2011) the model likes to emit back into plain hyphens.
+  const fix = (s: unknown) => String(s ?? "").replace(/[\u2010\u2011]/g, "-").replace(/\s*[–—]\s*/g, ", ").replace(/(\d)\s+(%|ms|x\b)/g, "$1$2").replace(/\s+,/g, ",").replace(/\s+/g, " ").trim();
+  const cap = <T,>(a: T[] | undefined, n: number) => (Array.isArray(a) ? a.slice(0, n) : a);
+  return {
+    ...r,
+    roles: cap(r.roles, 2)?.map((role: any) => ({
+      ...role,
+      groups: cap(role.groups, 4)?.map((g: any) => ({ heading: fix(g.heading).slice(0, 60), bullets: cap(g.bullets, 4)?.map(fix) }))
+    })),
+    projects: cap(r.projects, 2)?.map((p: any) => ({ ...p, stack: fix(p.stack).slice(0, 70), bullets: cap(p.bullets, 2)?.map(fix) })),
+    skills: cap(r.skills, 7)?.map((s: any) => ({ label: fix(s.label).slice(0, 40), items: cap(s.items, 12)?.map(fix) })),
+    coursework: cap(r.coursework, 6),
+    achievements: cap(r.achievements, 2)?.map(fix)
+  };
 }
 
 /** Deterministic checks the model cannot talk its way past. */
@@ -89,7 +124,7 @@ export function validate(resume: TailoredResume): string[] {
 
 /** Strip dashes if the model slipped; keeps the render honest even when a warning fires. */
 export function sanitize(resume: TailoredResume): TailoredResume {
-  const fix = (s: string) => s.replace(/\s*[–—]\s*/g, ", ").replace(/\s+,/g, ",");
+  const fix = (s: string) => s.replace(/[\u2010\u2011]/g, "-").replace(/\s*[–—]\s*/g, ", ").replace(/\s+,/g, ",");
   return {
     ...resume,
     roles: resume.roles.map((r) => ({ ...r, groups: r.groups.map((g) => ({ heading: fix(g.heading), bullets: g.bullets.map(fix) })) })),
