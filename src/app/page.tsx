@@ -1,69 +1,53 @@
-import Image from "next/image";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { authorized } from "@/lib/auth";
+import { listApplications } from "@/lib/store";
+import { createApplicationAction, logoutAction } from "./actions";
+import { StatusBadge } from "./status-badge";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+export const maxDuration = 300;
+
+export default async function Home({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  if (!(await authorized())) redirect("/login");
+  const { error } = await searchParams;
+  const apps = await listApplications();
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main>
+      <header className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Auto Apply</h1>
+          <p className="text-sm text-neutral-600">Paste a Greenhouse, Lever or Ashby job link. You get a tailored resume and an email with anything I can't answer for you.</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        <form action={logoutAction}><button className="text-sm text-neutral-500 hover:text-neutral-900">Sign out</button></form>
+      </header>
+
+      <form action={createApplicationAction} className="mt-6 flex gap-2">
+        <input name="url" type="url" required placeholder="https://job-boards.greenhouse.io/company/jobs/123456" className="flex-1 rounded-md border border-neutral-300 bg-white px-3 py-2" />
+        <button className="rounded-md bg-neutral-900 px-4 py-2 text-white">Start</button>
+      </form>
+      {error === "url" && <p className="mt-2 text-sm text-red-600">That does not look like a URL.</p>}
+
+      <section className="mt-8">
+        <h2 className="text-sm font-medium uppercase tracking-wide text-neutral-500">Applications</h2>
+        {apps.length === 0 ? (
+          <p className="mt-3 text-sm text-neutral-500">Nothing yet.</p>
+        ) : (
+          <ul className="mt-3 divide-y divide-neutral-200 rounded-lg border border-neutral-200 bg-white">
+            {apps.map((a) => (
+              <li key={a.id}>
+                <Link href={`/a/${a.id}`} className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-neutral-50">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">{a.job ? `${a.job.company}: ${a.job.title}` : a.url}</div>
+                    <div className="truncate text-xs text-neutral-500">{a.job?.location || a.url} · {new Date(a.createdAt).toLocaleString()}</div>
+                  </div>
+                  <StatusBadge status={a.status} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </main>
   );
 }
