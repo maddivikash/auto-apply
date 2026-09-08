@@ -27,11 +27,15 @@ export async function processApplication(id: string): Promise<void> {
     }
     const { description, ...rest } = job;
     app.job = { ...rest, descriptionPreview: description.slice(0, 1500) };
-    app.questions = job.questions.map((q): QuestionState => {
-      const a = answerFor(q.label, q.options, q.type);
-      const human = needsHuman(q.label, q.type) && !a;
-      return { ...q, answer: a?.value, source: a?.source, needsHuman: human };
-    });
+    app.questions = job.questions
+      // Hidden geo fields come from the location autocomplete; the runner fills them with the city.
+      .filter((q) => !/^(longitude|latitude)$/i.test(q.label))
+      .map((q): QuestionState => {
+        const a = answerFor(q.label, q.options, q.type);
+        // Files are attached by the runner (resume) or skipped when optional (cover letter).
+        const human = q.type !== "file" && !a && (needsHuman(q.label, q.type) || q.required);
+        return { ...q, answer: a?.value, source: a?.source, needsHuman: human };
+      });
     // Boards without a public question list still have the standard fields; the runner handles those.
 
     await step("tailoring");
