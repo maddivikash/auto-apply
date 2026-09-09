@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Auto Apply", description: "Paste a j
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider>
+    <ClerkProvider signInUrl="/sign-in" signUpUrl="/sign-up" signInFallbackRedirectUrl="/dashboard" signUpFallbackRedirectUrl="/profile?welcome=1">
       <html lang="en" className={`${sans.variable} ${serif.variable}`}>
         <body className="min-h-screen antialiased">{children}</body>
       </html>
