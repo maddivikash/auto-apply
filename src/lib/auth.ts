@@ -2,8 +2,13 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { headers } from "next/headers";
 import { userForRunnerToken } from "./store";
 
+// Local design previews only: never set on Vercel.
+const previewUser = () => (process.env.NODE_ENV !== "production" ? process.env.DEV_FAKE_USER || null : null);
+
 /** Signed-in user id, or null. */
 export async function userId(): Promise<string | null> {
+  const fake = previewUser();
+  if (fake) return fake;
   const { userId } = await auth();
   return userId ?? null;
 }
@@ -15,6 +20,7 @@ export async function requireUserId(): Promise<string> {
 }
 
 export async function userEmail(): Promise<string | null> {
+  if (previewUser()) return "preview@example.com";
   const u = await currentUser();
   return u?.primaryEmailAddress?.emailAddress ?? u?.emailAddresses?.[0]?.emailAddress ?? null;
 }

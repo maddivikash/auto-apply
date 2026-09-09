@@ -1,6 +1,7 @@
 import { requireUserId } from "@/lib/auth";
 import { getSettings } from "@/lib/store";
 import { rotateRunnerTokenAction } from "../../actions";
+import { PageHeader } from "@/components/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -10,14 +11,14 @@ export default async function RunnerPage() {
   const appUrl = process.env.APP_URL || "http://localhost:3000";
   return (
     <div className="space-y-8">
-      <div><h1 className="serif text-4xl">Runner</h1><p className="mt-2 max-w-2xl text-sm text-muted">Forms are filled by a small program on your own computer, in a browser window you can watch. It never submits on its own: it fills, sends you a screenshot, and waits for your Submit in this app.</p></div>
-      <section className="panel space-y-4 p-5">
+      <PageHeader title="Runner" description="Forms are filled by a small program on your own computer, in a browser window you can watch. It never submits on its own: it fills, sends you a screenshot, and waits for your Submit in this app." />
+      <section className="panel-pad space-y-4">
         <h2 className="font-medium">Your runner token</h2>
         {s?.runnerToken ? <code className="block break-all rounded-md bg-tint px-3 py-2 text-sm">{s.runnerToken}</code> : <p className="text-sm text-muted">No token yet.</p>}
         <form action={rotateRunnerTokenAction}><button className="btn-ghost">{s?.runnerToken ? "Generate a new token" : "Generate token"}</button></form>
         <p className="text-xs text-muted">The token identifies your account to the runner. Generating a new one disables the old one.</p>
       </section>
-      <section className="panel space-y-3 p-5 text-sm">
+      <section className="panel-pad space-y-3 text-sm">
         <h2 className="font-medium">Set up on a Mac or Linux machine</h2>
         <ol className="list-decimal space-y-2 pl-5">
           <li>Install Node.js 20 or newer.</li>

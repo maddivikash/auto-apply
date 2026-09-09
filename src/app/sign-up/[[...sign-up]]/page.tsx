@@ -1,2 +1,5 @@
 import { SignUp } from "@clerk/nextjs";
-export default function Page() { return <main className="flex min-h-screen items-center justify-center p-6"><SignUp forceRedirectUrl="/profile?welcome=1" /></main>; }
+import { AuthShell } from "@/components/auth-shell";
+export default function Page() {
+  return <AuthShell title="Start with the resume you already have." body="Upload it once. It becomes your profile, the only source of facts for every tailored resume after that."><SignUp forceRedirectUrl="/profile?welcome=1" appearance={{ variables: { colorPrimary: "#16181d", borderRadius: "10px", fontFamily: "var(--font-plex-sans)" } }} /></AuthShell>;
+}

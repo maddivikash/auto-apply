@@ -43,7 +43,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
       <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
         <div className="space-y-8">
           {app.jdSummary && (
-            <section className="panel p-5">
+            <section className="panel-pad">
               <h2 className="font-medium">What they want</h2>
               <p className="mt-2 text-sm text-muted">{app.jdSummary}</p>
               {app.fitNotes?.length ? <ul className="mt-3 space-y-1.5 text-sm">{app.fitNotes.map((n) => <li key={n} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-go" />{n}</li>)}</ul> : null}
@@ -51,7 +51,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
           )}
 
           {app.job && (
-            <section className="panel p-5">
+            <section className="panel-pad">
               <h2 className="font-medium">Form answers</h2>
               {app.questions.length === 0 ? (
                 <p className="mt-2 text-sm text-muted">{app.job.board === "greenhouse" ? "This form has no extra questions." : "This board does not publish its questions. The runner reads them from the live form and reports anything it cannot answer."}</p>
@@ -67,7 +67,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
           )}
 
           {app.job && !["unsupported", "failed"].includes(app.status) && (
-            <section className="panel p-5">
+            <section className="panel-pad">
               <h2 className="font-medium">Submission</h2>
               <ol className="mt-3 space-y-3 text-sm">
                 <li className={`rounded-md px-3 py-2 ${app.status === "ready" ? "bg-tint" : ""}`}>
@@ -98,7 +98,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
                 <div className="flex gap-2"><a href={`/api/applications/${app.id}/pdf`} target="_blank" rel="noreferrer" className="btn-ghost py-1.5">Open PDF</a><form action={reprocessAction}><input type="hidden" name="id" value={app.id} /><button className="btn-ghost py-1.5" disabled={busy}>Regenerate</button></form></div>
               </div>
               {app.resumeWarnings?.length ? <p className="border-b border-line bg-signal-soft px-4 py-2 text-xs text-signal">Checks flagged: {app.resumeWarnings.join("; ")}</p> : null}
-              <iframe title="Resume preview" src={`/api/applications/${app.id}/pdf#toolbar=0&view=FitH`} className="h-[760px] w-full bg-tint" />
+              <object data={`/api/applications/${app.id}/pdf#toolbar=0&view=FitH`} type="application/pdf" className="h-[760px] w-full bg-tint" aria-label="Resume preview"><div className="flex h-full items-center justify-center text-sm text-muted">Preview not available in this browser. <a className="ml-1 underline" href={`/api/applications/${app.id}/pdf`} target="_blank" rel="noreferrer">Open the PDF</a></div></object>
             </section>
           ) : (
             <section className="panel flex h-64 items-center justify-center text-sm text-muted">{busy ? "Resume preview appears here when it is ready." : "No resume yet."}</section>

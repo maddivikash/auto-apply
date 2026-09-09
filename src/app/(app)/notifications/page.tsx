@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUserId } from "@/lib/auth";
 import { listNotifications } from "@/lib/store";
 import { markAllReadAction } from "../../actions";
+import { PageHeader } from "@/components/page-header";
 
 export const dynamic = "force-dynamic";
 const TONE: Record<string, string> = { ready: "bg-go", needs_details: "bg-signal", filled: "bg-signal", submitted: "bg-go", failed: "bg-danger", unsupported: "bg-danger", info: "bg-muted" };
@@ -11,7 +12,7 @@ export default async function NotificationsPage() {
   const list = await listNotifications(uid);
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between"><h1 className="serif text-4xl">Notifications</h1>{list.some((n) => !n.read) && <form action={markAllReadAction}><button className="btn-ghost">Mark all read</button></form>}</div>
+      <PageHeader title="Notifications" description="Resume ready, details needed, form filled, submitted. The same events also reach your email." actions={list.some((n) => !n.read) ? <form action={markAllReadAction}><button className="btn-ghost">Mark all read</button></form> : undefined} />
       {list.length === 0 ? <div className="panel px-6 py-14 text-center text-sm text-muted">Nothing yet. You will see resume-ready, filled and submitted events here, and by email.</div> : (
         <ul className="panel divide-y divide-line">
           {list.map((n) => (

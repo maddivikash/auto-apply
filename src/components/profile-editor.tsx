@@ -74,5 +74,5 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
 }
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
-  return <section className="panel space-y-4 p-5"><div><h2 className="font-medium">{title}</h2>{hint && <p className="mt-1 text-xs text-muted">{hint}</p>}</div>{children}</section>;
+  return <section className="panel-pad space-y-4"><div><h2 className="font-medium">{title}</h2>{hint && <p className="mt-1 text-xs text-muted">{hint}</p>}</div>{children}</section>;
 }

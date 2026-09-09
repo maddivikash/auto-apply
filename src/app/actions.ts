@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { nanoid } from "nanoid";
 import { randomBytes } from "node:crypto";
@@ -20,6 +21,7 @@ export async function createApplicationAction(formData: FormData) {
   const app: Application = { id, userId, url, createdAt: now, updatedAt: now, status: "queued", questions: [] };
   await saveApplication(app);
   after(() => processApplication(userId, id));
+  revalidatePath("/", "layout");
   redirect(`/a/${id}`);
 }
 
@@ -69,6 +71,7 @@ export async function requestSubmitAction(formData: FormData) {
 export async function deleteAction(formData: FormData) {
   const userId = await requireUserId();
   await deleteApplication(userId, String(formData.get("id")));
+  revalidatePath("/", "layout");
   redirect("/dashboard");
 }
 
@@ -94,6 +97,7 @@ export async function importResumeAction(formData: FormData) {
   const current = Settings.parse((await getSettings(userId)) ?? {});
   const [first, ...rest] = profile.name.split(" ");
   await saveSettings(userId, { ...current, firstName: current.firstName || first, lastName: current.lastName || rest.join(" "), email: current.email || profile.email || email || "", phone: current.phone || profile.phone, location: current.location || profile.location, linkedin: current.linkedin || (profile.linkedin ? `https://${profile.linkedin.replace(/^https?:\/\//, "")}` : ""), github: current.github || (profile.github ? `https://${profile.github.replace(/^https?:\/\//, "")}` : ""), website: current.website || (profile.website ? `https://${profile.website.replace(/^https?:\/\//, "")}` : ""), currentCompany: current.currentCompany || profile.roles[0]?.company || "", currentTitle: current.currentTitle || profile.roles[0]?.title || "", workAuthorizedCountries: current.workAuthorizedCountries || countryOf(profile.location) || "", yearsExperience: current.yearsExperience || yearsFrom(profile.roles.map((r) => r.start)), notifyEmail: current.notifyEmail || email || "" });
+  revalidatePath("/", "layout");
   redirect("/profile?imported=1");
 }
 
@@ -110,6 +114,7 @@ export async function saveProfileAction(formData: FormData) {
   let parsed;
   try { parsed = Profile.parse(JSON.parse(raw)); } catch (e) { redirect(`/profile?error=${encodeURIComponent((e as Error).message.slice(0, 200))}`); }
   await saveProfile(userId, parsed);
+  revalidatePath("/", "layout");
   redirect("/profile?saved=1");
 }
 
@@ -135,5 +140,6 @@ export async function rotateRunnerTokenAction() {
 export async function markAllReadAction() {
   const userId = await requireUserId();
   await markNotificationsRead(userId);
+  revalidatePath("/", "layout");
   redirect("/notifications");
 }
