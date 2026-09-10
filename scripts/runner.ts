@@ -10,6 +10,7 @@ import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { answerFor } from "../src/lib/defaults";
+import { discoverLiveFields } from "../src/lib/apply/discover";
 import type { Application, QuestionState } from "../src/lib/store";
 import type { Settings } from "../src/lib/profile/types";
 
@@ -137,40 +138,36 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
   const fileInput = page.locator('input[type=file]').first();
   if (await fileInput.count()) { await fileInput.setInputFiles(resumePath); notes.push("Resume attached"); await page.waitForTimeout(3000); }
 
-  const fields = await page.evaluate(() => {
-    const out: { label: string; selector: string; type: string; options?: string[]; required: boolean }[] = [];
-    const seen = new Set<string>();
-    document.querySelectorAll<HTMLElement>("input, textarea, select").forEach((el, i) => {
-      const input = el as HTMLInputElement;
-      if (["hidden", "submit", "button", "file"].includes(input.type)) return;
-      const id = el.id || (el.getAttribute("name") ? `[name="${el.getAttribute("name")}"]` : "");
-      const selector = el.id ? `#${CSS.escape(el.id)}` : id;
-      if (!selector || seen.has(selector)) return; seen.add(selector);
-      let label = "";
-      if (el.id) label = document.querySelector(`label[for="${el.id}"]`)?.textContent || "";
-      if (!label) label = el.closest("label")?.textContent || el.getAttribute("aria-label") || el.getAttribute("placeholder") || "";
-      if (!label) { const wrap = el.closest("div, li, fieldset"); label = wrap?.querySelector("label, legend, .application-label, [class*=label]")?.textContent || ""; }
-      label = label.replace(/\s+/g, " ").replace(/[✱*]/g, "").trim();
-      const required = input.required || el.getAttribute("aria-required") === "true" || /\*|✱/.test(el.closest("div, li")?.querySelector("label")?.textContent || "");
-      const type = el.tagName === "SELECT" ? "select" : el.tagName === "TEXTAREA" ? "textarea" : input.type === "checkbox" ? "checkbox" : input.type === "radio" ? "radio" : "text";
-      const options = el.tagName === "SELECT" ? Array.from((el as HTMLSelectElement).options).map((o) => o.text.trim()).filter(Boolean) : undefined;
-      out.push({ label, selector, type, options, required });
-    });
-    return out;
-  });
+  const fields = await discoverLiveFields(page);
 
   const unanswered: { label: string; required: boolean; type: string; options?: string[] }[] = [];
   for (const f of fields) {
-    if (!f.label) continue;
+    if (!f.label || f.type === "file") continue;
     const stored = app.questions.find((q) => q.label.toLowerCase() === f.label.toLowerCase());
-    const value = stored?.answer || answerFor(SETTINGS, f.label, f.options, f.type, { jobLocation: app.job?.location })?.value;
-    if (!value) { if (f.type !== "checkbox" && f.type !== "radio") unanswered.push({ label: f.label, required: f.required, type: f.type, options: f.options }); continue; }
-    const el = page.locator(f.selector).first();
+    const kind = f.type === "group" ? "select" : f.type;
+    const value = stored?.answer || answerFor(SETTINGS, f.label, f.options, kind, { jobLocation: app.job?.location })?.value;
+    if (!value) {
+      // A lone checkbox with no rule is left alone (marketing consent), unless it is phrased as a question.
+      if (f.type !== "checkbox" || /\?/.test(f.label)) unanswered.push({ label: f.label, required: f.required, type: kind, options: f.options });
+      continue;
+    }
     try {
-      if (f.type === "select") await el.selectOption({ label: value });
-      else if (f.type === "checkbox") { if (!(await el.isChecked())) await el.check({ force: true }); }
-      else if (f.type === "radio") { const r = page.getByLabel(value, { exact: false }).first(); if (await r.count()) await r.check({ force: true }); }
-      else { await el.scrollIntoViewIfNeeded(); await el.fill(""); await el.pressSequentially(value, { delay: 12 }); }
+      if (f.type === "select") await page.locator(f.selector).first().selectOption({ label: value });
+      else if (f.type === "checkbox") { const el = page.locator(f.selector).first(); if (!(await el.isChecked())) await el.check({ force: true }); }
+      else if (f.type === "group") {
+        // Click the option whose label matches the chosen value.
+        const inputs = page.locator(f.selector);
+        const n = await inputs.count();
+        let hit = false;
+        for (let i = 0; i < n && !hit; i++) {
+          const el = inputs.nth(i);
+          const id = await el.getAttribute("id");
+          const text = ((id && (await page.locator(`label[for="${id}"]`).first().textContent().catch(() => ""))) || (await el.locator("xpath=ancestor::label[1]").first().textContent().catch(() => "")) || "").replace(/\s+/g, " ").trim();
+          if (text.toLowerCase() === value.toLowerCase()) { await el.scrollIntoViewIfNeeded(); await el.check({ force: true }); hit = true; }
+        }
+        if (!hit) notes.push(`Could not pick "${value}" for ${f.label}`);
+      }
+      else { const el = page.locator(f.selector).first(); await el.scrollIntoViewIfNeeded(); await el.fill(""); await el.pressSequentially(value, { delay: 12 }); }
     } catch (e) { notes.push(`Could not fill "${f.label}": ${(e as Error).message.slice(0, 80)}`); }
   }
   if (unanswered.length) {

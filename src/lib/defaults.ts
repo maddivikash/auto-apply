@@ -6,7 +6,7 @@ import type { Settings } from "./profile/types";
 
 export type Answer = { value: string; source: "profile" | "rule" };
 export type AnswerContext = { jobLocation?: string };
-type Rule = { test: RegExp; answer: (s: Settings, opts?: string[], ctx?: AnswerContext) => string | undefined };
+type Rule = { test: RegExp; answer: (s: Settings, opts?: string[], ctx?: AnswerContext, label?: string) => string | undefined };
 
 const COUNTRY_HINTS: [RegExp, string][] = [
   [/\b(india|bengaluru|bangalore|hyderabad|gurugram|gurgaon|mumbai|pune|chennai|delhi|noida|kolkata)\b/i, "India"],
@@ -25,9 +25,15 @@ export function countryOf(location?: string): string | undefined {
 export function sponsorshipAnswer(s: Settings, jobLocation?: string): "Yes" | "No" | undefined {
   const authorized = s.workAuthorizedCountries.split(",").map((c) => c.trim().toLowerCase()).filter(Boolean);
   const country = countryOf(jobLocation);
-  if (!authorized.length) return s.needsSponsorship;
-  if (!country) return /remote/i.test(jobLocation || "") ? undefined : undefined;
+  if (!authorized.length || !country) return undefined;
   return authorized.includes(country.toLowerCase()) ? "No" : s.sponsorshipElsewhere;
+}
+/** "Yes" when the job is in a country the user can already work in, "No" when it is not, undefined when unknown. */
+export function authorizedAnswer(s: Settings, jobLocation?: string): "Yes" | "No" | undefined {
+  const authorized = s.workAuthorizedCountries.split(",").map((c) => c.trim().toLowerCase()).filter(Boolean);
+  const country = countryOf(jobLocation);
+  if (!authorized.length || !country) return undefined;
+  return authorized.includes(country.toLowerCase()) ? "Yes" : "No";
 }
 
 const pick = (opts: string[] | undefined, ...prefer: RegExp[]) => {
@@ -43,27 +49,30 @@ const RULES: Rule[] = [
   { test: /^first\s*name/i, answer: (s) => or(s.firstName) },
   { test: /^last\s*name|surname|family name/i, answer: (s) => or(s.lastName) },
   { test: /^(full |legal )?name$/i, answer: (s) => or(`${s.firstName} ${s.lastName}`.trim()) },
-  { test: /preferred name/i, answer: (s) => or(s.firstName) },
+  { test: /preferred (first )?name/i, answer: (s) => or(s.firstName) },
   { test: /e-?mail/i, answer: (s) => or(s.email) },
   { test: /phone|mobile/i, answer: (s) => or(s.phone) },
   { test: /include your linkedin.*(website|blog)|linkedin.*personal website|website or blog/i, answer: (s) => or(links(s)) },
   { test: /linkedin/i, answer: (s) => or(s.linkedin) },
   { test: /github/i, answer: (s) => or(s.github) },
   { test: /portfolio|personal (web)?site|^website$/i, answer: (s) => or(s.website) },
-  { test: /sponsor(ship)?|visa|work (permit|authori[sz]ation)|immigration/i, answer: (s, o, ctx) => { const a = sponsorshipAnswer(s, ctx?.jobLocation); if (!a) return undefined; return o?.length ? pick(o, a === "No" ? /^no\b/i : /^yes\b/i) : a; } },
+  { test: /(authori[sz]ed|eligible|right) to work|work authori[sz]ation|work permit/i, answer: (s, o, ctx) => { const a = authorizedAnswer(s, ctx?.jobLocation); if (!a) return undefined; return o?.length ? pick(o, a === "Yes" ? /^yes\b/i : /^no\b/i) : a; } },
+  { test: /sponsor(ship)?|visa|immigration/i, answer: (s, o, ctx) => { const a = sponsorshipAnswer(s, ctx?.jobLocation); if (!a) return undefined; return o?.length ? pick(o, a === "No" ? /^no\b/i : /^yes\b/i) : a; } },
   { test: /relocat/i, answer: (s, o) => o?.length ? pick(o, s.willingToRelocate === "Yes" ? /willing to relocate/i : /not willing|do not/i, s.willingToRelocate === "Yes" ? /^yes\b/i : /^no\b/i) : s.willingToRelocate },
   { test: /open to (working )?(in[- ]?person|hybrid|in one of our offices)|onsite|on-site/i, answer: (s, o) => pick(o, s.openToOnsite === "Yes" ? /^yes\b/i : /^no\b/i) },
   { test: /remote/i, answer: (_s, o) => pick(o, /^yes\b/i, /open|either|flexible/i) },
   { test: /^(current )?location( \(city\))?$|^city$|where (are you|do you) (currently )?(based|live|reside)|current(ly)? (city|located|residing)/i, answer: (s) => or(s.location) },
-  { test: /how did you (hear|find|learn)|referral source|^source$/i, answer: (s, o) => o?.length ? pick(o, new RegExp(s.heardFrom || "linkedin", "i")) : or(s.heardFrom, "LinkedIn") },
-  { test: /privacy (policy|notice)|acknowledge|consent|agree to (the )?(terms|processing)|gdpr/i, answer: (_s, o) => o?.[0] },
-  { test: /interviewed (at|with|for).*(before|last|previously)|previously (applied|interviewed)|worked (at|for) .* before|former employee/i, answer: (_s, o) => pick(o, /^no\b/i) },
+  { test: /country of residence|(country|where) (are|do) you (currently )?(based|reside|live|located)/i, answer: (s) => countryOf(s.location) },
+  { test: /(how|where) did you (hear|find|learn)|referral source|^source$/i, answer: (s, o) => o?.length ? pick(o, new RegExp(s.heardFrom || "linkedin", "i")) : or(s.heardFrom, "LinkedIn") },
+  { test: /privacy (policy|notice)|acknowledge|consent|agree to|gdpr|i understand|i have read|i confirm/i, answer: (_s, o, _c, label) => (/contact me|marketing|newsletter|alerts|stay up to date|future (job )?opportunit/i.test(label || "") ? undefined : o?.[0]) },
+  { test: /interviewed (at|with|for).*(before|last|previously)|previously (applied|interviewed|worked|been employed)|(worked|employed) (at|for|by|with) .*(before|in the past|previously|in any capacity)|former employee|previous .* employment/i, answer: (_s, o) => pick(o, /^no\b/i) },
   { test: /notice period|earliest.*start|start date|availability|when (can|could|would) you (start|join)/i, answer: (s) => or(s.noticePeriod) },
-  { test: /years? of (professional |relevant |work )?experience/i, answer: (s, o) => o?.length ? (s.yearsExperience ? pick(o, new RegExp(`^${s.yearsExperience}\\b`)) : undefined) : or(s.yearsExperience) },
+  { test: /18 years|legal age|at least 18/i, answer: (_s, o) => pick(o, /^yes\b/i) },
+  { test: /\b\d+\s*\+?\s*(or more\s*)?(years?|yrs)\b(?! of age)/i, answer: (s, o, _c, label) => { const n = Number((label || "").match(/(\d+)\s*\+?\s*(or more\s*)?(years?|yrs)/i)?.[1]); const mine = parseFloat(s.yearsExperience); if (!o?.length || !n || isNaN(mine)) return undefined; return pick(o, mine >= n ? /^yes\b/i : /^no\b/i); } },
+  { test: /years? of (professional |relevant |work |industry )?experience/i, answer: (s, o) => o?.length ? (s.yearsExperience ? pick(o, new RegExp(`^${s.yearsExperience}\\b`)) : undefined) : or(s.yearsExperience) },
   { test: /current (employer|company)/i, answer: (s) => or(s.currentCompany) },
   { test: /current (title|role|position)/i, answer: (s) => or(s.currentTitle) },
   { test: /salary|compensation expect/i, answer: (s) => or(s.salaryExpectation) },
-  { test: /18 years|legal age|at least 18/i, answer: (_s, o) => pick(o, /^yes\b/i) },
   { test: /gender|race|ethnicity|veteran|disability|hispanic|pronoun/i, answer: (_s, o) => pick(o, /decline|prefer not|do not wish|don't wish/i) }
 ];
 
@@ -71,7 +80,7 @@ export function answerFor(settings: Settings, label: string, options?: string[],
   if (type === "file") return undefined;
   for (const r of RULES) {
     if (r.test.test(label)) {
-      const v = r.answer(settings, options, ctx);
+      const v = r.answer(settings, options, ctx, label);
       return v ? { value: v, source: "rule" } : undefined;
     }
   }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
-import { ArrowRight, FileText, Link2, MailCheck, MousePointerClick, ShieldCheck, Bot } from "lucide-react";
+import { Check } from "lucide-react";
 import { userId } from "@/lib/auth";
 import { Brand } from "@/components/brand";
 import { StageTrack } from "@/components/status";
@@ -9,58 +9,118 @@ import { StageTrack } from "@/components/status";
 export default async function Landing() {
   if (await userId()) redirect("/dashboard");
   return (
-    <main className="paper-grid min-h-screen">
-      <div className="mx-auto max-w-6xl px-6">
-        <header className="flex items-center justify-between py-6">
+    <main data-theme="dark" className="relative min-h-screen overflow-x-clip bg-bg text-fg">
+      <div className="grid-fade pointer-events-none absolute inset-x-0 top-0 h-[90vh]" aria-hidden />
+      <div className="glow pointer-events-none absolute left-1/2 top-[-10vh] h-[70vh] w-[90vw] -translate-x-1/2 opacity-70" aria-hidden />
+
+      <div className="relative mx-auto max-w-[1160px] px-6">
+        <header className="flex items-center justify-between py-5">
           <Brand />
-          <nav className="flex items-center gap-2 text-sm"><Link href="/sign-in" className="btn-ghost">Sign in</Link><Link href="/sign-up" className="btn-primary">Create account</Link></nav>
+          <nav className="flex items-center gap-2"><Link href="/sign-in" className="btn-quiet">Sign in</Link><Link href="/sign-up" className="btn-primary">Create account</Link></nav>
         </header>
 
-        <section className="grid items-center gap-12 py-16 lg:grid-cols-[1.05fr_1fr] lg:py-24">
+        <section className="grid items-center gap-14 pb-20 pt-14 lg:grid-cols-[0.95fr_1.05fr] lg:pb-28 lg:pt-20">
+          <div className="rise max-w-xl">
+            <h1 className="display text-[44px] sm:text-[56px] lg:text-[64px]">Paste a job link.<br />Review the application.<br />Press Submit.</h1>
+            <p className="mt-7 max-w-md text-[17px] leading-relaxed text-muted">Auto Apply writes a one-page resume for the role from your own profile, answers the form with what it already knows about you, and fills it in a browser window on your machine. Nothing is sent until you say so.</p>
+            <div className="mt-9 flex flex-wrap items-center gap-3">
+              <Link href="/sign-up" className="btn-primary btn-lg">Start with your resume</Link>
+              <Link href="/sign-in" className="btn-ghost btn-lg">I have an account</Link>
+            </div>
+            <p className="mt-5 text-[13px] text-muted">Works with Greenhouse, Lever and Ashby job pages. Free while in beta.</p>
+          </div>
+          <ProductFrame />
+        </section>
+
+        <section className="border-t border-line py-20">
+          <div className="max-w-xl">
+            <h2 className="text-[30px] font-semibold leading-tight tracking-[-0.025em]">Every application moves through the same five stages.</h2>
+            <p className="mt-3 text-[15.5px] leading-relaxed text-muted">The rail on every card tells you where each one is and what it is waiting on.</p>
+          </div>
+          <ol className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
+            {[
+              ["Read", "The posting is read from the board's own API, including every question its form asks."],
+              ["Resume", "A one-page resume is written for that role. Every number is checked against your profile before it renders."],
+              ["Answers", "Name, links, location, sponsorship and relocation come from your Answers page. Anything else is asked, by email and in the app."],
+              ["Filled", "A small runner on your computer opens the real form, types the answers, attaches the PDF and stops with a screenshot."],
+              ["Submitted", "You press Submit. The runner clicks it and confirms. That is the only way anything goes out."]
+            ].map(([title, body], i) => (
+              <li key={title} className="relative">
+                <span className={`block h-[5px] w-full rounded-full ${i < 4 ? "bg-go" : "bg-signal shadow-[0_0_12px_var(--glow)]"}`} aria-hidden />
+                <h3 className="mt-4 text-[15px] font-semibold">{title}</h3>
+                <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">{body}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="grid gap-10 border-t border-line py-20 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
-            <p className="eyebrow">For Greenhouse, Lever and Ashby job posts</p>
-            <h1 className="serif mt-4 text-5xl leading-[1.02] tracking-tight md:text-6xl">Paste a job link.<br />Get a reviewed application, not a guess.</h1>
-            <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted">Auto Apply rewrites your resume for each role using only facts from your own profile, answers the form with what it knows about you, emails you the rest, and fills the real form. You press Submit.</p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/sign-up" className="btn-primary px-5 py-2.5 text-base">Start with your resume <ArrowRight size={16} /></Link>
-              <Link href="/sign-in" className="btn-ghost px-5 py-2.5 text-base">I have an account</Link>
-            </div>
-            <p className="mt-4 text-sm text-muted">Free while in beta. Nothing is submitted without your explicit approval.</p>
+            <h2 className="text-[30px] font-semibold leading-tight tracking-[-0.025em]">Built so you never have to wonder what it said about you.</h2>
+            <p className="mt-3 text-[15.5px] leading-relaxed text-muted">Automation that applies on your behalf has to be boring about facts and strict about control.</p>
           </div>
-          <div className="relative">
-            <div className="panel overflow-hidden shadow-[0_30px_80px_-40px_rgba(22,24,29,0.45)]">
-              <div className="flex items-center justify-between border-b border-line px-5 py-3">
-                <div><div className="text-sm font-medium">Cloudflare: Software Engineer, Platforms</div><div className="text-xs text-muted">Hybrid · Greenhouse</div></div>
-                <span className="rounded-full bg-signal-soft px-2.5 py-0.5 text-xs font-medium text-signal">Awaiting your Submit</span>
-              </div>
-              <div className="px-5 py-3"><StageTrack status="filled" needsDetails={false} /></div>
-              <div className="relative h-[380px] overflow-hidden border-t border-line bg-tint">
-                <Image src="/sample-resume.png" alt="A tailored one-page resume generated by Auto Apply" width={1200} height={1553} className="absolute left-1/2 top-4 w-[78%] -translate-x-1/2 rounded-sm shadow-lg" priority />
-              </div>
-            </div>
-            <div className="panel absolute -bottom-6 -left-6 hidden w-64 items-start gap-3 p-4 shadow-lg md:flex">
-              <MailCheck className="mt-0.5 shrink-0 text-go" size={18} />
-              <div className="text-sm"><div className="font-medium">Resume ready</div><div className="text-muted">2 questions need you: notice period, why this company.</div></div>
-            </div>
-          </div>
+          <ul className="divide-rows">
+            {[
+              ["Facts come only from your profile", "The resume writer cannot add a skill, a number or an employer that is not already in your profile. Flagged mismatches show on the review page."],
+              ["Known answers are filled, open questions are asked", "The form filler uses your Answers page. When a form asks something new, you get it as a question instead of a guess."],
+              ["The form is filled on your machine, in view", "The runner drives a visible browser window on your own computer. You can watch it type and check the screenshot it leaves."],
+              ["Submit is a button only you can press", "Approving lets the runner fill. Submitting is a second, separate step, and it is yours."],
+              ["Your data stays yours", "Profile, answers, resumes and applications live in your account. Delete any of it at any time."]
+            ].map(([title, body]) => (
+              <li key={title} className="flex gap-4 py-5 first:pt-0 last:pb-0">
+                <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-go-soft text-go"><Check size={12} strokeWidth={3} /></span>
+                <div><h3 className="text-[15px] font-medium">{title}</h3><p className="mt-1 text-[13.5px] leading-relaxed text-muted">{body}</p></div>
+              </li>
+            ))}
+          </ul>
         </section>
 
-        <section className="grid gap-6 py-16 md:grid-cols-3">
-          {[
-            [Link2, "Paste a link", "The posting is read from the board's own API, including every form question it asks."],
-            [FileText, "A resume written for that role", "One page, your layout, your facts. Every number is checked against your profile before it renders."],
-            [MailCheck, "Known answers filled, the rest asked", "Name, links, location, sponsorship and relocation come from your Answers page. Open questions arrive by email."],
-            [Bot, "The form is filled on your machine", "A small runner opens the real form in a browser window, attaches the PDF, and stops with a screenshot."],
-            [MousePointerClick, "You press Submit", "Approve in the app, then submit. Nothing goes out earlier."],
-            [ShieldCheck, "Your data stays yours", "Your profile, answers and applications live in your account. Delete any of it any time."]
-          ].map(([Icon, title, body]) => {
-            const I = Icon as React.ComponentType<{ size?: number; className?: string }>;
-            return <div key={title as string} className="panel-pad"><I size={20} className="text-brand" /><h3 className="mt-4 font-medium">{title as string}</h3><p className="mt-2 text-sm leading-relaxed text-muted">{body as string}</p></div>;
-          })}
+        <section className="my-8 rounded-[20px] border border-line bg-surface p-8 text-center lift md:p-14">
+          <h2 className="display text-[32px] sm:text-[40px]">Your next application, ready for review in about a minute.</h2>
+          <p className="mx-auto mt-4 max-w-md text-[15px] text-muted">Upload the resume you already have. It becomes your profile, and every tailored resume after that is written only from it.</p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3"><Link href="/sign-up" className="btn-primary btn-lg">Create your account</Link><Link href="/sign-in" className="btn-ghost btn-lg">Sign in</Link></div>
         </section>
 
-        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line py-8 text-sm text-muted"><Brand /><span>Built for people applying to a lot of jobs and tired of retyping their own name.</span></footer>
+        <footer className="flex flex-wrap items-center justify-between gap-3 py-10 text-[13px] text-muted"><Brand /><span>For people applying to a lot of jobs and tired of retyping their own name.</span></footer>
       </div>
     </main>
+  );
+}
+
+/** A still of the review page with real-looking content, so the first thing you see is the product. */
+function ProductFrame() {
+  const answers: [string, string, boolean][] = [
+    ["First name", "Vikash", true], ["Email", "vikash@example.com", true], ["LinkedIn", "linkedin.com/in/vikash", true],
+    ["Need sponsorship for this location?", "No", true], ["Willing to relocate?", "Yes, willing to relocate", true], ["Why Cloudflare?", "", false]
+  ];
+  return (
+    <div className="rise-2 relative">
+      <div className="glow pointer-events-none absolute -inset-10 -z-10" aria-hidden />
+      <div className="panel lift overflow-hidden text-[12.5px]">
+        <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
+          <div className="min-w-0"><div className="truncate text-[13.5px] font-medium">Cloudflare, Software Engineer, Platforms</div><div className="text-muted">Bengaluru, Greenhouse</div></div>
+          <span className="pill bg-signal-soft text-signal">1 question needs you</span>
+        </div>
+        <div className="border-b border-line px-4 py-3"><StageTrack status="ready" needsDetails /></div>
+        <div className="grid gap-0 sm:grid-cols-[1.15fr_0.85fr]">
+          <ul className="divide-rows border-b border-line sm:border-b-0 sm:border-r">
+            {answers.map(([q, a, filled]) => (
+              <li key={q} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                <span className="truncate text-muted">{q}</span>
+                {filled ? <span className="mono shrink-0 rounded-md bg-surface-2 px-1.5 py-0.5 text-[11.5px] text-fg">{a}</span> : <span className="shrink-0 rounded-md bg-signal-soft px-1.5 py-0.5 text-[11.5px] text-signal">Your answer</span>}
+              </li>
+            ))}
+          </ul>
+          <div className="relative min-h-[240px] overflow-hidden bg-surface-2/60 p-4">
+            <div className="flex items-center justify-between"><span className="font-medium">Tailored resume</span><span className="text-muted">1 page</span></div>
+            <Image src="/sample-resume.png" alt="A one-page resume tailored by Auto Apply" width={1200} height={1553} className="absolute left-4 right-4 top-11 w-[calc(100%-2rem)] rounded-[4px] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)]" priority />
+          </div>
+        </div>
+        <div className="flex items-center justify-between border-t border-line px-4 py-3">
+          <span className="text-muted">Approve, and the runner fills the form on your machine.</span>
+          <span className="btn-go h-8 px-3 text-[12.5px]">Approve for filling</span>
+        </div>
+      </div>
+    </div>
   );
 }

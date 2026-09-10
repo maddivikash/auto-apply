@@ -1,56 +1,144 @@
 @import "tailwindcss";
 
+/*
+  Tokens. Light is the default for the app; dark is used when the system asks for it
+  or when a page opts in with data-theme="dark" (landing, sign-in). Everything below is
+  expressed through these variables so both themes stay in step.
+*/
 :root {
   color-scheme: light;
-  --paper: #f4f4f0;
-  --card: #ffffff;
-  --ink: #16181d;
-  --muted: #6b7280;
-  --line: #e2e4e8;
-  --tint: #eceef2;
-  --brand: #2b3a9e;
-  --brand-soft: #e8ebf8;
-  --go: #1b6b3a;
-  --go-soft: #e5f3ea;
-  --signal: #b4530a;
-  --signal-soft: #fbeedc;
-  --danger: #b42318;
-  --danger-soft: #fbe9e7;
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #eef0f4;
+  --line: rgba(15, 18, 25, 0.09);
+  --line-strong: rgba(15, 18, 25, 0.18);
+  --fg: #0e1118;
+  --muted: #676d7e;
+  --faint: #a2a7b6;
+  --accent: #4f5ae6;
+  --accent-soft: rgba(79, 90, 230, 0.1);
+  --go: #158a4a;
+  --go-soft: rgba(21, 138, 74, 0.12);
+  --signal: #b8680a;
+  --signal-soft: rgba(184, 104, 10, 0.12);
+  --danger: #c93a3a;
+  --danger-soft: rgba(201, 58, 58, 0.1);
+  --glow: rgba(79, 90, 230, 0.18);
+  --shadow: 0 1px 2px rgba(14, 17, 24, 0.04), 0 12px 40px -20px rgba(14, 17, 24, 0.25);
+}
+[data-theme="dark"], .dark-tokens {
+  color-scheme: dark;
+  --bg: #0c1017;
+  --surface: #121722;
+  --surface-2: #1a2030;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --fg: #eceef3;
+  --muted: #8b91a3;
+  --faint: #5b6172;
+  --accent: #8f97ff;
+  --accent-soft: rgba(143, 151, 255, 0.14);
+  --go: #4ade80;
+  --go-soft: rgba(74, 222, 128, 0.14);
+  --signal: #f7b955;
+  --signal-soft: rgba(247, 185, 85, 0.14);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.14);
+  --glow: rgba(143, 151, 255, 0.25);
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 24px 60px -30px rgba(0, 0, 0, 0.8);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0c1017;
+    --surface: #121722;
+    --surface-2: #1a2030;
+    --line: rgba(255, 255, 255, 0.08);
+    --line-strong: rgba(255, 255, 255, 0.16);
+    --fg: #eceef3;
+    --muted: #8b91a3;
+    --faint: #5b6172;
+    --accent: #8f97ff;
+    --accent-soft: rgba(143, 151, 255, 0.14);
+    --go: #4ade80;
+    --go-soft: rgba(74, 222, 128, 0.14);
+    --signal: #f7b955;
+    --signal-soft: rgba(247, 185, 85, 0.14);
+    --danger: #f87171;
+    --danger-soft: rgba(248, 113, 113, 0.14);
+    --glow: rgba(143, 151, 255, 0.25);
+    --shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 24px 60px -30px rgba(0, 0, 0, 0.8);
+  }
 }
 
 @theme inline {
-  --color-paper: var(--paper);
-  --color-card: var(--card);
-  --color-ink: var(--ink);
-  --color-muted: var(--muted);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
   --color-line: var(--line);
-  --color-tint: var(--tint);
-  --color-brand: var(--brand);
-  --color-brand-soft: var(--brand-soft);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
   --color-go: var(--go);
   --color-go-soft: var(--go-soft);
   --color-signal: var(--signal);
   --color-signal-soft: var(--signal-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
-  --font-sans: var(--font-plex-sans), system-ui, sans-serif;
-  --font-serif: var(--font-plex-serif), Georgia, serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius-ctl: 8px;
+  --radius-panel: 14px;
 }
 
-body { background: var(--paper); color: var(--ink); font-family: var(--font-sans); font-size: 15px; }
-.serif { font-family: var(--font-serif); }
-input, select, textarea { background: #fff; }
-:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+html { -webkit-text-size-adjust: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-sans); font-size: 14.5px; line-height: 1.5; font-feature-settings: "cv11", "ss01"; }
+h1, h2, h3 { letter-spacing: -0.02em; }
+::selection { background: var(--accent-soft); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.display { letter-spacing: -0.035em; line-height: 1; font-weight: 600; }
+.mono { font-family: var(--font-mono); font-feature-settings: "liga" 0; }
 
-.field { @apply w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15; }
-.btn-primary, .btn-go, .btn-ghost, .btn-brand { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40; }
-.btn-primary { @apply bg-ink text-white hover:bg-black; }
-.btn-brand { @apply bg-brand text-white hover:bg-indigo-900; }
-.btn-go { @apply bg-go text-white hover:bg-emerald-900; }
-.btn-ghost { @apply border border-line bg-white text-ink hover:bg-tint; }
-.panel { @apply rounded-2xl border border-line bg-card; }
-.panel-pad { @apply rounded-2xl border border-line bg-card p-6; }
-.eyebrow { @apply text-xs font-medium text-muted; }
+@layer components {
+/* Controls */
+.field { @apply w-full rounded-[var(--radius-ctl)] border border-line bg-surface px-3 py-2 text-[14px] text-fg placeholder:text-faint transition-[border-color,box-shadow] focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15; }
+select.field { @apply pr-8 appearance-none bg-no-repeat; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b91a3' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-position: right 0.75rem center; }
+.btn-primary, .btn-go, .btn-ghost, .btn-accent, .btn-quiet { @apply inline-flex h-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-ctl)] px-3.5 text-[13.5px] font-medium transition-[background-color,border-color,color,transform] active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100; }
+.btn-primary { @apply bg-fg text-bg hover:opacity-90; }
+.btn-accent { @apply bg-accent text-white hover:brightness-110; }
+.btn-go { @apply bg-go text-white hover:brightness-110; }
+.btn-ghost { @apply border border-line bg-surface text-fg hover:border-line-strong hover:bg-surface-2; }
+.btn-quiet { @apply text-muted hover:bg-surface-2 hover:text-fg; }
+.btn-lg { @apply h-11 px-5 text-[15px]; }
 
-.paper-grid { background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 32px 32px; }
+/* Surfaces */
+.panel { @apply rounded-[var(--radius-panel)] border border-line bg-surface; }
+.panel-pad { @apply rounded-[var(--radius-panel)] border border-line bg-surface p-5 md:p-6; }
+.panel-head { @apply flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3.5; }
+.lift { box-shadow: var(--shadow); }
+.kbd { @apply font-mono rounded-md border border-line bg-surface-2 px-1.5 py-0.5 text-[11.5px] text-muted; }
+.pill { @apply inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium leading-none; }
+.divide-rows > * + * { border-top: 1px solid var(--line); }
+.hairline { border-color: var(--line); }
+}
+
+/* Landing backdrop: a faint grid that fades out toward the fold. */
+.grid-fade {
+  background-image: linear-gradient(color-mix(in srgb, var(--line) 55%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--line) 55%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 100%);
+}
+.glow { background: radial-gradient(closest-side, var(--glow), transparent); }
+
+/* The one orchestrated moment: the hero product frame rises once on load. */
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.rise-2 { animation: rise 0.7s 0.12s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.pulse-soft { animation: pulse-soft 1.6s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

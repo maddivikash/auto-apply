@@ -2,6 +2,7 @@ import { requireUserId } from "@/lib/auth";
 import { getSettings } from "@/lib/store";
 import { rotateRunnerTokenAction } from "../../actions";
 import { PageHeader } from "@/components/page-header";
+import { SubmitButton } from "@/components/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -11,20 +12,21 @@ export default async function RunnerPage() {
   const appUrl = process.env.APP_URL || "http://localhost:3000";
   return (
     <div className="space-y-8">
-      <PageHeader title="Runner" description="Forms are filled by a small program on your own computer, in a browser window you can watch. It never submits on its own: it fills, sends you a screenshot, and waits for your Submit in this app." />
-      <section className="panel-pad space-y-4">
-        <h2 className="font-medium">Your runner token</h2>
-        {s?.runnerToken ? <code className="block break-all rounded-md bg-tint px-3 py-2 text-sm">{s.runnerToken}</code> : <p className="text-sm text-muted">No token yet.</p>}
-        <form action={rotateRunnerTokenAction}><button className="btn-ghost">{s?.runnerToken ? "Generate a new token" : "Generate token"}</button></form>
-        <p className="text-xs text-muted">The token identifies your account to the runner. Generating a new one disables the old one.</p>
+      <PageHeader title="Runner" description="Forms are filled by a small program on your own computer, in a browser window you can watch. It never submits on its own: it fills, saves a screenshot, and waits for your Submit in this app." />
+      <section className="panel grid gap-6 p-5 md:grid-cols-[200px_1fr] md:p-6">
+        <div><h2 className="text-[15px] font-semibold">Your runner token</h2><p className="mt-1 text-[12.5px] leading-relaxed text-muted">Identifies your account to the runner. Generating a new one disables the old one.</p></div>
+        <div className="space-y-3">
+          {s?.runnerToken ? <code className="mono block break-all rounded-[var(--radius-ctl)] border border-line bg-surface-2/60 px-3 py-2.5 text-[13px]">{s.runnerToken}</code> : <p className="text-[13.5px] text-muted">No token yet.</p>}
+          <form action={rotateRunnerTokenAction}><SubmitButton pending="Generating" className="btn-ghost">{s?.runnerToken ? "Generate a new token" : "Generate token"}</SubmitButton></form>
+        </div>
       </section>
-      <section className="panel-pad space-y-3 text-sm">
-        <h2 className="font-medium">Set up on a Mac or Linux machine</h2>
-        <ol className="list-decimal space-y-2 pl-5">
-          <li>Install Node.js 20 or newer.</li>
-          <li>Get the runner: <code className="rounded bg-tint px-1">git clone https://github.com/maddivikash/auto-apply && cd auto-apply && npm install && npx playwright install chromium</code></li>
-          <li>Create <code className="rounded bg-tint px-1">.env.local</code> with:<pre className="mt-1 rounded-md bg-tint px-3 py-2 text-xs">APP_URL={appUrl}{"\n"}RUNNER_TOKEN={s?.runnerToken || "<your token>"}</pre></li>
-          <li>Start it: <code className="rounded bg-tint px-1">npm run runner</code>. Leave the window open while you have approved applications.</li>
+      <section className="panel grid gap-6 p-5 md:grid-cols-[200px_1fr] md:p-6">
+        <div><h2 className="text-[15px] font-semibold">Set up on a Mac or Linux machine</h2><p className="mt-1 text-[12.5px] leading-relaxed text-muted">Four steps, once.</p></div>
+        <ol className="divide-rows text-[13.5px]">
+          <li className="flex gap-3 pb-4"><span className="mono text-faint">1</span><span>Install Node.js 20 or newer.</span></li>
+          <li className="flex gap-3 py-4"><span className="mono text-faint">2</span><div className="min-w-0 flex-1">Get the runner:<pre className="mono mt-2 overflow-x-auto rounded-[var(--radius-ctl)] border border-line bg-surface-2/60 px-3 py-2.5 text-[12.5px]">git clone https://github.com/maddivikash/auto-apply{"\n"}cd auto-apply && npm install && npx playwright install chromium</pre></div></li>
+          <li className="flex gap-3 py-4"><span className="mono text-faint">3</span><div className="min-w-0 flex-1">Create <code className="kbd">.env.local</code> with:<pre className="mono mt-2 overflow-x-auto rounded-[var(--radius-ctl)] border border-line bg-surface-2/60 px-3 py-2.5 text-[12.5px]">APP_URL={appUrl}{"\n"}RUNNER_TOKEN={s?.runnerToken || "<your token>"}</pre></div></li>
+          <li className="flex gap-3 pt-4"><span className="mono text-faint">4</span><span>Start it with <code className="kbd">npm run runner</code> and leave the window open while you have approved applications.</span></li>
         </ol>
       </section>
     </div>

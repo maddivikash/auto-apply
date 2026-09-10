@@ -6,7 +6,7 @@ export function SubmitButton({ children, pending, className = "btn-primary" }: {
   const { pending: busy } = useFormStatus();
   return (
     <button className={className} disabled={busy} aria-busy={busy}>
-      {busy && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
+      {busy && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current/30 border-t-current" />}
       {busy ? pending : children}
     </button>
   );

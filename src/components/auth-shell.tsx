@@ -4,17 +4,24 @@ import { StageTrack } from "@/components/status";
 
 export function AuthShell({ children, title, body }: { children: React.ReactNode; title: string; body: string }) {
   return (
-    <main className="grid min-h-screen lg:grid-cols-[1fr_1fr]">
-      <section className="paper-grid hidden flex-col justify-between border-r border-line p-10 lg:flex">
-        <Link href="/"><Brand size="lg" /></Link>
+    <main data-theme="dark" className="relative grid min-h-screen bg-bg text-fg lg:grid-cols-[1.1fr_1fr]">
+      <div className="grid-fade pointer-events-none absolute inset-x-0 top-0 h-[70vh]" aria-hidden />
+      <section className="relative hidden flex-col justify-between p-10 lg:flex">
+        <Link href="/" className="w-fit"><Brand size="lg" /></Link>
         <div className="max-w-md">
-          <h1 className="serif text-4xl leading-tight tracking-tight">{title}</h1>
-          <p className="mt-4 text-muted">{body}</p>
-          <div className="panel mt-8 p-4"><div className="mb-3 text-sm font-medium">Every application moves through five stages</div><StageTrack status="ready" needsDetails={false} /></div>
+          <h1 className="display text-[40px]">{title}</h1>
+          <p className="mt-5 text-[15.5px] leading-relaxed text-muted">{body}</p>
+          <div className="panel mt-10 p-5">
+            <div className="flex items-center justify-between text-[13px]"><span className="font-medium">Cloudflare, Software Engineer</span><span className="pill bg-signal-soft text-signal">Awaiting your Submit</span></div>
+            <div className="mt-4"><StageTrack status="filled" needsDetails={false} /></div>
+          </div>
         </div>
-        <p className="text-sm text-muted">Greenhouse · Lever · Ashby</p>
+        <p className="text-[13px] text-muted">Works with Greenhouse, Lever and Ashby job pages.</p>
       </section>
-      <section className="flex flex-col items-center justify-center p-6"><div className="mb-6 lg:hidden"><Link href="/"><Brand /></Link></div>{children}</section>
+      <section className="relative flex flex-col items-center justify-center p-6 lg:border-l lg:border-line">
+        <div className="mb-8 lg:hidden"><Link href="/"><Brand /></Link></div>
+        {children}
+      </section>
     </main>
   );
 }

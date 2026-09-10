@@ -6,13 +6,28 @@ export const LABEL: Record<ApplicationStatus, string> = {
   filled: "Awaiting your Submit", submit_requested: "Submitting", submitted: "Submitted", failed: "Failed"
 };
 export const IN_PROGRESS: ApplicationStatus[] = ["queued", "fetching", "tailoring", "rendering", "approved", "filling", "submit_requested"];
-const TONE: Record<ApplicationStatus, string> = {
-  queued: "bg-tint text-muted", fetching: "bg-brand-soft text-brand", tailoring: "bg-brand-soft text-brand", rendering: "bg-brand-soft text-brand",
-  unsupported: "bg-signal-soft text-signal", ready: "bg-go-soft text-go", approved: "bg-brand-soft text-brand", filling: "bg-brand-soft text-brand",
-  filled: "bg-signal-soft text-signal", submit_requested: "bg-brand-soft text-brand", submitted: "bg-go text-white", failed: "bg-danger-soft text-danger"
+
+type Tone = "neutral" | "accent" | "go" | "signal" | "danger" | "done";
+const TONE: Record<ApplicationStatus, Tone> = {
+  queued: "neutral", fetching: "accent", tailoring: "accent", rendering: "accent",
+  unsupported: "signal", ready: "go", approved: "accent", filling: "accent",
+  filled: "signal", submit_requested: "accent", submitted: "done", failed: "danger"
+};
+const TONE_CLASS: Record<Tone, string> = {
+  neutral: "bg-surface-2 text-muted",
+  accent: "bg-accent-soft text-accent",
+  go: "bg-go-soft text-go",
+  signal: "bg-signal-soft text-signal",
+  danger: "bg-danger-soft text-danger",
+  done: "bg-go text-white"
 };
 export function StatusBadge({ status }: { status: ApplicationStatus }) {
-  return <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${TONE[status]}`}>{IN_PROGRESS.includes(status) && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />}{LABEL[status]}</span>;
+  return (
+    <span className={`pill ${TONE_CLASS[TONE[status]]}`}>
+      <span className={`h-1.5 w-1.5 rounded-full bg-current ${IN_PROGRESS.includes(status) ? "pulse-soft" : ""}`} />
+      {LABEL[status]}
+    </span>
+  );
 }
 
 const STAGES = ["Read", "Resume", "Answers", "Filled", "Submitted"] as const;
@@ -24,18 +39,24 @@ export function stageIndex(status: ApplicationStatus, needsDetails: boolean): nu
   if (["tailoring", "rendering"].includes(status)) return 1;
   return 0;
 }
-/** Five stages drawn as a track. The one visual idea the product leans on. */
-export function StageTrack({ status, needsDetails, compact = false }: { status: ApplicationStatus; needsDetails: boolean; compact?: boolean }) {
+
+/**
+ * The five stages as a rail. Done segments are solid, the live one glows, the rest wait.
+ * This is the product's one visual idea, reused from the brand mark to every list row.
+ */
+export function StageTrack({ status, needsDetails, compact = false, labels = !compact }: { status: ApplicationStatus; needsDetails: boolean; compact?: boolean; labels?: boolean }) {
   const done = stageIndex(status, needsDetails);
   const failed = status === "failed" || status === "unsupported";
+  const live = IN_PROGRESS.includes(status);
   return (
-    <ol className={`flex items-center ${compact ? "gap-1.5" : "gap-3"}`} aria-label={`Stage ${done} of 5`}>
+    <ol className={`flex ${compact ? "w-28 gap-1" : "w-full max-w-md gap-1.5"}`} aria-label={`Stage ${done} of 5`}>
       {STAGES.map((s, i) => {
-        const filled = i < done, active = i === done && !failed;
+        const filled = i < done, active = i === done;
+        const color = failed && active ? "bg-danger" : filled ? "bg-go" : active ? (status === "ready" && !needsDetails ? "bg-go" : "bg-signal") : "bg-line-strong";
         return (
-          <li key={s} className="flex flex-col gap-1.5">
-            <span className={`block rounded-full ${compact ? "h-1.5 w-7" : "h-2 w-14"} ${failed && i === done ? "bg-danger" : filled ? "bg-go" : active ? "bg-signal" : "bg-line"}`} />
-            {!compact && <span className={`text-[11px] ${filled || active ? "text-ink" : "text-muted"}`}>{s}</span>}
+          <li key={s} className="flex flex-1 flex-col gap-1.5">
+            <span className={`block rounded-full ${compact ? "h-1" : "h-[5px]"} ${color} ${active && live ? "pulse-soft" : ""} ${active && !failed ? "shadow-[0_0_12px_var(--glow)]" : ""}`} />
+            {labels && <span className={`text-[11px] leading-none ${filled || active ? "text-fg" : "text-faint"}`}>{s}</span>}
           </li>
         );
       })}
