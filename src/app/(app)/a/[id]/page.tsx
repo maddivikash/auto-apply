@@ -5,6 +5,7 @@ import { requireUserId } from "@/lib/auth";
 import { getApplication, getProfile, getSettings, saveApplication, type QuestionState } from "@/lib/store";
 import { Settings } from "@/lib/profile/types";
 import { refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
+import { markStale } from "@/lib/apply/stale";
 import { openQuestions } from "@/lib/stats";
 import { approveAction, deleteAction, reprocessAction, requestSubmitAction, saveAnswersAction } from "../../../actions";
 import { IN_PROGRESS, LABEL, StatusBadge, StageTrack } from "@/components/status";
@@ -20,6 +21,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
   const { saved } = await searchParams;
   const [app, settings, profile] = await Promise.all([getApplication(uid, id), getSettings(uid), getProfile(uid)]);
   if (!app) notFound();
+  if (markStale(app)) await saveApplication(app);
   // Answers follow the current Profile and Answers pages, not the moment the link was pasted.
   if (refreshAnswers(app, withProfileFallback(Settings.parse(settings ?? {}), profile)) && app.status === "ready") await saveApplication(app);
   const busy = IN_PROGRESS.includes(app.status);

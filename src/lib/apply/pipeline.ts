@@ -11,7 +11,13 @@ import { emailNotPossible, emailResumeReady } from "../email";
 export async function processApplication(userId: string, id: string): Promise<void> {
   const app = await getApplication(userId, id);
   if (!app) throw new Error(`application ${id} not found`);
-  const step = async (status: Application["status"]) => { app.status = status; await saveApplication(app); };
+  const t0 = Date.now();
+  let last = t0;
+  const step = async (status: Application["status"]) => {
+    const now = Date.now();
+    console.log(`application ${id}: ${app.status} took ${((now - last) / 1000).toFixed(1)}s, now ${status} (${((now - t0) / 1000).toFixed(1)}s total)`);
+    last = now; app.status = status; await saveApplication(app);
+  };
 
   try {
     const profile = await getProfile(userId);

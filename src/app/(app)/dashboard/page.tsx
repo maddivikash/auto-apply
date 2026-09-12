@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Upload } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
-import { listApplications, getProfile, getSettings } from "@/lib/store";
+import { listApplications, getProfile, getSettings, saveApplication } from "@/lib/store";
 import { Settings } from "@/lib/profile/types";
 import { refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
+import { markStale } from "@/lib/apply/stale";
 import { summarize, openQuestions } from "@/lib/stats";
 import { createApplicationAction } from "../../actions";
 import { StatusBadge, StageTrack } from "@/components/status";
@@ -19,6 +20,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const { error } = await searchParams;
   const [apps, profile, settings] = await Promise.all([listApplications(uid), getProfile(uid), getSettings(uid)]);
   const known = withProfileFallback(Settings.parse(settings ?? {}), profile);
+  await Promise.all(apps.filter((a) => markStale(a)).map((a) => saveApplication(a)));
   for (const a of apps) refreshAnswers(a, known);
   const s = summarize(apps);
   const counts: { label: string; n: number; tone: string }[] = [
