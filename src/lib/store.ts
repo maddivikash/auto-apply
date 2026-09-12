@@ -50,19 +50,19 @@ export type Notification = {
   read: boolean;
 };
 
-const useBlob = () => !!process.env.BLOB_READ_WRITE_TOKEN;
+const blobEnabled = () => !!process.env.BLOB_READ_WRITE_TOKEN;
 const LOCAL_DIR = join(process.cwd(), ".data");
 
 async function putJson(path: string, value: unknown) {
   const body = JSON.stringify(value, null, 2);
-  if (useBlob()) {
+  if (blobEnabled()) {
     await put(path, body, { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType: "application/json", cacheControlMaxAge: 0 });
   } else {
     const p = join(LOCAL_DIR, path); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, body);
   }
 }
 async function getJson<T>(path: string): Promise<T | null> {
-  if (useBlob()) {
+  if (blobEnabled()) {
     const { blobs } = await list({ prefix: path, limit: 1 });
     const hit = blobs.find((b) => b.pathname === path);
     if (!hit) return null;
@@ -73,7 +73,7 @@ async function getJson<T>(path: string): Promise<T | null> {
   return existsSync(p) ? (JSON.parse(readFileSync(p, "utf8")) as T) : null;
 }
 async function listJson<T>(prefix: string): Promise<T[]> {
-  if (useBlob()) {
+  if (blobEnabled()) {
     const { blobs } = await list({ prefix, limit: 500 });
     return Promise.all(blobs.filter((b) => b.pathname.endsWith(".json")).map(async (b) => (await fetch(`${b.url}?t=${Date.now()}`, { cache: "no-store" })).json()));
   }
@@ -82,7 +82,7 @@ async function listJson<T>(prefix: string): Promise<T[]> {
   return readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")));
 }
 async function delJson(path: string) {
-  if (useBlob()) {
+  if (blobEnabled()) {
     const { blobs } = await list({ prefix: path, limit: 1 });
     const hit = blobs.find((b) => b.pathname === path);
     if (hit) await del(hit.url);
@@ -125,7 +125,7 @@ export async function markNotificationsRead(userId: string, ids?: string[]) {
 // ---- files ------------------------------------------------------------------
 /** Store a binary (PDF, screenshot) and return a URL the email and the runner can fetch. */
 export async function saveFile(path: string, data: Buffer, contentType: string): Promise<string> {
-  if (useBlob()) {
+  if (blobEnabled()) {
     const blob = await put(path, data, { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType });
     return blob.url;
   }

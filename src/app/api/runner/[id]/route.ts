@@ -1,6 +1,7 @@
 import { runnerUserId } from "@/lib/auth";
-import { getApplication, saveApplication, saveFile, getSettings, addNotification, type ApplicationStatus } from "@/lib/store";
+import { getApplication, saveApplication, saveFile, getSettings, getProfile, addNotification, type ApplicationStatus, type QuestionState } from "@/lib/store";
 import { Settings } from "@/lib/profile/types";
+import { refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
 import { emailFormFilled, emailSubmitted } from "@/lib/email";
 
 const ALLOWED: ApplicationStatus[] = ["filling", "filled", "submitted", "failed", "approved"];
@@ -13,14 +14,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const app = await getApplication(uid, id);
   if (!app) return new Response("Not found", { status: 404 });
   const body = (await req.json()) as { status?: ApplicationStatus; notes?: string[]; screenshotBase64?: string; error?: string; questions?: { label: string; required: boolean; type: string; options?: string[] }[] };
-  const settings = Settings.parse((await getSettings(uid)) ?? {});
+  const settings = withProfileFallback(Settings.parse((await getSettings(uid)) ?? {}), await getProfile(uid));
   const to = settings.notifyEmail || settings.email;
 
   if (body.screenshotBase64) app.filledScreenshotUrl = await saveFile(`users/${uid}/screenshots/${id}-${Date.now()}.png`, Buffer.from(body.screenshotBase64, "base64"), "image/png");
   if (body.notes?.length) app.runnerNotes = [...(app.runnerNotes || []), ...body.notes].slice(-30);
   if (body.questions?.length) {
     const known = new Set(app.questions.map((q) => q.label.toLowerCase()));
-    for (const q of body.questions) if (!known.has(q.label.toLowerCase())) app.questions.push({ id: q.label, label: q.label, required: q.required, type: q.type as any, options: q.options, needsHuman: true });
+    for (const q of body.questions) if (!known.has(q.label.toLowerCase())) app.questions.push({ id: q.label, label: q.label, required: q.required, type: q.type as QuestionState["type"], options: q.options, needsHuman: true });
+    refreshAnswers(app, settings);
   }
   if (body.error) app.error = body.error;
   if (body.status && ALLOWED.includes(body.status)) {

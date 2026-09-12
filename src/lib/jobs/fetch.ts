@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- board APIs return untyped JSON */
 /**
  * Job posting fetchers for the three supported boards. All three expose a public
  * JSON API, so we never scrape HTML and we get the application questions as data.

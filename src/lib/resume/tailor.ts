@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- model output is untyped until parsed with zod */
 import { profileNumbers, type Profile } from "../profile/types";
 import type { JobPosting } from "../jobs/fetch";
 import { chatJson } from "../llm/workersai";

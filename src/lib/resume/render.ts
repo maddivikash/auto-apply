@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Playwright browser type differs between playwright and playwright-core */
 import { MASTER } from "../profile/master";
 import type { Profile } from "../profile/types";
 import type { TailoredResume } from "./schema";
@@ -130,7 +131,7 @@ export async function renderPdf(input: TailoredResume, profile: Profile, launch?
       return { html, heightPx: h };
     };
 
-    let r: TailoredResume = JSON.parse(JSON.stringify(input));
+    const r: TailoredResume = JSON.parse(JSON.stringify(input));
     let scale = 1;
     const trims: string[] = [];
     let { html, heightPx } = await measure(r, scale);

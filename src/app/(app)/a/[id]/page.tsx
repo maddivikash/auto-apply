@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight, Camera } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
-import { getApplication, type QuestionState } from "@/lib/store";
+import { getApplication, getProfile, getSettings, saveApplication, type QuestionState } from "@/lib/store";
+import { Settings } from "@/lib/profile/types";
+import { refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
 import { openQuestions } from "@/lib/stats";
 import { approveAction, deleteAction, reprocessAction, requestSubmitAction, saveAnswersAction } from "../../../actions";
 import { IN_PROGRESS, LABEL, StatusBadge, StageTrack } from "@/components/status";
@@ -16,8 +18,10 @@ export default async function ApplicationPage({ params, searchParams }: { params
   const uid = await requireUserId();
   const { id } = await params;
   const { saved } = await searchParams;
-  const app = await getApplication(uid, id);
+  const [app, settings, profile] = await Promise.all([getApplication(uid, id), getSettings(uid), getProfile(uid)]);
   if (!app) notFound();
+  // Answers follow the current Profile and Answers pages, not the moment the link was pasted.
+  if (refreshAnswers(app, withProfileFallback(Settings.parse(settings ?? {}), profile)) && app.status === "ready") await saveApplication(app);
   const busy = IN_PROGRESS.includes(app.status);
   const open = openQuestions(app);
   const answered = app.questions.filter((q) => !open.includes(q) && q.type !== "file");
@@ -139,7 +143,7 @@ function Step({ n, title, state, body, children }: { n: number; title: string; s
 
 function QuestionField({ q }: { q: QuestionState }) {
   const name = `q:${q.id}`;
-  const label = <label htmlFor={name} className="flex flex-wrap items-baseline gap-x-2 text-[13px] font-medium">{q.label}{q.required && <span className="text-danger">required</span>}{q.source && q.source !== "user" && <span className="text-[11.5px] font-normal text-faint">from your answers</span>}</label>;
+  const label = <label htmlFor={name} className="flex flex-wrap items-baseline gap-x-2 text-[13px] font-medium">{q.label}{q.required && !q.answer && <span className="text-danger">required</span>}{q.source === "user" && q.answer && <span className="text-[11.5px] font-normal text-faint">you answered</span>}{q.source && q.source !== "user" && <span className="text-[11.5px] font-normal text-faint">from your answers</span>}</label>;
   if (q.type === "file") return null;
   if (q.options?.length) return <div>{label}<select id={name} name={name} defaultValue={q.answer || ""} className="field mt-1.5"><option value="">Choose</option>{q.options.map((o) => <option key={o} value={o}>{o}</option>)}</select></div>;
   if (q.type === "textarea" || q.needsHuman) return <div>{label}<textarea id={name} name={name} defaultValue={q.answer || ""} rows={3} className="field mt-1.5" /></div>;

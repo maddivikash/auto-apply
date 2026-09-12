@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Upload } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
-import { listApplications, getProfile } from "@/lib/store";
+import { listApplications, getProfile, getSettings } from "@/lib/store";
+import { Settings } from "@/lib/profile/types";
+import { refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
 import { summarize, openQuestions } from "@/lib/stats";
 import { createApplicationAction } from "../../actions";
 import { StatusBadge, StageTrack } from "@/components/status";
@@ -15,7 +17,9 @@ export const maxDuration = 300;
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const uid = await requireUserId();
   const { error } = await searchParams;
-  const [apps, profile] = await Promise.all([listApplications(uid), getProfile(uid)]);
+  const [apps, profile, settings] = await Promise.all([listApplications(uid), getProfile(uid), getSettings(uid)]);
+  const known = withProfileFallback(Settings.parse(settings ?? {}), profile);
+  for (const a of apps) refreshAnswers(a, known);
   const s = summarize(apps);
   const counts: { label: string; n: number; tone: string }[] = [
     { label: "awaiting your Submit", n: s.awaitingSubmit, tone: "bg-signal" },

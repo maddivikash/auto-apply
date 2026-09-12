@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- model output is untyped until parsed with zod */
 import { extractText, getDocumentProxy } from "unpdf";
 import { chatJson } from "../llm/workersai";
 import { Profile } from "./types";

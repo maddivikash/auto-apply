@@ -1,8 +1,8 @@
 import { fetchJob, UnsupportedJobUrl } from "../jobs/fetch";
 import { tailorResume, sanitize, validate } from "../resume/tailor";
 import { renderPdf } from "../resume/render";
-import { answerFor, needsHuman } from "../defaults";
-import { getApplication, saveApplication, saveFile, getProfile, getSettings, addNotification, type Application, type QuestionState } from "../store";
+import { questionStates, withProfileFallback } from "./answers";
+import { getApplication, saveApplication, saveFile, getProfile, getSettings, addNotification, type Application } from "../store";
 import { Settings } from "../profile/types";
 import { launchBrowser } from "../browser";
 import { emailNotPossible, emailResumeReady } from "../email";
@@ -11,13 +11,13 @@ import { emailNotPossible, emailResumeReady } from "../email";
 export async function processApplication(userId: string, id: string): Promise<void> {
   const app = await getApplication(userId, id);
   if (!app) throw new Error(`application ${id} not found`);
-  const settings = Settings.parse((await getSettings(userId)) ?? {});
-  const to = settings.notifyEmail || settings.email;
   const step = async (status: Application["status"]) => { app.status = status; await saveApplication(app); };
 
   try {
     const profile = await getProfile(userId);
     if (!profile) throw new Error("Add your profile first (Profile page) so the resume has something to work from.");
+    const settings = withProfileFallback(Settings.parse((await getSettings(userId)) ?? {}), profile);
+    const to = settings.notifyEmail || settings.email;
 
     await step("fetching");
     let job;
@@ -33,13 +33,12 @@ export async function processApplication(userId: string, id: string): Promise<vo
     }
     const { description, ...rest } = job;
     app.job = { ...rest, descriptionPreview: description.slice(0, 1500) };
-    app.questions = job.questions
-      .filter((q) => !/^(longitude|latitude)$/i.test(q.label))
-      .map((q): QuestionState => {
-        const a = answerFor(settings, q.label, q.options, q.type, { jobLocation: job.location });
-        const human = q.type !== "file" && !a && (needsHuman(q.label, q.type) || q.required);
-        return { ...q, answer: a?.value, source: a?.source, needsHuman: human };
-      });
+    // Keep answers the user typed on an earlier run; everything else is re-derived.
+    const typed = new Map(app.questions.filter((q) => q.source === "user" && q.answer).map((q) => [q.label.toLowerCase(), q]));
+    app.questions = questionStates(job.questions, settings, job.location).map((q) => {
+      const t = typed.get(q.label.toLowerCase());
+      return t ? { ...q, answer: t.answer, source: "user", needsHuman: false } : q;
+    });
 
     await step("tailoring");
     const result = await tailorResume(job, profile);

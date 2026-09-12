@@ -6,11 +6,11 @@ import { after } from "next/server";
 import { nanoid } from "nanoid";
 import { randomBytes } from "node:crypto";
 import { requireUserId, userEmail } from "@/lib/auth";
-import { getApplication, saveApplication, deleteApplication, saveProfile, getSettings, saveSettings, saveRunnerToken, deleteRunnerToken, markNotificationsRead, type Application } from "@/lib/store";
+import { getApplication, saveApplication, deleteApplication, saveProfile, getProfile, getSettings, saveSettings, saveRunnerToken, deleteRunnerToken, markNotificationsRead, listApplications, type Application } from "@/lib/store";
 import { Profile, Settings } from "@/lib/profile/types";
 import { processApplication } from "@/lib/apply/pipeline";
 import { pdfToText, textToProfile } from "@/lib/profile/import";
-import { countryOf } from "@/lib/defaults";
+import { ANSWERS_MATTER, refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
 
 export async function createApplicationAction(formData: FormData) {
   const userId = await requireUserId();
@@ -87,25 +87,29 @@ export async function importResumeAction(formData: FormData) {
     if (text.length < 200) redirect("/profile?error=empty");
     profile = await textToProfile(text);
   } catch (e) {
-    if ((e as Error)?.message === "NEXT_REDIRECT" || String((e as any)?.digest || "").startsWith("NEXT_REDIRECT")) throw e;
+    if ((e as Error)?.message === "NEXT_REDIRECT" || String((e as { digest?: string })?.digest || "").startsWith("NEXT_REDIRECT")) throw e;
     redirect(`/profile?error=${encodeURIComponent(`Could not read that resume: ${(e as Error).message.slice(0, 160)}. Try again or use a text-based PDF.`)}`);
   }
   const email = await userEmail();
   if (!profile.email && email) profile.email = email;
   await saveProfile(userId, profile);
-  // Seed the answers page from the profile so the user only fills gaps.
-  const current = Settings.parse((await getSettings(userId)) ?? {});
-  const [first, ...rest] = profile.name.split(" ");
-  await saveSettings(userId, { ...current, firstName: current.firstName || first, lastName: current.lastName || rest.join(" "), email: current.email || profile.email || email || "", phone: current.phone || profile.phone, location: current.location || profile.location, linkedin: current.linkedin || (profile.linkedin ? `https://${profile.linkedin.replace(/^https?:\/\//, "")}` : ""), github: current.github || (profile.github ? `https://${profile.github.replace(/^https?:\/\//, "")}` : ""), website: current.website || (profile.website ? `https://${profile.website.replace(/^https?:\/\//, "")}` : ""), currentCompany: current.currentCompany || profile.roles[0]?.company || "", currentTitle: current.currentTitle || profile.roles[0]?.title || "", workAuthorizedCountries: current.workAuthorizedCountries || countryOf(profile.location) || "", yearsExperience: current.yearsExperience || yearsFrom(profile.roles.map((r) => r.start)), notifyEmail: current.notifyEmail || email || "" });
+  await seedAnswersFromProfile(userId, profile, email);
   revalidatePath("/", "layout");
   redirect("/profile?imported=1");
 }
 
-/** Years since the earliest role started, as a whole number string. Empty when no year is found. */
-function yearsFrom(starts: string[]): string {
-  const years = starts.map((d) => Number((d.match(/(19|20)\d{2}/) || [])[0])).filter(Boolean);
-  if (!years.length) return "";
-  return String(Math.max(0, new Date().getFullYear() - Math.min(...years)));
+/** Fill the Answers page blanks from the profile, then bring every open application up to date. */
+async function seedAnswersFromProfile(userId: string, profile: Profile, email: string | null) {
+  const current = Settings.parse((await getSettings(userId)) ?? {});
+  const seeded = withProfileFallback(current, profile, email);
+  await saveSettings(userId, seeded);
+  await refreshOpenApplications(userId, seeded);
+}
+
+/** Re-derive rule answers on every application that is not done yet, so filled-in details stop being asked. */
+async function refreshOpenApplications(userId: string, settings: Settings) {
+  const apps = (await listApplications(userId)).filter(ANSWERS_MATTER);
+  await Promise.all(apps.filter((a) => refreshAnswers(a, settings)).map((a) => saveApplication(a)));
 }
 
 export async function saveProfileAction(formData: FormData) {
@@ -114,6 +118,7 @@ export async function saveProfileAction(formData: FormData) {
   let parsed;
   try { parsed = Profile.parse(JSON.parse(raw)); } catch (e) { redirect(`/profile?error=${encodeURIComponent((e as Error).message.slice(0, 200))}`); }
   await saveProfile(userId, parsed);
+  await seedAnswersFromProfile(userId, parsed, await userEmail());
   revalidatePath("/", "layout");
   redirect("/profile?saved=1");
 }
@@ -123,7 +128,10 @@ export async function saveSettingsAction(formData: FormData) {
   const current = Settings.parse((await getSettings(userId)) ?? {});
   const next: Record<string, string> = {};
   for (const key of Object.keys(Settings.shape)) { const v = formData.get(key); if (typeof v === "string") next[key] = v.trim(); }
-  await saveSettings(userId, Settings.parse({ ...current, ...next }));
+  const saved = Settings.parse({ ...current, ...next });
+  await saveSettings(userId, saved);
+  await refreshOpenApplications(userId, withProfileFallback(saved, await getProfile(userId)));
+  revalidatePath("/", "layout");
   redirect("/answers?saved=1");
 }
 
