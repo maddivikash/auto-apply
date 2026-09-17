@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Playwright browser type differs between playwright and playwright-core */
+import { launchBrowser } from "../browser";
 import { MASTER } from "../profile/master";
 import type { Profile } from "../profile/types";
 import type { TailoredResume } from "./schema";
@@ -111,12 +112,11 @@ export type RenderResult = {
 const PAGE_PX = 1056; // 11in at 96dpi, which is what page.pdf uses
 
 /**
- * Render with a local Chromium (Playwright). The Vercel runtime swaps in @sparticuz/chromium.
+ * Render with Chromium via launchBrowser (local Playwright install, or @sparticuz/chromium on Vercel).
  * If the content runs past one page, apply the cheapest cuts first and re-measure until it fits.
  */
-export async function renderPdf(input: TailoredResume, profile: Profile, launch?: () => Promise<any>): Promise<RenderResult> {
-  const { chromium } = await import("playwright");
-  const browser = launch ? await launch() : await chromium.launch();
+export async function renderPdf(input: TailoredResume, profile: Profile, launch: () => Promise<any> = launchBrowser): Promise<RenderResult> {
+  const browser = await launch();
   try {
     const page = await browser.newPage({ viewport: { width: 816, height: PAGE_PX } });
     const measure = async (r: TailoredResume, scale: number) => {
