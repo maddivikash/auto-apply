@@ -11,6 +11,7 @@ import { approveAction, deleteAction, reprocessAction, requestSubmitAction, save
 import { IN_PROGRESS, LABEL, StatusBadge, StageTrack } from "@/components/status";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { SubmitButton } from "@/components/submit-button";
+import { ActionButton } from "@/components/action-button";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -47,7 +48,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
       </div>
 
       {busy && <Notice tone="accent">{LABEL[app.status]}. This page updates on its own. Writing the resume takes about a minute.</Notice>}
-      {app.status === "failed" && <Notice tone="danger">{app.error} <form action={reprocessAction} className="mt-2"><input type="hidden" name="id" value={app.id} /><button className="btn-ghost h-8">Try again</button></form></Notice>}
+      {app.status === "failed" && <Notice tone="danger">{app.error} <div className="mt-2"><ActionButton action={reprocessAction} id={app.id} pending="Starting">Try again</ActionButton></div></Notice>}
       {app.status === "unsupported" && <Notice tone="signal">{app.error} Supported boards: Greenhouse, Lever and Ashby.</Notice>}
 
       <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
@@ -92,7 +93,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
               <div className="panel-head"><h2 className="text-[15px] font-semibold">Submission</h2></div>
               <ol className="divide-rows">
                 <Step n={1} title="Approve" state={step === 1 ? "current" : step > 1 ? "done" : "later"} body="The runner on your machine then fills the form without submitting.">
-                  {app.status === "ready" && <form action={approveAction} className="mt-3 flex flex-wrap items-center gap-3"><input type="hidden" name="id" value={app.id} /><SubmitButton pending="Approving" className="btn-go">Approve for filling</SubmitButton>{blocked && <span className="text-[12.5px] text-signal">Answer the required questions first.</span>}</form>}
+                  {app.status === "ready" && <div className="mt-3 flex flex-wrap items-center gap-3"><ActionButton action={approveAction} id={app.id} pending="Approving" className="btn-go">Approve for filling</ActionButton>{blocked && <span className="text-[12.5px] text-signal">Answer the required questions first.</span>}</div>}
                 </Step>
                 <Step n={2} title="The runner fills the form" state={step === 2 ? "current" : step > 2 ? "done" : "later"} body="It types every answer, attaches the PDF and leaves a screenshot.">
                   {["approved", "filling"].includes(app.status) && <p className="mt-2 text-[12.5px] text-muted">Not running? Start it with <code className="kbd">npm run runner</code>.</p>}
@@ -100,7 +101,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
                   {app.runnerNotes?.length ? <ul className="mt-3 space-y-1 text-[12.5px] text-muted">{app.runnerNotes.slice(-6).map((n, i) => <li key={i} className="mono truncate">{n}</li>)}</ul> : null}
                 </Step>
                 <Step n={3} title="You press Submit" state={app.status === "submitted" ? "done" : step === 3 ? "current" : "later"} body="Nothing is sent before this.">
-                  {app.status === "filled" && <form action={requestSubmitAction} className="mt-3"><input type="hidden" name="id" value={app.id} /><SubmitButton pending="Submitting" className="btn-go">Submit application</SubmitButton></form>}
+                  {app.status === "filled" && <div className="mt-3"><ActionButton action={requestSubmitAction} id={app.id} pending="Submitting" className="btn-go">Submit application</ActionButton></div>}
                   {app.status === "submitted" && <p className="mt-2 text-[13px] text-go">Submitted {app.submittedAt && new Date(app.submittedAt).toLocaleString()}.</p>}
                 </Step>
               </ol>
@@ -114,7 +115,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
             <section className="panel overflow-hidden">
               <div className="panel-head">
                 <div className="min-w-0"><div className="text-[15px] font-semibold">Tailored resume</div><div className="truncate text-[12.5px] text-muted">{app.headline}{app.trims?.length ? `. Trimmed to fit: ${app.trims.join(", ")}` : ""}</div></div>
-                <div className="flex gap-2"><a href={`/api/applications/${app.id}/pdf`} target="_blank" rel="noreferrer" className="btn-ghost h-8">Open PDF</a><form action={reprocessAction}><input type="hidden" name="id" value={app.id} /><button className="btn-ghost h-8" disabled={busy}>Regenerate</button></form></div>
+                <div className="flex gap-2"><a href={`/api/applications/${app.id}/pdf`} target="_blank" rel="noreferrer" className="btn-ghost h-8">Open PDF</a><ActionButton action={reprocessAction} id={app.id} pending="Starting" disabled={busy}>Regenerate</ActionButton></div>
               </div>
               {app.resumeWarnings?.length ? <p className="border-b border-line bg-signal-soft px-5 py-2 text-[12.5px] text-signal">Checks flagged: {app.resumeWarnings.join("; ")}</p> : null}
               <object data={`/api/applications/${app.id}/pdf#toolbar=0&view=FitH`} type="application/pdf" className="h-[760px] w-full bg-surface-2" aria-label="Resume preview"><div className="flex h-full items-center justify-center text-[13px] text-muted">Preview not available in this browser. <a className="ml-1 underline" href={`/api/applications/${app.id}/pdf`} target="_blank" rel="noreferrer">Open the PDF</a></div></object>
