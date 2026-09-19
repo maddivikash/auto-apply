@@ -14,7 +14,7 @@ export function RedraftPanel({ id, questionId, action }: { id: string; questionI
   const run = () => start(async () => {
     try {
       const r = await action(id, questionId, notes);
-      if (r.ok) { toast(r.message ?? "Rewritten.", "success"); setOpen(false); setNotes(""); router.refresh(); }
+      if (r.ok) { toast(r.message ?? "Rewritten.", "success"); setOpen(false); setNotes(""); router.refresh(); setTimeout(() => router.refresh(), 1200); }
       else toast(r.error, "error");
     } catch { toast("Something went wrong. Please try again.", "error"); }
   });
@@ -23,7 +23,7 @@ export function RedraftPanel({ id, questionId, action }: { id: string; questionI
       <button type="button" className="inline-flex items-center gap-1 text-[12.5px] text-accent hover:underline" aria-expanded={open} onClick={() => setOpen((v) => !v)}><RefreshCw size={12} aria-hidden /> Rewrite with a note</button>
       {open && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. shorter, mention the MCP server project, more specific about impact" className="field h-9 min-w-[260px] flex-1 text-[13px]" aria-label="What to change" />
+          <input value={notes} onChange={(e) => setNotes(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); if (!busy) run(); } }} placeholder="e.g. shorter, mention the MCP server project, more specific about impact" className="field h-9 min-w-[260px] flex-1 text-[13px]" aria-label="What to change" />
           <button type="button" onClick={run} disabled={busy} className="btn-ghost h-9">{busy ? "Rewriting" : "Rewrite"}</button>
         </div>
       )}
