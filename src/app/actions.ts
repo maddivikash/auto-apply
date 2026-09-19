@@ -10,6 +10,7 @@ import { getApplication, saveApplication, deleteApplication, saveProfile, getPro
 import { Profile, Settings } from "@/lib/profile/types";
 import { processApplication } from "@/lib/apply/pipeline";
 import { pdfToText, textToProfile } from "@/lib/profile/import";
+import { mergeProfiles } from "@/lib/profile/merge";
 import { ANSWERS_MATTER, refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
 import { LABEL } from "@/components/status";
 
@@ -102,23 +103,31 @@ export async function deleteAction(formData: FormData) {
 
 export async function importResumeAction(formData: FormData) {
   const userId = await requireUserId();
-  const file = formData.get("resume");
-  if (!(file instanceof File) || file.size === 0) redirect("/profile?error=file");
-  let profile;
+  const files = formData.getAll("resume").filter((f): f is File => f instanceof File && f.size > 0).slice(0, 4);
+  if (files.length === 0) redirect("/profile?error=file");
+  const mode = formData.get("mode") === "replace" ? "replace" : "merge";
+  let profile: Profile;
   try {
-    const text = file.type === "application/pdf" || file.name.endsWith(".pdf") ? await pdfToText(new Uint8Array(await file.arrayBuffer())) : await file.text();
-    if (text.length < 200) redirect("/profile?error=empty");
-    profile = await textToProfile(text);
+    // Read every file, then structure each one with the model in parallel. One bad file fails the whole import with its name.
+    const texts = await Promise.all(files.map(async (file) => {
+      const text = file.type === "application/pdf" || file.name.endsWith(".pdf") ? await pdfToText(new Uint8Array(await file.arrayBuffer())) : await file.text();
+      if (text.length < 200) throw new Error(`${file.name} had no readable text. Use a text-based PDF.`);
+      return text;
+    }));
+    const parsed = await Promise.all(texts.map((t) => textToProfile(t)));
+    const existing = mode === "merge" ? await getProfile(userId) : null;
+    const start = existing ? Profile.parse(existing) : parsed.shift()!;
+    profile = parsed.reduce((acc, p) => mergeProfiles(acc, p), start);
   } catch (e) {
     if ((e as Error)?.message === "NEXT_REDIRECT" || String((e as { digest?: string })?.digest || "").startsWith("NEXT_REDIRECT")) throw e;
-    redirect(`/profile?error=${encodeURIComponent(`Could not read that resume: ${(e as Error).message.slice(0, 160)}. Try again or use a text-based PDF.`)}`);
+    redirect(`/profile?error=${encodeURIComponent(`Could not read ${files.length > 1 ? "those resumes" : "that resume"}: ${(e as Error).message.slice(0, 160)}`)}`);
   }
   const email = await userEmail();
   if (!profile.email && email) profile.email = email;
   await saveProfile(userId, profile);
   await seedAnswersFromProfile(userId, profile, email);
   revalidatePath("/", "layout");
-  redirect("/profile?imported=1");
+  redirect(`/profile?imported=${files.length}&mode=${mode}`);
 }
 
 /** Fill the Answers page blanks from the profile, then bring every open application up to date. */
