@@ -19,7 +19,7 @@ export function CodeForm({ id, action }: { id: string; action: (id: string, code
   return (
     <form className="mt-3 flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); submit(); }}>
       <label className="text-[13px]"><span className="block font-medium">Security code</span>
-        <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={10} autoComplete="one-time-code" inputMode="text" spellCheck={false} placeholder="Y19A1WG1" className="field mono mt-1.5 w-48 tracking-[0.2em] uppercase" aria-label="Security code from the Greenhouse email" />
+        <input value={code} onChange={(e) => setCode(e.target.value.replace(/\s/g, ""))} maxLength={10} autoComplete="one-time-code" inputMode="text" spellCheck={false} placeholder="Y19A1WG1" className="field mono mt-1.5 w-48 tracking-[0.2em]" aria-label="Security code from the Greenhouse email" />
       </label>
       <button type="submit" className="btn-go h-9" disabled={busy || code.trim().length < 6} aria-busy={busy}>
         {busy && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current/30 border-t-current" aria-hidden />}

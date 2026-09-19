@@ -117,8 +117,9 @@ export async function submitCodeAction(id: string, code: string): Promise<Action
     const app = await getApplication(userId, id);
     if (!app) return { ok: false, error: "This application no longer exists." };
     if (app.status !== "code_required") return { ok: false, error: "This application is not waiting for a code right now." };
-    const clean = code.replace(/[\s-]/g, "").toUpperCase();
-    if (!/^[A-Z0-9]{6,10}$/.test(clean)) return { ok: false, error: "The code is 8 letters and digits, as in the Greenhouse email." };
+    // Greenhouse codes are case-sensitive: keep the letters exactly as typed, only strip spaces and dashes.
+    const clean = code.replace(/[\s-]/g, "");
+    if (!/^[A-Za-z0-9]{6,10}$/.test(clean)) return { ok: false, error: "The code is 8 letters and digits, exactly as written in the Greenhouse email (case matters)." };
     app.verificationCode = clean; await saveApplication(app);
     revalidatePath("/", "layout");
     return { ok: true, message: "Code saved. The runner enters it within a few seconds." };
