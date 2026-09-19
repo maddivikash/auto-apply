@@ -55,16 +55,16 @@ export function resumeHtml(r: TailoredResume, profile: Profile, scale = 1): stri
   .contact span { margin: 0 5pt; white-space: nowrap; }
   .contact svg { vertical-align: -1px; margin-right: 3px; }
   .contact a { color: #000; text-decoration: underline; }
-  h2 { font-size: 12.5pt; font-weight: normal; font-variant: small-caps; margin: 7pt 0 2pt; padding-bottom: 1pt; border-bottom: 0.8pt solid #000; }
+  h2 { font-size: 12.5pt; font-weight: normal; font-variant: small-caps; margin: ${(7 * scale).toFixed(2)}pt 0 2pt; padding-bottom: 1pt; border-bottom: 0.8pt solid #000; }
   .sub { margin: 2pt 0 0 0.02in; }
   .row { display: flex; justify-content: space-between; align-items: baseline; gap: 12pt; }
   .b { font-weight: bold; }
   .sep { margin: 0 2pt; }
   .grp { font-style: italic; margin: 2pt 0 0 0.02in; }
   ul { margin: 0.5pt 0 1.5pt 0.16in; padding-left: 0.1in; }
-  li { font-size: ${(9.9 * scale).toFixed(2)}pt; margin: 0 0 0.6pt; padding-left: 0.02in; }
+  li { font-size: ${(9.9 * scale).toFixed(2)}pt; margin: 0 0 ${(0.6 * scale).toFixed(2)}pt; padding-left: 0.02in; }
   li::marker { font-size: 9pt; }
-  .skill { font-size: ${(9.9 * scale).toFixed(2)}pt; margin: 0 0 0.8pt 0.06in; }
+  .skill { font-size: ${(9.9 * scale).toFixed(2)}pt; margin: 0 0 ${(0.8 * scale).toFixed(2)}pt 0.06in; }
   ul.cols { columns: 3; column-gap: 0.2in; margin-left: 0.32in; }
   ul.cols li { break-inside: avoid; }
   .ach { margin-left: 0.32in; }
@@ -87,14 +87,13 @@ export function resumeHtml(r: TailoredResume, profile: Profile, scale = 1): stri
   <h2>Professional Experience</h2>
   ${roles}
 
-  <h2>Projects</h2>
-  ${projects}
+  ${r.projects.length ? `<h2>Projects</h2>
+  ${projects}` : ""}
   ${coursework}
-  <h2>Technical Skills</h2>
-  ${skills}
-
-  <h2>Scholastic Achievements</h2>
-  <ul class="ach">${r.achievements.map((a) => `<li>${rich(a)}</li>`).join("")}</ul>
+  ${r.skills.length ? `<h2>Technical Skills</h2>
+  ${skills}` : ""}
+  ${r.achievements.length ? `<h2>Scholastic Achievements</h2>
+  <ul class="ach">${r.achievements.map((a) => `<li>${rich(a)}</li>`).join("")}</ul>` : ""}
 </div></body></html>`;
 }
 
@@ -102,6 +101,8 @@ export type RenderResult = {
   pdf: Buffer;
   heightPx: number;
   overflow: boolean;
+  /** True when the page stayed noticeably short even after the type was enlarged. */
+  sparse: boolean;
   html: string;
   /** What fitToOnePage had to remove, in order. Empty when it fit as written. */
   trims: string[];
@@ -110,6 +111,9 @@ export type RenderResult = {
 };
 
 const PAGE_PX = 1056; // 11in at 96dpi, which is what page.pdf uses
+const FULL = 0.965; // a page at least this full is considered filled
+const SPARSE = 0.88; // below this even after growing the type, suggest adding content
+const GROW = [1.03, 1.06, 1.09, 1.12]; // type scale steps tried on a short page
 
 /**
  * Render with Chromium via launchBrowser (local Playwright install, or @sparticuz/chromium on Vercel).
@@ -166,8 +170,21 @@ export async function renderPdf(input: TailoredResume, profile: Profile, launch:
       // so steps are written to return false when already applied.
     }
 
+    // Short page: grow the type and spacing until the page is full, never past one page.
+    // Content is never a reason to stop; a sparse profile just renders larger and gets a suggestion.
+    if (trims.length === 0 && heightPx < PAGE_PX * FULL) {
+      for (const s of GROW) {
+        const m = await measure(r, s);
+        if (m.heightPx > PAGE_PX) break;
+        scale = s; html = m.html; heightPx = m.heightPx;
+        if (heightPx >= PAGE_PX * FULL) break;
+      }
+      ({ html, heightPx } = await measure(r, scale)); // the page holds the last measured HTML; put the winner back
+    }
+    const sparse = heightPx < PAGE_PX * SPARSE;
+
     const pdf = await page.pdf({ format: "Letter", printBackground: true, margin: { top: 0, right: 0, bottom: 0, left: 0 }, preferCSSPageSize: true });
-    return { pdf: Buffer.from(pdf), heightPx, overflow: heightPx > PAGE_PX, html, trims, resume: r, scale };
+    return { pdf: Buffer.from(pdf), heightPx, overflow: heightPx > PAGE_PX, sparse, html, trims, resume: r, scale };
   } finally {
     await browser.close();
   }

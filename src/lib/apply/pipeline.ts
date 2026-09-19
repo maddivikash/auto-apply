@@ -47,14 +47,15 @@ export async function processApplication(userId: string, id: string): Promise<vo
     });
 
     await step("tailoring");
-    const result = await tailorResume(job, profile);
+    const result = await tailorResume(job, profile, { notes: app.revisionNotes, previous: app.resume });
     const resume = sanitize(result.resume);
     app.jdSummary = result.jdSummary; app.fitNotes = result.fitNotes; app.headline = result.resume.headline;
 
     await step("rendering");
     const rendered = await renderPdf(resume, profile, launchBrowser);
     app.resume = rendered.resume; app.trims = rendered.trims;
-    app.resumeWarnings = [...result.warnings, ...validate(rendered.resume, profile)].filter((w, i, a) => a.indexOf(w) === i);
+    const sparse = rendered.sparse ? ["Your profile is on the light side, so the type was enlarged to fill the page. Add a few more bullets or a project on the Profile page for a denser resume."] : [];
+    app.resumeWarnings = [...result.warnings, ...validate(rendered.resume, profile), ...sparse].filter((w, i, a) => a.indexOf(w) === i);
     app.resumePdfUrl = await saveFile(`users/${userId}/resumes/${id}.pdf`, rendered.pdf, "application/pdf");
     app.error = undefined;
     await step("ready");

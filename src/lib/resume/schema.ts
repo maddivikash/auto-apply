@@ -18,12 +18,12 @@ export const TailoredResume = z.object({
     stack: z.string().max(70),
     year: z.string(),
     bullets: z.array(z.string().min(40).max(230)).min(1).max(2)
-  })).min(1).max(2),
+  })).max(2).default([]),
   skills: z.array(z.object({
     label: z.string().max(40),
-    items: z.array(z.string()).min(2).max(12)
-  })).min(4).max(7),
+    items: z.array(z.string()).min(1).max(12)
+  })).min(1).max(7),
   coursework: z.array(z.string()).max(6).optional(),
-  achievements: z.array(z.string()).min(1).max(2)
+  achievements: z.array(z.string()).max(2).default([])
 });
 export type TailoredResume = z.infer<typeof TailoredResume>;

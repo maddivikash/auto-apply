@@ -11,7 +11,7 @@ import { Profile, Settings } from "@/lib/profile/types";
 import { processApplication } from "@/lib/apply/pipeline";
 import { pdfToText, textToProfile } from "@/lib/profile/import";
 import { ANSWERS_MATTER, refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
-import { IN_PROGRESS, LABEL } from "@/components/status";
+import { LABEL } from "@/components/status";
 
 export async function createApplicationAction(formData: FormData) {
   const userId = await requireUserId();
@@ -29,16 +29,20 @@ export async function createApplicationAction(formData: FormData) {
 export type ActionResult = { ok: true; message?: string } | { ok: false; error: string };
 
 /** Re-run the pipeline for one application. Returns a result instead of redirecting so the page can update in place. */
-export async function reprocessAction(id: string): Promise<ActionResult> {
+const PROCESSING: Application["status"][] = ["queued", "fetching", "tailoring", "rendering", "filling", "submit_requested"];
+
+export async function reprocessAction(id: string, notes?: string): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
     const app = await getApplication(userId, id);
     if (!app) return { ok: false, error: "This application no longer exists." };
-    if (IN_PROGRESS.includes(app.status)) return { ok: false, error: "It is already being prepared. This page updates on its own." };
-    app.status = "queued"; app.error = undefined; await saveApplication(app);
+    if (PROCESSING.includes(app.status)) return { ok: false, error: `It is ${LABEL[app.status].toLowerCase()} right now. Wait for it to finish, this page updates on its own.` };
+    const wasApproved = app.status === "approved";
+    app.revisionNotes = notes?.trim() || undefined;
+    app.status = "queued"; app.error = undefined; app.approvedAt = undefined; await saveApplication(app);
     after(() => processApplication(userId, id));
     revalidatePath("/", "layout");
-    return { ok: true, message: "Preparing again. The resume usually takes about a minute." };
+    return { ok: true, message: (app.revisionNotes ? "Rewriting with your notes. " : "Preparing again. ") + (wasApproved ? "Approval was cleared; approve again when the new version is ready." : "The resume usually takes about a minute.") };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not start the retry." };
   }

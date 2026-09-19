@@ -31,6 +31,8 @@ export type Application = {
   resumePdfUrl?: string;
   resumeWarnings?: string[];
   trims?: string[];
+  /** What the user asked to change on the last Regenerate. Fed to the tailoring step with the previous version. */
+  revisionNotes?: string;
   questions: QuestionState[];
   emailedAt?: string;
   approvedAt?: string;

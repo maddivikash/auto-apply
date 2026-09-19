@@ -18,7 +18,9 @@ Writing rules, all mandatory:
 - Order skills groups by relevance to the JD. Drop skill groups and items the JD would not care about. Do not add skills that are not in the master.
 - Do not pad a bullet with a purpose clause that is not in the master, such as "ensuring reliable processing", "enabling safe actions", "improving user experience", "delivering value". End the bullet where the fact ends.
 - Do not merge facts from two different master bullets into one sentence unless both facts remain exactly true of the same piece of work.
-- Budget, strictly: the most recent role has 3 or 4 groups and 8 to 9 bullets in total. Each earlier role has 1 or 2 bullets in a single group whose heading is the job title. Projects: pick 1 project with 2 bullets, or 2 projects with 1 bullet each. 5 or 6 skill groups. Exactly 2 achievements. Coursework only if the JD asks for fundamentals or the role is junior; otherwise omit it.
+- Budget, strictly: the most recent role has 3 or 4 groups and 8 to 9 bullets in total. Each earlier role has 1 or 2 bullets in a single group whose heading is the job title. Projects: pick 1 project with 2 bullets, or 2 projects with 1 bullet each. 5 or 6 skill groups (fewer if the master has fewer). Up to 2 achievements, only those in the master; none if the master has none. Coursework only if the JD asks for fundamentals or the role is junior; otherwise omit it.
+- Projects: prefer the most recent ones (newest year first). Pick a project more than three years old only when the JD is specifically about that domain and no recent project covers it.
+- If the master has less material than the budget, use everything relevant that exists and stop there. Never invent, split or pad to reach the budget; a shorter resume is fine.
 `;
 
 export type TailorResult = {
@@ -28,7 +30,14 @@ export type TailorResult = {
   warnings: string[];
 };
 
-export async function tailorResume(job: JobPosting, profile: Profile): Promise<TailorResult> {
+export type TailorOptions = {
+  /** Free-text instructions from the candidate for this revision ("lead with the proxy project", "shorter bullets"). */
+  notes?: string;
+  /** The version the candidate is reacting to, so the model revises instead of starting over. */
+  previous?: TailoredResume;
+};
+
+export async function tailorResume(job: JobPosting, profile: Profile, opts: TailorOptions = {}): Promise<TailorResult> {
   const system = `You tailor one candidate's resume to one job description. You are given the candidate's complete master profile as JSON and the job. You select and regroup the most relevant material and return JSON only, matching the schema exactly. ${STYLE_RULES}`;
 
   const user = `MASTER PROFILE (the only source of facts):
@@ -41,7 +50,18 @@ Location: ${job.location}
 Description:
 ${job.description.slice(0, 9000)}
 
-Return this JSON shape:
+${opts.previous && opts.notes ? `PREVIOUS VERSION (the candidate saw this and wants changes):
+${JSON.stringify(opts.previous, null, 1)}
+
+CANDIDATE INSTRUCTIONS for this revision, follow them exactly where the master profile allows:
+${opts.notes.trim().slice(0, 1500)}
+Keep everything the instructions do not mention as it was in the previous version. If an instruction asks for a fact, project or skill that is not in the master profile, do not invent it; leave it out and say so in one fitNotes entry starting with "Not in profile:".
+
+` : opts.notes ? `CANDIDATE INSTRUCTIONS, follow them exactly where the master profile allows:
+${opts.notes.trim().slice(0, 1500)}
+If an instruction asks for a fact, project or skill that is not in the master profile, do not invent it; leave it out and say so in one fitNotes entry starting with "Not in profile:".
+
+` : ""}Return this JSON shape:
 {
   "headline": "short label for this version, e.g. 'Platform engineer, developer productivity'",
   "jdSummary": "two sentences on what this job really wants",

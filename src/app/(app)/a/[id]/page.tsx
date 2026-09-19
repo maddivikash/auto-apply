@@ -12,6 +12,7 @@ import { IN_PROGRESS, LABEL, StatusBadge, StageTrack } from "@/components/status
 import { AutoRefresh } from "@/components/auto-refresh";
 import { SubmitButton } from "@/components/submit-button";
 import { ActionButton } from "@/components/action-button";
+import { RegeneratePanel } from "@/components/regenerate-panel";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -26,6 +27,8 @@ export default async function ApplicationPage({ params, searchParams }: { params
   // Answers follow the current Profile and Answers pages, not the moment the link was pasted.
   if (refreshAnswers(app, withProfileFallback(Settings.parse(settings ?? {}), profile)) && app.status === "ready") await saveApplication(app);
   const busy = IN_PROGRESS.includes(app.status);
+  // Regenerate is allowed while merely approved (approval is cleared); blocked only while a step is actually running.
+  const processing = ["queued", "fetching", "tailoring", "rendering", "filling", "submit_requested"].includes(app.status);
   const open = openQuestions(app);
   const answered = app.questions.filter((q) => !open.includes(q) && q.type !== "file");
   const files = app.questions.filter((q) => q.type === "file");
@@ -115,7 +118,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
             <section className="panel overflow-hidden">
               <div className="panel-head">
                 <div className="min-w-0"><div className="text-[15px] font-semibold">Tailored resume</div><div className="truncate text-[12.5px] text-muted">{app.headline}{app.trims?.length ? `. Trimmed to fit: ${app.trims.join(", ")}` : ""}</div></div>
-                <div className="flex gap-2"><a href={`/api/applications/${app.id}/pdf`} target="_blank" rel="noreferrer" className="btn-ghost h-8">Open PDF</a><ActionButton action={reprocessAction} id={app.id} pending="Starting" disabled={busy}>Regenerate</ActionButton></div>
+                <div className="flex gap-2"><a href={`/api/applications/${app.id}/pdf`} target="_blank" rel="noreferrer" className="btn-ghost h-8">Open PDF</a><RegeneratePanel id={app.id} action={reprocessAction} disabled={processing} lastNotes={app.revisionNotes} /></div>
               </div>
               {app.resumeWarnings?.length ? <p className="border-b border-line bg-signal-soft px-5 py-2 text-[12.5px] text-signal">Checks flagged: {app.resumeWarnings.join("; ")}</p> : null}
               <object data={`/api/applications/${app.id}/pdf#toolbar=0&view=FitH`} type="application/pdf" className="h-[760px] w-full bg-surface-2" aria-label="Resume preview"><div className="flex h-full items-center justify-center text-[13px] text-muted">Preview not available in this browser. <a className="ml-1 underline" href={`/api/applications/${app.id}/pdf`} target="_blank" rel="noreferrer">Open the PDF</a></div></object>
