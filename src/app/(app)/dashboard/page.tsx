@@ -6,8 +6,9 @@ import { Settings } from "@/lib/profile/types";
 import { refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
 import { markStale } from "@/lib/apply/stale";
 import { summarize, openQuestions } from "@/lib/stats";
-import { createApplicationAction, approveAllAction, submitAllAction } from "../../actions";
+import { createApplicationAction, approveAllAction, submitAllAction, chooseResumeAction } from "../../actions";
 import { ActionButton } from "@/components/action-button";
+import { ResumeToggle } from "@/components/resume-toggle";
 import { StatusBadge, StageTrack } from "@/components/status";
 import { LinkInput } from "@/components/link-input";
 import { SubmitButton } from "@/components/submit-button";
@@ -87,11 +88,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                         {a.job?.location && <span className="truncate">{a.job.location}</span>}
                         {a.job && <span className="capitalize">{a.job.board}</span>}
                         <span>{date}</span>
-                        {a.match && a.resume && (
+                        {a.variants ? (
+                          <ResumeToggle id={a.id} choice={a.resumeChoice || "tailored"} tailored={a.variants.tailored.match.tailored} full={a.variants.full.match.tailored} locked={!["ready", "approved"].includes(a.status)} action={chooseResumeAction} />
+                        ) : a.match && a.resume ? (
                           <span className={`tabular-nums ${a.match.tailored > a.match.profile ? "text-go" : a.match.tailored < a.match.profile ? "text-signal" : ""}`} title="Keyword match with the posting: your full profile vs the tailored resume">
                             Match {a.match.profile}% <span aria-hidden>→</span><span className="sr-only">to</span> {a.match.tailored}%
                           </span>
-                        )}
+                        ) : null}
                         {open > 0 && a.status === "ready" && <span className="text-signal">{open} question{open > 1 ? "s need" : " needs"} you</span>}
                         {a.status === "code_required" && !a.verificationCode && <span className="text-signal">Enter the code Greenhouse emailed you</span>}
                         {a.error && ["failed", "unsupported"].includes(a.status) && <span className="truncate text-danger">{a.error.slice(0, 80)}</span>}

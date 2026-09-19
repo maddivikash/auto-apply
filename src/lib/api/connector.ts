@@ -68,6 +68,8 @@ export function summarize(app: Application, opts: { resume?: boolean } = {}) {
     jdSummary: app.jdSummary,
     fitNotes: app.fitNotes,
     matchScore: app.match ? { tailored: app.match.tailored, profile: app.match.profile, missing: app.match.missing.slice(0, 12) } : undefined,
+    resumeChoice: app.resumeChoice,
+    resumeVersions: app.variants ? { tailored: app.variants.tailored.match.tailored, full: app.variants.full.match.tailored } : undefined,
     resumePdfUrl: app.resumePdfUrl ? signedPdfUrl(origin(), app.userId, app.id) : undefined,
     resumeWarnings: app.resumeWarnings,
     resume: opts.resume ? app.resume : undefined,

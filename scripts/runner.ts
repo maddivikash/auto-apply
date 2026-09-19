@@ -240,7 +240,11 @@ async function enterGreenhouseCode(page: Page, code: string): Promise<boolean> {
 // ---- Lever / Ashby: generic label-driven fill ------------------------------
 
 async function discoverAndFillGeneric(page: Page, app: Application, notes: string[]) {
-  await page.waitForLoadState("networkidle");
+  // Lever and Ashby pages keep analytics beacons open, so "networkidle" may never arrive. Wait for the
+  // document, give the network a short grace period, then wait for the form itself.
+  await page.waitForLoadState("domcontentloaded");
+  await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+  await page.locator("form, input[type=file], input[name], textarea").first().waitFor({ timeout: 20000 }).catch(() => { throw new Error("The application form did not appear within 20 seconds; the posting may have closed or need a click to open the form."); });
   const resumePath = await downloadResume(app);
   const fileInput = page.locator('input[type=file]').first();
   if (await fileInput.count()) { await fileInput.setInputFiles(resumePath); notes.push("Resume attached"); await page.waitForTimeout(3000); }
@@ -311,7 +315,8 @@ async function fill(app: Application) {
     log(`filled ${app.id} (${app.job!.company}), waiting for Submit in the app`);
   } catch (e) {
     const shot = await page.screenshot({ fullPage: true }).catch(() => null);
-    await report(app.id, { status: "failed", error: `Runner: ${(e as Error).message}`, notes, screenshotBase64: shot?.toString("base64") });
+    // Playwright appends a wall of "=== logs ===" to timeout errors; the first line is the message.
+    await report(app.id, { status: "failed", error: `Runner: ${(e as Error).message.split("\n")[0].slice(0, 200)}`, notes, screenshotBase64: shot?.toString("base64") });
     log(`fill failed ${app.id}:`, (e as Error).message);
   }
 }

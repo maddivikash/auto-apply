@@ -11,11 +11,20 @@ import type { TailoredResume } from "./resume/schema";
 import type { Match } from "./resume/match";
 import type { Profile, Settings } from "./profile/types";
 
+export type ResumeVariant = { resume: TailoredResume; pdfUrl: string; match: Match; headline?: string; trims: string[] };
+
 export type QuestionState = JobQuestion & { answer?: string; source?: "profile" | "rule" | "user"; needsHuman: boolean };
 
 export type ApplicationStatus =
   | "queued" | "fetching" | "unsupported" | "tailoring" | "rendering" | "ready"
   | "approved" | "filling" | "filled" | "submit_requested" | "code_required" | "submitted" | "failed";
+
+/** Copy a variant into the fields the rest of the app reads. */
+export function applyResumeChoice(app: Application, choice: "tailored" | "full") {
+  const v = app.variants?.[choice];
+  if (!v) return;
+  app.resumeChoice = choice; app.resume = v.resume; app.resumePdfUrl = v.pdfUrl; app.match = v.match; app.headline = v.headline; app.trims = v.trims;
+}
 
 export type Application = {
   id: string;
@@ -33,8 +42,12 @@ export type Application = {
   resumePdfUrl?: string;
   resumeWarnings?: string[];
   trims?: string[];
-  /** Keyword match with the job: tailored resume vs the full profile. */
+  /** Keyword match with the job for the active resume: `tailored` is the active PDF's score, `profile` the raw profile text's. */
   match?: Match;
+  /** Both rendered versions, so the user can switch. The active one is copied into resume, resumePdfUrl, match, headline. */
+  variants?: { tailored: ResumeVariant; full: ResumeVariant };
+  /** Which variant is active. Defaults to whichever scored higher. */
+  resumeChoice?: "tailored" | "full";
   /** What the user asked to change on the last Regenerate. Fed to the tailoring step with the previous version. */
   revisionNotes?: string;
   questions: QuestionState[];

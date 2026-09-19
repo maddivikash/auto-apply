@@ -6,7 +6,7 @@ import { after } from "next/server";
 import { nanoid } from "nanoid";
 import { randomBytes } from "node:crypto";
 import { requireUserId, userEmail } from "@/lib/auth";
-import { getApplication, saveApplication, deleteApplication, saveProfile, getProfile, getSettings, saveSettings, saveRunnerToken, deleteRunnerToken, saveApiKey, deleteApiKey, listApplications, type Application } from "@/lib/store";
+import { getApplication, saveApplication, deleteApplication, saveProfile, getProfile, getSettings, saveSettings, saveRunnerToken, deleteRunnerToken, saveApiKey, deleteApiKey, listApplications, applyResumeChoice, type Application } from "@/lib/store";
 import { Profile, Settings } from "@/lib/profile/types";
 import { processApplication } from "@/lib/apply/pipeline";
 import { pdfToText, textToProfile } from "@/lib/profile/import";
@@ -142,6 +142,25 @@ export async function requestNewCodeAction(id: string): Promise<ActionResult> {
     return { ok: true, message: "The runner refills the form and submits again. Greenhouse emails a fresh code in about a minute." };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not request a new code." };
+  }
+}
+
+/** Switch between the tailored resume and the full one for an application that has not been filled yet. */
+export async function chooseResumeAction(id: string, choice: "tailored" | "full"): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const app = await getApplication(userId, id);
+    if (!app) return { ok: false, error: "This application no longer exists." };
+    if (!app.variants) return { ok: false, error: "This application predates the two-version resume. Regenerate it to get both." };
+    if (!["ready", "approved"].includes(app.status)) return { ok: false, error: `The resume is locked once the form is ${LABEL[app.status].toLowerCase()}.` };
+    if (app.resumeChoice === choice) return { ok: true };
+    applyResumeChoice(app, choice);
+    if (app.status === "approved") { app.status = "ready"; app.approvedAt = undefined; }
+    await saveApplication(app);
+    revalidatePath("/", "layout");
+    return { ok: true, message: choice === "full" ? "Full resume selected." : "Tailored resume selected." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not switch the resume." };
   }
 }
 
