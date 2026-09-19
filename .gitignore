@@ -44,3 +44,4 @@ next-env.d.ts
 .env.vercel.local
 samples/*.html
 samples/*.json
+.tmp-check/
