@@ -95,7 +95,12 @@ async function downloadResume(app: Application): Promise<string> {
   // The uploaded file's name is what the recruiter sees: the person's name, never the company.
   const p = join(dir, resumeFileName(SETTINGS.firstName, SETTINGS.lastName));
   const r = await fetch(`${APP_URL}/api/applications/${app.id}/pdf`, { headers: { Authorization: `Bearer ${TOKEN}` } });
-  writeFileSync(p, Buffer.from(await r.arrayBuffer()));
+  const bytes = Buffer.from(await r.arrayBuffer());
+  // Never upload anything but a real PDF. An error page saved as .pdf is worse than no resume at all.
+  if (!r.ok || bytes.subarray(0, 5).toString("latin1") !== "%PDF-" || bytes.length < 5000) {
+    throw new Error(`Resume download failed (HTTP ${r.status}, ${bytes.length} bytes, ${r.headers.get("content-type") || "no content type"}); the form was not filled.`);
+  }
+  writeFileSync(p, bytes);
   return p;
 }
 
