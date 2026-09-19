@@ -53,7 +53,10 @@ export function parseEducation(e: Profile["education"][number]): ParsedEducation
   const degreeText = (e.degree || "").trim();
   const level = LEVELS.find(([re]) => re.test(degreeText))?.[1] ?? "other";
   // "Bachelor of Technology in Mechanical Engineering" / "B.Tech, Computer Science" / "MS (Data Science)"
-  const disc = /\b(?:in|of)\s+(?!technology\b|science\b|arts\b|engineering\b(?:\s*$))([^,()]+?)\s*(?:,|\(|$)/i.exec(degreeText)?.[1]
+  // "Bachelor of Engineering in Computer Science" -> the part after "in"; "Master of Data Science" -> after "of"
+  // unless it is a degree family word (Technology, Science, Arts, Engineering); "B.Tech, Computer Science" -> after the comma.
+  const disc = /\bin\s+([^,()]+?)\s*(?:,|\(|$)/i.exec(degreeText)?.[1]
+    || /\bof\s+(?!(?:technology|science|arts|engineering|business administration|philosophy|medicine|laws?)\b)([^,()]+?)\s*(?:,|\(|$)/i.exec(degreeText)?.[1]
     || /[,(]\s*([^,()]+?)\s*\)?\s*$/.exec(degreeText)?.[1]
     || "";
   const discipline = disc.replace(/\b(major|honou?rs?)\b/gi, "").replace(/\s+/g, " ").trim();

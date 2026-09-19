@@ -34,6 +34,20 @@ HTTP with a personal API key from the app's Connect page. The agent brings the b
 returns the tailored PDF and every form answer, and the agent reports back with `mark_submitted`.
 Setup and the Muse submission text: [docs/muse-connector.md](docs/muse-connector.md).
 
+## Testing without your real identity
+
+A fictional applicant lives in `scripts/seed-test-user.mts`, and the test runner never presses Submit,
+so no fake application ever reaches an employer:
+
+```bash
+npm run seed:test     # writes the test profile, answers and runner token into .data/
+npm run dev:test      # the app as the test user, local files only, no email
+npm run runner:test   # fills real forms in your Chrome, stops before Submit, screenshots
+```
+
+Paste any Greenhouse, Lever or Ashby link at http://localhost:3000, approve it, and watch the runner
+fill it. The production runner and the test runner can run side by side.
+
 ## Layout
 
 ```

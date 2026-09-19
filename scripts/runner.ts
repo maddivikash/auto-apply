@@ -22,6 +22,9 @@ const APP_URL = (process.env.APP_URL || "http://localhost:3000").replace(/\/$/, 
 const TOKEN = process.env.RUNNER_TOKEN;
 if (!TOKEN) throw new Error("RUNNER_TOKEN is required");
 const POLL_MS = Number(process.env.RUNNER_POLL_MS || 8000);
+/** Test mode: fill everything, take the screenshot, never press Submit. Real forms stay untouched by fake applications. */
+const DRY_RUN = process.env.RUNNER_DRY_RUN === "1";
+const PROFILE_DIR = process.env.RUNNER_PROFILE || "chrome-profile";
 const log = (...a: unknown[]) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
 const api = async (path: string, init?: RequestInit) => {
@@ -37,6 +40,10 @@ const inFlight = new Set<string>();
 let browser: Browser | BrowserContext | null = null;
 /** When each host last accepted a submit, and until when a host is backing off after a spam flag. */
 let lastSubmitAt = 0;
+let dryRunAnnounced = false;
+/** Automatic re-submits after a spam flag, per application, before the user is asked. */
+const flagRetries = new Map<string, number>();
+const MAX_FLAG_RETRIES = 2;
 const hostBackoffUntil = new Map<string, number>();
 const SUBMIT_GAP_MS = 90_000;
 const SPAM_BACKOFF_MS = 6 * 60_000;
@@ -44,7 +51,8 @@ const jitter = (min: number, max: number) => min + Math.random() * (max - min);
 
 // One runner per machine. A second instance would fill the same form twice.
 import { existsSync, readFileSync as readSync, unlinkSync } from "node:fs";
-const LOCK = join(tmpdir(), "auto-apply-runner.lock");
+// One runner per target server and browser profile: the production runner and a dry-run test runner may coexist.
+const LOCK = join(tmpdir(), `auto-apply-runner-${PROFILE_DIR}-${APP_URL.replace(/[^a-z0-9]+/gi, "_")}.lock`);
 if (existsSync(LOCK)) {
   const pid = Number(readSync(LOCK, "utf8"));
   let alive = false; try { process.kill(pid, 0); alive = true; } catch {}
@@ -62,7 +70,7 @@ process.on("SIGTERM", () => process.exit(0));
  */
 async function getBrowser(): Promise<Browser | BrowserContext> {
   if (browser && (("isConnected" in browser && browser.isConnected()) || !("isConnected" in browser))) return browser;
-  const profile = join(homedir(), ".auto-apply", "chrome-profile"); mkdirSync(profile, { recursive: true });
+  const profile = join(homedir(), ".auto-apply", PROFILE_DIR); mkdirSync(profile, { recursive: true });
   try {
     browser = await chromium.launchPersistentContext(profile, { channel: "chrome", headless: false, viewport: null, args: ["--window-size=1400,1000", "--disable-blink-features=AutomationControlled"], ignoreDefaultArgs: ["--enable-automation"] });
     log("using installed Chrome with a persistent profile");
@@ -281,10 +289,16 @@ async function fillGreenhouseEducation(root: Page, page: Page, notes: string[], 
     try {
       if (id("school") && e.school) {
         const plain = e.school.replace(/\s*\([^)]*\)/g, "").trim();
-        const re = new RegExp(esc(plain), "i");
+        // "Anna University" must not match "Susquehanna University": whole words only, and an exact option name first.
+        const exact = new RegExp(`^${esc(plain)}(\\s*\\([^)]*\\))?$`, "i");
+        const bounded = new RegExp(`(^|[^\\p{L}])${esc(plain)}(?![\\p{L}])`, "iu");
         let ok = false;
-        for (const q of schoolQueries(e.school)) { if (await pickOption(id("school")!, q, re)) { ok = true; break; } }
-        if (!ok) { const alt = await pickOption(id("school")!, "", /not listed|other|not attend/i); notes.push(alt ? `School "${e.school}" is not in the form's list; chose the "not listed / other" option` : `Could not find school "${e.school}" in the list; left blank`); }
+        for (const q of schoolQueries(e.school)) { if ((await pickOption(id("school")!, q, exact)) || (await pickOption(id("school")!, q, bounded))) { ok = true; break; } }
+        if (!ok) {
+          // The list only shows matches for what is typed, so the escape hatches have to be typed too.
+          const alt = (await pickOption(id("school")!, "Other", /^other$/i)) || (await pickOption(id("school")!, "not listed", /not listed/i)) || (await pickOption(id("school")!, "not attend", /not attend/i));
+          notes.push(alt ? `School "${e.school}" is not in the form's list; chose its "Other / not listed" option` : `Could not find school "${e.school}" in the list; left blank`);
+        }
       }
       if (id("degree")) {
         let ok = false;
@@ -328,8 +342,10 @@ async function fillAshbyEducation(page: Page, notes: string[]) {
       for (const q of schoolQueries(e.school)) {
         await box.click(); await box.fill(""); await box.pressSequentially(q, { delay: 30 }); await page.waitForTimeout(1500);
         const opts = page.getByRole("option"); const texts = await opts.allInnerTexts();
-        const plain = e.school.replace(/\s*\([^)]*\)/g, "").trim().toLowerCase();
-        const j = texts.findIndex((t) => t.toLowerCase().includes(plain) || plain.includes(t.toLowerCase().trim()));
+        const plain = e.school.replace(/\s*\([^)]*\)/g, "").trim();
+        const bounded = new RegExp(`(^|[^\\p{L}])${plain.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "iu");
+        let j = texts.findIndex((t) => t.trim().toLowerCase() === plain.toLowerCase());
+        if (j < 0) j = texts.findIndex((t) => bounded.test(t));
         if (j >= 0) { await opts.nth(j).click(); ok = true; break; }
         await page.keyboard.press("Escape");
       }
@@ -365,7 +381,8 @@ async function submitGreenhouse(page: Page): Promise<"submitted" | "code_require
   if (await codeScreenShown(root)) return "code_required";
   const text = (await root.locator("body").innerText()).toLowerCase();
   if (/thank you|application (has been )?submitted|we have received/i.test(text)) return "submitted";
-  if (/captcha|verify you are human/i.test(text)) throw new Error("reCAPTCHA challenge shown; complete it in the window and press Submit there.");
+  if (/flagged as (possible )?spam|unusual (traffic|activity)/i.test(text)) { hostBackoffUntil.set(new URL(page.url()).host, Date.now() + SPAM_BACKOFF_MS); throw new Error("The site flagged the submission as possible spam."); }
+  if (/captcha|verify you are human/i.test(text) || (await root.locator("iframe[src*=hcaptcha], iframe[src*=recaptcha]:not([src*=anchor]), iframe[src*=turnstile]").count())) throw new Error("A captcha is shown. Solve it in the window, press Submit there, then use Mark as submitted here.");
   const errors = await root.locator(".field-error, [role=alert], .error").allInnerTexts();
   throw new Error(`No confirmation after submit. ${errors.filter(Boolean).slice(0, 3).join(" | ")}`);
 }
@@ -487,6 +504,11 @@ async function submit(app: Application) {
     entry = live.get(app.id);
     if (!entry) return;
   }
+  if (DRY_RUN) {
+    await report(app.id, { status: "filled", error: "Test runner: Submit was not pressed (dry run). The filled form stays open in the window.", notes: ["Dry run: Submit skipped"] });
+    log(`DRY RUN: not submitting ${app.id} (${app.job!.company})`);
+    return;
+  }
   try {
     const outcome = app.job!.board === "greenhouse" ? await submitGreenhouse(entry.page) : (await submitGeneric(entry.page)) ? "submitted" : "failed";
     const shot = await entry.page.screenshot({ fullPage: true });
@@ -506,7 +528,20 @@ async function submit(app: Application) {
       log(`tab closed for ${app.id}`);
       return;
     }
-    await report(app.id, { status: "filled", notes: [`Submit attempt: ${msg.slice(0, 160)}`] });
+    if (/flagged the submission/i.test(msg)) {
+      // Do not hand this to the user yet: close the tab, wait out the host's cooldown, refill from a fresh page and try again.
+      const n = (flagRetries.get(app.id) || 0) + 1; flagRetries.set(app.id, n);
+      await entry.page.close().catch(() => {}); live.delete(app.id);
+      if (n <= MAX_FLAG_RETRIES) {
+        await report(app.id, { notes: [`Submit flagged as possible spam; retrying automatically in ${Math.round(SPAM_BACKOFF_MS / 60000)} minutes from a fresh page (attempt ${n} of ${MAX_FLAG_RETRIES})`] });
+        log(`spam flag for ${app.id}, automatic retry ${n}/${MAX_FLAG_RETRIES} after backoff`);
+        return; // status stays submit_requested; the poll loop paces and retries
+      }
+      await report(app.id, { status: "filled", error: "The site flagged this submission as possible spam twice, even from a fresh page. The form is refilled and open in the window: press Submit there when convenient, then Mark as submitted here.", notes: ["Submit flagged twice; handed over"] });
+      log(`spam flag for ${app.id} persisted after ${MAX_FLAG_RETRIES} retries; handed to the user`);
+      return;
+    }
+    await report(app.id, { status: "filled", error: msg.slice(0, 220), notes: [`Submit attempt: ${msg.slice(0, 160)}`] });
     log(`submit needs attention ${app.id}:`, msg);
   }
 }
@@ -538,6 +573,7 @@ async function loop() {
   for (;;) {
     try {
       const { work, settings } = (await api("/next")) as { work: Application[]; settings: Settings };
+      if (DRY_RUN && !dryRunAnnounced) { dryRunAnnounced = true; log("DRY RUN: forms are filled but never submitted"); }
       SETTINGS = settings;
       for (const app of work) {
         if (inFlight.has(app.id)) continue;

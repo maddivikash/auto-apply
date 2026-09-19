@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "runner": "bash -c \"set -a; . ./.env.local; set +a; npx tsx scripts/runner.ts\"",
-    "generate": "bash -c \"set -a; . ./.env.local; set +a; npx tsx scripts/generate.ts\""
+    "generate": "bash -c \"set -a; . ./.env.local; set +a; npx tsx scripts/generate.ts\"",
+    "seed:test": "npx tsx scripts/seed-test-user.mts",
+    "dev:test": "DEV_FAKE_USER=test-user TURSO_DATABASE_URL= TURSO_AUTH_TOKEN= BLOB_READ_WRITE_TOKEN= RESEND_API_KEY= APP_URL=http://localhost:3000 next dev",
+    "runner:test": "bash -c \"set -a; . ./.env.local; set +a; APP_URL=http://localhost:3000 RUNNER_TOKEN=test-runner-token-000000000000 RUNNER_DRY_RUN=1 RUNNER_PROFILE=chrome-profile-test npx tsx scripts/runner.ts\""
   },
   "dependencies": {
     "@clerk/mcp-tools": "^0.6.0",
