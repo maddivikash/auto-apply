@@ -41,7 +41,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
 
   return (
     <div className="space-y-8">
-      {busy && <AutoRefresh seconds={5} />}
+      <AutoRefresh seconds={busy ? 5 : 15} />
       <div>
         <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-fg"><ArrowLeft size={14} /> Applications</Link>
         <div className="mt-3 flex flex-wrap items-start justify-between gap-4">

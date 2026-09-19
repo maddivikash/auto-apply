@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUserId } from "@/lib/auth";
 import { listNotifications, markNotificationsRead } from "@/lib/store";
 import { PageHeader } from "@/components/page-header";
+import { AutoRefresh } from "@/components/auto-refresh";
 
 export const dynamic = "force-dynamic";
 const TONE: Record<string, string> = { ready: "bg-go", needs_details: "bg-signal", filled: "bg-signal", submitted: "bg-go", failed: "bg-danger", unsupported: "bg-danger", info: "bg-muted" };
@@ -14,6 +15,7 @@ export default async function NotificationsPage() {
   if (fresh.size) await markNotificationsRead(uid, [...fresh]);
   return (
     <div className="space-y-8">
+      <AutoRefresh seconds={30} />
       <PageHeader title="Notifications" description="Resume ready, details needed, form filled, submitted. The same events also reach your email." />
       {list.length === 0 ? <div className="panel px-6 py-14 text-center text-[13.5px] text-muted">Nothing yet. Resume-ready, filled and submitted events show up here and in your email.</div> : (
         <ul className="panel divide-rows overflow-hidden">

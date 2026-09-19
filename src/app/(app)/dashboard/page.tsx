@@ -9,6 +9,7 @@ import { summarize, openQuestions } from "@/lib/stats";
 import { createApplicationAction, approveAllAction, submitAllAction, chooseResumeAction, retryFailedAction } from "../../actions";
 import { ActionButton } from "@/components/action-button";
 import { ResumeToggle } from "@/components/resume-toggle";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { StatusBadge, StageTrack } from "@/components/status";
 import { LinkInput } from "@/components/link-input";
 import { SubmitButton } from "@/components/submit-button";
@@ -35,6 +36,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   ];
   return (
     <div className="space-y-8">
+      <AutoRefresh seconds={s.inProgress || s.awaitingSubmit ? 5 : 20} />
       <PageHeader title="Applications" description={apps.length ? "Newest first. Open one to review the resume, answer what is open, and approve." : "Paste a job link and Auto Apply prepares the whole application for your review."} />
 
       {profile ? (
