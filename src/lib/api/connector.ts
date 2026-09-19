@@ -6,12 +6,11 @@
  * the agent brings the browser. So an agent can either fill the form itself from `formAnswers`
  * and then `markSubmitted`, or hand off to the user's desktop runner with `approve`.
  */
-import { after } from "next/server";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { getApplication, saveApplication, deleteApplication, listApplications, getProfile, saveProfile, getSettings, saveSettings, type Application, type ApplicationStatus } from "../store";
 import { Profile, Settings } from "../profile/types";
-import { processApplication } from "../apply/pipeline";
+import { scheduleProcessing } from "../apply/schedule";
 import { ANSWERS_MATTER, refreshAnswers, withProfileFallback } from "../apply/answers";
 import { textToProfile } from "../profile/import";
 import { mergeProfiles } from "../profile/merge";
@@ -25,10 +24,6 @@ import { LABEL } from "@/components/status";
 
 const PROCESSING: ApplicationStatus[] = ["queued", "fetching", "tailoring", "rendering", "filling", "submit_requested"];
 
-/** Run the pipeline once the response is out. Falls back to fire-and-forget outside a request scope. */
-function schedule(fn: () => Promise<void>) {
-  try { after(fn); } catch { void fn().catch((e) => console.error(e)); }
-}
 
 const origin = () => (process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
 
@@ -104,7 +99,7 @@ export async function createApplication(userId: string, url: string) {
   const now = new Date().toISOString();
   const app: Application = { id, userId, url: url.trim(), createdAt: now, updatedAt: now, status: "queued", questions: [] };
   await saveApplication(app);
-  schedule(() => processApplication(userId, id));
+  scheduleProcessing(userId, id);
   return summarize(app);
 }
 
@@ -176,7 +171,7 @@ export async function regenerate(userId: string, id: string, notes?: string) {
   app.revisionNotes = notes?.trim() || undefined;
   app.status = "queued"; app.error = undefined; app.approvedAt = undefined;
   await saveApplication(app);
-  schedule(() => processApplication(userId, id));
+  scheduleProcessing(userId, id);
   return summarize(app);
 }
 

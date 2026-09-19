@@ -24,6 +24,17 @@ export async function processApplication(userId: string, id: string): Promise<vo
     last = now; app.status = status; await saveApplication(app);
   };
 
+  // One Chromium for every render in this run: launching on Vercel costs seconds each time. renderPdf closes what it
+  // is given, so it gets a handle whose close() is a no-op; the real browser is closed at the end.
+  let realBrowser: Awaited<ReturnType<typeof launchBrowser>> | null = null;
+  const sharedLaunch = async () => {
+    realBrowser ??= await launchBrowser();
+    return new Proxy(realBrowser, { get: (t, k) => (k === "close" ? async () => {} : Reflect.get(t, k as keyof typeof t)) });
+  };
+  // Vercel gives this run 300 s. Retries and extras are skipped when the clock gets short; the run must end with a result.
+  const BUDGET_MS = 240_000;
+  const timeLeft = () => BUDGET_MS - (Date.now() - t0);
+
   try {
     const profile = await getProfile(userId);
     if (!profile) throw new Error("Add your profile first (Profile page) so the resume has something to work from.");
@@ -44,24 +55,23 @@ export async function processApplication(userId: string, id: string): Promise<vo
     }
     const { description, ...rest } = job;
     app.job = { ...rest, descriptionPreview: description.slice(0, 1500) };
-    // Lever and Ashby forms only reveal their questions in the browser: open the form now so the user sees them before approving.
-    if (job.board !== "greenhouse") {
-      try {
-        const found = await discoverFormQuestions(job.applyUrl);
-        const known = new Set(job.questions.map((q) => q.label.toLowerCase()));
-        for (const q of found) if (!known.has(q.label.toLowerCase())) job.questions.push(q);
-        console.log(`application ${id}: ${found.length} form questions discovered on ${job.board}`);
-      } catch (e) { console.warn(`application ${id}: could not read the form's questions:`, (e as Error).message); }
-    }
-    // Keep answers the user typed or accepted on an earlier run; everything else is re-derived.
+    // Answers first from what is known; the form's own questions (Lever, Ashby) and the AI drafts arrive in parallel with the resume.
     const kept = new Map(app.questions.filter((q) => (q.source === "user" || q.source === "ai") && q.answer).map((q) => [q.label.toLowerCase(), q]));
-    app.questions = questionStates(job.questions, settings, job.location).map((q) => {
-      const t = kept.get(q.label.toLowerCase());
-      return t ? { ...q, answer: t.answer, source: t.source, needsHuman: false } : q;
-    });
-    // Free-text questions nobody's settings can answer get a first draft from the profile and the posting, marked as such.
-    try { const n = await draftAnswers(job, profile, app.questions, settings); if (n) console.log(`application ${id}: drafted ${n} free-text answer(s), awaiting confirmation`); }
-    catch (e) { console.warn(`application ${id}: drafting failed:`, (e as Error).message); }
+    const withKept = (qs: ReturnType<typeof questionStates>) => qs.map((q) => { const t = kept.get(q.label.toLowerCase()); return t ? { ...q, answer: t.answer, source: t.source, needsHuman: false } : q; });
+    app.questions = withKept(questionStates(job.questions, settings, job.location));
+    const questionsTask = (async () => {
+      if (job.board !== "greenhouse") {
+        try {
+          const found = await discoverFormQuestions(job.applyUrl, sharedLaunch);
+          const known = new Set(job.questions.map((q) => q.label.toLowerCase()));
+          for (const q of found) if (!known.has(q.label.toLowerCase())) job.questions.push(q);
+          app.questions = withKept(questionStates(job.questions, settings, job.location));
+          console.log(`application ${id}: ${found.length} form questions discovered on ${job.board}`);
+        } catch (e) { console.warn(`application ${id}: could not read the form's questions:`, (e as Error).message); }
+      }
+      try { const n = await draftAnswers(job, profile, app.questions, settings); if (n) console.log(`application ${id}: drafted ${n} free-text answer(s), awaiting confirmation`); }
+      catch (e) { console.warn(`application ${id}: drafting failed:`, (e as Error).message); }
+    })();
 
     // The personal website goes on the resume only for roles that prize building things alone: founding
     // engineer, first hire, zero-to-one. Everywhere else the header stays to LinkedIn and GitHub.
@@ -76,13 +86,13 @@ export async function processApplication(userId: string, id: string): Promise<vo
       await step("tailoring");
       const result = await tailorResume(job, profile, { notes, previous });
       await step("rendering");
-      const rendered = await renderPdf(sanitize(result.resume), renderProfile, launchBrowser);
+      const rendered = await renderPdf(sanitize(result.resume), renderProfile, sharedLaunch);
       return { result, rendered, match: matchResume(description, rendered.resume, profile, job.company) };
     };
     let best = await attempt(app.revisionNotes, app.resume);
     const MAX_RETRIES = 2;
     let retries = 0;
-    while (best.match.tailored < best.match.profile && retries < MAX_RETRIES) {
+    while (best.match.tailored < best.match.profile && retries < MAX_RETRIES && timeLeft() > 90_000) {
       retries++;
       console.log(`application ${id}: tailored match ${best.match.tailored} < profile ${best.match.profile}, retry ${retries}`);
       const notes = [
@@ -96,7 +106,7 @@ export async function processApplication(userId: string, id: string): Promise<vo
     // The full profile laid out as-is is always rendered too, so the user can switch and so a tailored
     // version that scores lower than the plain resume is never the default.
     await step("rendering");
-    const plain = await renderPdf(profileAsResume(profile), renderProfile, launchBrowser);
+    const plain = await renderPdf(profileAsResume(profile), renderProfile, sharedLaunch);
     const plainMatch = matchResume(description, plain.resume, profile, job.company);
     const [tailoredUrl, fullUrl] = await Promise.all([
       saveFile(`users/${userId}/resumes/${id}.pdf`, rendered.pdf, "application/pdf"),
@@ -125,6 +135,7 @@ export async function processApplication(userId: string, id: string): Promise<vo
           : best.match.tailored < best.match.profile ? [`Keyword match ${best.match.tailored}% is below your raw profile text's ${best.match.profile}%, but still above the original once fitted to one page (${plainMatch.tailored}%).`] : [];
     const sparse = rendered.sparse ? ["Your profile is on the light side, so the type was enlarged to fill the page. Add a few more bullets or a project on the Profile page for a denser resume."] : [];
     app.resumeWarnings = [...result.warnings, ...validate(rendered.resume, profile), ...sparse, ...notice].filter((w, i, a) => a.indexOf(w) === i);
+    await questionsTask;
     app.error = undefined;
     await step("ready");
 
@@ -138,5 +149,7 @@ export async function processApplication(userId: string, id: string): Promise<vo
     await step("failed");
     await addNotification({ userId, kind: "failed", applicationId: id, title: `Could not prepare ${app.job?.company || "application"}`, body: app.error });
     console.error(`application ${id} failed:`, e);
+  } finally {
+    await (realBrowser as Awaited<ReturnType<typeof launchBrowser>> | null)?.close().catch(() => {});
   }
 }

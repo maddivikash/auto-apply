@@ -9,8 +9,8 @@ import { discoverLiveFields } from "./discover";
 
 const TYPE: Record<string, JobQuestion["type"]> = { text: "text", textarea: "textarea", select: "select", group: "select", buttons: "select", checkbox: "checkbox", file: "file" };
 
-export async function discoverFormQuestions(applyUrl: string): Promise<JobQuestion[]> {
-  const browser = await launchBrowser();
+export async function discoverFormQuestions(applyUrl: string, launch: () => Promise<Awaited<ReturnType<typeof launchBrowser>>> = launchBrowser): Promise<JobQuestion[]> {
+  const browser = await launch();
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     await page.goto(applyUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
@@ -29,6 +29,6 @@ export async function discoverFormQuestions(applyUrl: string): Promise<JobQuesti
     }
     return out;
   } finally {
-    await browser.close().catch(() => {});
+    await browser.close().catch(() => {}); // a no-op when the pipeline shares its browser
   }
 }

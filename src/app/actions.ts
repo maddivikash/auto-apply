@@ -2,13 +2,12 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { after } from "next/server";
 import { nanoid } from "nanoid";
 import { randomBytes } from "node:crypto";
 import { requireUserId, userEmail } from "@/lib/auth";
 import { getApplication, saveApplication, deleteApplication, saveProfile, getProfile, getSettings, saveSettings, saveRunnerToken, deleteRunnerToken, saveApiKey, deleteApiKey, listApplications, applyResumeChoice, type Application } from "@/lib/store";
 import { Profile, Settings } from "@/lib/profile/types";
-import { processApplication } from "@/lib/apply/pipeline";
+import { scheduleProcessing } from "@/lib/apply/schedule";
 import { draftAnswers } from "@/lib/apply/draft";
 import { fetchJob } from "@/lib/jobs/fetch";
 import { companyFromUrl, addUserCompany } from "@/lib/jobs/boards";
@@ -25,7 +24,7 @@ export async function createApplicationAction(formData: FormData) {
   const now = new Date().toISOString();
   const app: Application = { id, userId, url, createdAt: now, updatedAt: now, status: "queued", questions: [] };
   await saveApplication(app);
-  after(() => processApplication(userId, id));
+  scheduleProcessing(userId, id);
   revalidatePath("/", "layout");
   redirect(`/a/${id}`);
 }
@@ -44,7 +43,7 @@ export async function reprocessAction(id: string, notes?: string): Promise<Actio
     const wasApproved = app.status === "approved";
     app.revisionNotes = notes?.trim() || undefined;
     app.status = "queued"; app.error = undefined; app.approvedAt = undefined; await saveApplication(app);
-    after(() => processApplication(userId, id));
+    scheduleProcessing(userId, id);
     revalidatePath("/", "layout");
     return { ok: true, message: (app.revisionNotes ? "Rewriting with your notes. " : "Preparing again. ") + (wasApproved ? "Approval was cleared; approve again when the new version is ready." : "The resume usually takes about a minute.") };
   } catch (e) {
@@ -381,7 +380,7 @@ export async function retryFailedAction(): Promise<ActionResult> {
       if (a.resumePdfUrl && a.job) {
         const open = a.questions.some((q) => q.needsHuman);
         a.status = open ? "ready" : "approved"; a.approvedAt = open ? undefined : new Date().toISOString(); refill++;
-      } else { a.status = "queued"; redo++; after(() => processApplication(userId, a.id)); }
+      } else { a.status = "queued"; redo++; scheduleProcessing(userId, a.id); }
       await saveApplication(a);
     }
     revalidatePath("/", "layout");
