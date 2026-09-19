@@ -1,7 +1,7 @@
 /**
  * One-off: put the Context Proxy project (from the master profile) at the top of every stored
  * profile that does not have it yet. Existing projects are kept. Run with the env loaded:
- *   bash -c 'set -a; . ./.env.local; set +a; npx tsx scripts/add-project.ts'
+ *   bash -c 'set -a; . ./.env.local; set +a; npx tsx scripts/add-project.mts'
  */
 import { list, put } from "@vercel/blob";
 import { MASTER } from "../src/lib/profile/master";

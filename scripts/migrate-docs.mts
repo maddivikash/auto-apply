@@ -2,7 +2,7 @@
  * Copy JSON documents from Vercel Blob into the Turso docs table, skipping paths Turso already has.
  * Blob downloads are refused while the Hobby quota is exceeded; run this after the quota resets.
  * Needs BLOB_READ_WRITE_TOKEN, TURSO_DATABASE_URL and TURSO_AUTH_TOKEN in the environment:
- *   bash -c 'set -a; . ./.env.local; set +a; npx tsx scripts/migrate-docs.ts'
+ *   bash -c 'set -a; . ./.env.local; set +a; npx tsx scripts/migrate-docs.mts'
  */
 import { list } from "@vercel/blob";
 import { backend, putDoc, listDocPaths } from "../src/lib/docs";

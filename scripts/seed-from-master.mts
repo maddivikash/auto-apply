@@ -3,7 +3,7 @@
  * the master profile in code, the form answers, the runner token, and the submitted MongoDB application.
  * Skips any document that already exists, so it never overwrites something newer.
  *
- *   SEED_USER_ID=user_xxx SEED_RUNNER_TOKEN=... bash -c 'set -a; . ./.env.local; set +a; npx tsx scripts/seed-from-master.ts'
+ *   SEED_USER_ID=user_xxx SEED_RUNNER_TOKEN=... bash -c 'set -a; . ./.env.local; set +a; npx tsx scripts/seed-from-master.mts'
  */
 import { backend, getDoc, putDoc } from "../src/lib/docs";
 import { MASTER } from "../src/lib/profile/master";
