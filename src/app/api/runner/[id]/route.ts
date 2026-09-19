@@ -2,7 +2,7 @@ import { runnerUserId } from "@/lib/auth";
 import { getApplication, saveApplication, saveFile, getSettings, getProfile, addNotification, type ApplicationStatus, type QuestionState } from "@/lib/store";
 import { Settings } from "@/lib/profile/types";
 import { refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
-import { emailCodeRequired, emailFormFilled, emailSubmitted } from "@/lib/email";
+import { emailCodeRequired, emailFormFilled, emailSubmitted, reportEmailFailuresTo } from "@/lib/email";
 
 const ALLOWED: ApplicationStatus[] = ["filling", "filled", "submitted", "failed", "approved", "code_required"];
 
@@ -16,6 +16,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const body = (await req.json()) as { status?: ApplicationStatus; notes?: string[]; screenshotBase64?: string; error?: string; questions?: { label: string; required: boolean; type: string; options?: string[] }[] };
   const settings = withProfileFallback(Settings.parse((await getSettings(uid)) ?? {}), await getProfile(uid));
   const to = settings.notifyEmail || settings.email;
+  reportEmailFailuresTo((message) => addNotification({ userId: uid, kind: "info", title: "Notification email not delivered", body: message }));
 
   if (body.screenshotBase64) app.filledScreenshotUrl = await saveFile(`users/${uid}/screenshots/${id}-${Date.now()}.png`, Buffer.from(body.screenshotBase64, "base64"), "image/png");
   if (body.notes?.length) app.runnerNotes = [...(app.runnerNotes || []), ...body.notes].slice(-30);

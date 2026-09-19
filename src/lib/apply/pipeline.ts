@@ -9,7 +9,7 @@ import { questionStates, withProfileFallback } from "./answers";
 import { getApplication, saveApplication, saveFile, getProfile, getSettings, addNotification, applyResumeChoice, type Application } from "../store";
 import { Settings } from "../profile/types";
 import { launchBrowser } from "../browser";
-import { emailNotPossible, emailResumeReady } from "../email";
+import { emailNotPossible, emailResumeReady, reportEmailFailuresTo } from "../email";
 import { resumeFileName } from "../resume/filename";
 
 /** Everything between "link pasted" and "resume ready". Safe to re-run: it overwrites. */
@@ -40,6 +40,7 @@ export async function processApplication(userId: string, id: string): Promise<vo
     if (!profile) throw new Error("Add your profile first (Profile page) so the resume has something to work from.");
     const settings = withProfileFallback(Settings.parse((await getSettings(userId)) ?? {}), profile);
     const to = settings.notifyEmail || settings.email;
+    reportEmailFailuresTo((message) => addNotification({ userId, kind: "info", title: "Notification email not delivered", body: message }));
 
     await step("fetching");
     let job;

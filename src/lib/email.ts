@@ -11,11 +11,21 @@ function wrap(title: string, body: string) {
   <p style="color:#6B7280;font-size:13px;margin-top:28px">Sent by Auto Apply. Nothing is submitted until you press Submit in the app.</p></div>`;
 }
 
+/** Set by callers that know the user, so a failed send can be shown in the app instead of vanishing into a log. */
+let onFailure: ((message: string) => Promise<void>) | null = null;
+export function reportEmailFailuresTo(fn: ((message: string) => Promise<void>) | null) { onFailure = fn; }
+
 async function send(to: string, subject: string, html: string, attachments?: { filename: string; content: Buffer }[]) {
   if (!process.env.RESEND_API_KEY || !to) { console.warn("email skipped:", subject); return; }
   const resend = new Resend(process.env.RESEND_API_KEY);
   const { error } = await resend.emails.send({ from: FROM, to, subject, html, attachments: attachments?.map((a) => ({ filename: a.filename, content: a.content.toString("base64") })) });
-  if (error) console.error(`Resend: ${error.message}`);
+  if (error) {
+    console.error(`Resend: ${error.message}`);
+    const friendly = /only send testing emails to your own email address/i.test(error.message)
+      ? `Email to ${to} was refused: the Resend account is in testing mode and only delivers to its owner's address. Set that address as your notification email on the Answers page, or verify a sending domain at resend.com/domains.`
+      : `Email to ${to} could not be sent: ${error.message}`;
+    await onFailure?.(friendly).catch(() => {});
+  }
 }
 
 export async function emailResumeReady(to: string, app: Application, pdf: Buffer, fileName = "Resume.pdf") {
