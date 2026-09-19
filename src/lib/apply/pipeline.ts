@@ -85,13 +85,23 @@ export async function processApplication(userId: string, id: string): Promise<vo
       tailored: { resume: rendered.resume, pdfUrl: tailoredUrl, match: best.match, headline: result.resume.headline, trims: rendered.trims },
       full: { resume: plain.resume, pdfUrl: fullUrl, match: plainMatch, headline: profile.roles[0]?.title, trims: plain.trims }
     };
-    const choice: "tailored" | "full" = best.match.tailored >= plainMatch.tailored ? "tailored" : "full";
+    // The user's preference decides which version is attached; "best" picks by score. Both stay available.
+    const pref = settings.resumeDefault;
+    const choice: "tailored" | "full" = pref === "original" ? "full" : pref === "tailored" ? "tailored" : best.match.tailored >= plainMatch.tailored ? "tailored" : "full";
     applyResumeChoice(app, choice);
     app.jdSummary = result.jdSummary;
-    app.fitNotes = choice === "tailored" ? result.fitNotes : [`Tailoring did not improve the keyword match for this posting (best attempt ${best.match.tailored}%, full resume ${plainMatch.tailored}%), so your full resume is selected. You can switch to the tailored version on this page.`];
-    const notice = choice === "full"
-      ? [`We could not find a tailored version that matches this posting better than your full resume (${best.match.tailored}% vs ${plainMatch.tailored}% after ${retries + 1} attempts), so the full resume is used. Switch to the tailored one above if you prefer it.`]
-      : best.match.tailored < best.match.profile ? [`Keyword match ${best.match.tailored}% is below your raw profile text's ${best.match.profile}%, but still above the full resume once fitted to one page (${plainMatch.tailored}%).`] : [];
+    const delta = best.match.tailored - plainMatch.tailored;
+    const compare = `tailored ${best.match.tailored}%, original ${plainMatch.tailored}%`;
+    app.fitNotes = choice === "tailored" ? result.fitNotes : [pref === "original"
+      ? `Your original resume is attached, as set in your preferences (${compare}). Switch to the tailored version on this page if you want it for this one.`
+      : `Tailoring did not improve the keyword match for this posting (${compare}), so your original resume is attached. You can switch to the tailored version on this page.`];
+    const notice = pref === "original" && delta > 0
+      ? [`The tailored version scores ${delta} point${delta === 1 ? "" : "s"} higher than your original for this posting (${compare}). Your preference keeps the original; switch above if you want the tailored one here.`]
+      : pref === "tailored" && delta < 0
+        ? [`Your original resume scores ${-delta} point${delta === -1 ? "" : "s"} higher than the tailored one for this posting (${compare}). Your preference keeps the tailored one; switch above if you want the original here.`]
+        : choice === "full" && pref === "best"
+          ? [`We could not find a tailored version that matches this posting better than your original (${compare} after ${retries + 1} attempts), so the original is attached. Switch above if you prefer the tailored one.`]
+          : best.match.tailored < best.match.profile ? [`Keyword match ${best.match.tailored}% is below your raw profile text's ${best.match.profile}%, but still above the original once fitted to one page (${plainMatch.tailored}%).`] : [];
     const sparse = rendered.sparse ? ["Your profile is on the light side, so the type was enlarged to fill the page. Add a few more bullets or a project on the Profile page for a denser resume."] : [];
     app.resumeWarnings = [...result.warnings, ...validate(rendered.resume, profile), ...sparse, ...notice].filter((w, i, a) => a.indexOf(w) === i);
     app.error = undefined;

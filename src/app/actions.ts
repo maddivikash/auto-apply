@@ -158,7 +158,7 @@ export async function chooseResumeAction(id: string, choice: "tailored" | "full"
     if (app.status === "approved") { app.status = "ready"; app.approvedAt = undefined; }
     await saveApplication(app);
     revalidatePath("/", "layout");
-    return { ok: true, message: choice === "full" ? "Full resume selected." : "Tailored resume selected." };
+    return { ok: true, message: choice === "full" ? "Original resume selected." : "Tailored resume selected." };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not switch the resume." };
   }

@@ -28,7 +28,7 @@ export function ResumeToggle({ id, choice, tailored, full, locked, action, size 
   return (
     <span className={`inline-flex items-center gap-0.5 rounded-full border border-line p-[2px] ${busy ? "opacity-60" : ""}`} role="radiogroup" aria-label="Resume version" title={locked ? "Locked once the form is filled" : "Which resume is attached to this application"}>
       <button type="button" role="radio" aria-checked={choice === "tailored"} onClick={pick("tailored")} className={cls("tailored")} disabled={busy}>Tailored {tailored}%</button>
-      <button type="button" role="radio" aria-checked={choice === "full"} onClick={pick("full")} className={cls("full")} disabled={busy}>Full {full}%</button>
+      <button type="button" role="radio" aria-checked={choice === "full"} onClick={pick("full")} className={cls("full")} disabled={busy}>Original {full}%</button>
     </span>
   );
 }

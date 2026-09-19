@@ -74,6 +74,8 @@ export const Settings = z.object({
   runnerToken: z.string().default(""),
   /** Personal API key for the connector API (MCP clients use OAuth instead). */
   apiKey: z.string().default(""),
+  /** Which resume is attached by default: the higher-scoring one, always the original, or always the tailored one. */
+  resumeDefault: z.enum(["best", "original", "tailored"]).default("best"),
   notifyEmail: z.string().default("")
 });
 export type Settings = z.infer<typeof Settings>;

@@ -29,7 +29,7 @@ const run = async (fn: () => Promise<unknown>) => {
 const handler = createMcpHandler((server) => {
   server.registerTool("prepare_application", {
     title: "Prepare an application",
-    description: "Start preparing a job application from a Greenhouse, Lever or Ashby posting link: reads the posting, writes a one-page resume tailored to it from the user's profile (every fact checked against the profile, nothing invented), renders the PDF and works out the answers to the form's questions. Returns immediately with an id; poll get_application until status is 'ready' (about a minute).",
+    description: "Start preparing a job application from a Greenhouse, Lever or Ashby posting link: reads the posting, renders two one-page PDFs (the user's original resume as-is, and one tailored to the posting from the profile with nothing invented), scores both against the posting, attaches the one the user's resumeDefault preference asks for (best score, original, or tailored), and works out the answers to the form's questions. Returns immediately with an id; poll get_application until status is 'ready' (one to two minutes).",
     inputSchema: z.object({ url: z.string().url().describe("The job posting link") }),
     annotations: { readOnlyHint: false, idempotentHint: false }
   }, async ({ url }, extra) => run(() => c.createApplication(uid(extra), url)));
@@ -107,14 +107,14 @@ const handler = createMcpHandler((server) => {
 
   server.registerTool("get_known_answers", {
     title: "Get known form answers",
-    description: "Contact details and standing answers (work authorization, sponsorship, relocation, notice period, salary expectation, how they heard) the form filler uses for every application.",
+    description: "Contact details and standing answers (work authorization, sponsorship, relocation, notice period, salary expectation, how they heard) the form filler uses for every application, plus resumeDefault: which resume version is attached by default ('best' = higher score, 'original', or 'tailored').",
     inputSchema: z.object({}),
     annotations: { readOnlyHint: true }
   }, async (_args, extra) => run(() => c.readKnownAnswers(uid(extra))));
 
   server.registerTool("update_known_answers", {
     title: "Update known form answers",
-    description: "Change one or more standing answers. Keys as returned by get_known_answers; values are strings (Yes/No for the yes-no fields).",
+    description: "Change one or more standing answers. Keys as returned by get_known_answers; values are strings (Yes/No for the yes-no fields; resumeDefault is 'best', 'original' or 'tailored').",
     inputSchema: z.object({ answers: z.record(z.string(), z.string()) })
   }, async ({ answers }, extra) => run(() => c.updateKnownAnswers(uid(extra), answers)));
 }, { serverInfo: { name: "auto-apply", version: "1.0.0" } });

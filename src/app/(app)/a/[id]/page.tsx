@@ -132,7 +132,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
             <section className="panel overflow-hidden">
               <div className="panel-head">
                 <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2"><span className="text-[15px] font-semibold">{app.resumeChoice === "full" ? "Full resume" : "Tailored resume"}</span>{app.variants && <ResumeToggle id={app.id} choice={app.resumeChoice || "tailored"} tailored={app.variants.tailored.match.tailored} full={app.variants.full.match.tailored} locked={!["ready", "approved"].includes(app.status)} action={chooseResumeAction} />}</div>
+                  <div className="flex flex-wrap items-center gap-2"><span className="text-[15px] font-semibold">{app.resumeChoice === "full" ? "Original resume" : "Tailored resume"}</span>{app.variants && <ResumeToggle id={app.id} choice={app.resumeChoice || "tailored"} tailored={app.variants.tailored.match.tailored} full={app.variants.full.match.tailored} locked={!["ready", "approved"].includes(app.status)} action={chooseResumeAction} />}</div>
                   <div className="truncate text-[12.5px] text-muted">{app.headline}{app.trims?.length ? `. Trimmed to fit: ${app.trims.join(", ")}` : ""}</div>
                 </div>
                 <div className="flex gap-2"><a href={`/api/applications/${app.id}/pdf`} target="_blank" rel="noreferrer" className="btn-ghost h-8">Open PDF</a><RegeneratePanel id={app.id} action={reprocessAction} disabled={processing} lastNotes={app.revisionNotes} /></div>

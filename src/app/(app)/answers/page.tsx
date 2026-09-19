@@ -39,6 +39,16 @@ export default async function AnswersPage({ searchParams }: { searchParams: Prom
           </div>
         </section>
         <section className="panel grid gap-6 p-5 md:grid-cols-[200px_1fr] md:p-6">
+          <div><h2 className="text-[15px] font-semibold">Resume</h2><p className="mt-1 text-[12.5px] leading-relaxed text-muted">Every application gets two PDFs: your original resume laid out as-is, and one tailored to the posting. Both scores are always shown; this decides which is attached unless you switch on the application.</p></div>
+          <label className="text-[13px] sm:max-w-[calc(50%-0.5rem)]"><span className="text-muted">Attach by default</span>
+            <select name="resumeDefault" defaultValue={s.resumeDefault} className="field mt-1.5">
+              <option value="best">Whichever scores higher for the posting</option>
+              <option value="original">Always my original resume</option>
+              <option value="tailored">Always the tailored resume</option>
+            </select>
+          </label>
+        </section>
+        <section className="panel grid gap-6 p-5 md:grid-cols-[200px_1fr] md:p-6">
           <div><h2 className="text-[15px] font-semibold">Notifications</h2><p className="mt-1 text-[12.5px] leading-relaxed text-muted">Resume ready, form filled and submitted events go here.</p></div>
           <label className="text-[13px] sm:max-w-[calc(50%-0.5rem)]"><span className="text-muted">Email for notifications</span><input name="notifyEmail" defaultValue={s.notifyEmail} className="field mt-1.5" /></label>
         </section>
