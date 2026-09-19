@@ -100,7 +100,9 @@ export async function fetchJob(rawUrl: string): Promise<JobPosting> {
       title: d.title,
       location: d.location?.name || "",
       url: d.absolute_url,
-      applyUrl: `${d.absolute_url}#app`,
+      // absolute_url is often the company's own careers page with the form in an iframe (MongoDB, for one).
+      // The embed URL renders the same form standalone, so the runner can fill it without frame juggling.
+      applyUrl: `https://job-boards.greenhouse.io/embed/job_app?for=${company}&token=${jobId}`,
       description: stripHtml(d.content || ""),
       questions
     };

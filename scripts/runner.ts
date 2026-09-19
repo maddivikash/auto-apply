@@ -5,7 +5,7 @@
  *
  *   APP_URL=https://auto-apply-vikash.vercel.app RUNNER_TOKEN=... npx tsx scripts/runner.ts
  */
-import { chromium, type Browser, type Page } from "playwright";
+import { chromium, type Browser, type FrameLocator, type Page } from "playwright";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -65,15 +65,31 @@ const answerOf = (app: Application, q: QuestionState) => q.answer || answerFor(S
 
 // ---- Greenhouse ----------------------------------------------------------
 
+/** Where the Greenhouse form lives: the page itself, or an embedded Greenhouse iframe on a company careers page. */
+async function greenhouseRoot(page: Page): Promise<Page | FrameLocator> {
+  const deadline = Date.now() + 60000;
+  while (Date.now() < deadline) {
+    if (await page.locator("#first_name").isVisible().catch(() => false)) return page;
+    if (await page.locator(GH_IFRAME).count()) {
+      const fl = page.frameLocator(GH_IFRAME).first();
+      if (await fl.locator("#first_name").isVisible().catch(() => false)) { await fl.locator("#first_name").scrollIntoViewIfNeeded(); return fl; }
+    }
+    await page.waitForTimeout(1000);
+  }
+  throw new Error("Greenhouse form not found: no first-name field on the page or inside an embedded Greenhouse iframe");
+}
+const GH_IFRAME = 'iframe#grnhse_iframe, iframe[src*="greenhouse.io"]';
+
 async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
-  await page.locator("#first_name").waitFor({ state: "visible", timeout: 60000 });
-  const type = async (sel: string, value: string) => { const el = page.locator(sel).first(); if (!(await el.count())) return false; await el.scrollIntoViewIfNeeded(); await el.click(); await el.fill(""); await el.pressSequentially(value, { delay: 15 }); return true; };
+  const root = await greenhouseRoot(page);
+  if (root !== page) notes.push("Form is embedded in an iframe on the company page");
+  const type = async (sel: string, value: string) => { const el = root.locator(sel).first(); if (!(await el.count())) return false; await el.scrollIntoViewIfNeeded(); await el.click(); await el.fill(""); await el.pressSequentially(value, { delay: 15 }); return true; };
   const pickOption = async (sel: string, typed: string, re: RegExp) => {
-    const el = page.locator(sel).first(); if (!(await el.count())) return false;
+    const el = root.locator(sel).first(); if (!(await el.count())) return false;
     await el.scrollIntoViewIfNeeded(); await el.click(); await page.waitForTimeout(250);
     if (typed) await el.pressSequentially(typed, { delay: 30 });
     await page.waitForTimeout(900);
-    const opts = page.getByRole("option"); const texts = await opts.allInnerTexts();
+    const opts = root.getByRole("option"); const texts = await opts.allInnerTexts();
     const i = texts.findIndex((t) => re.test(t.replace(/\s+/g, " ").trim()));
     if (i < 0) { await page.keyboard.press("Escape"); return false; }
     await opts.nth(i).click(); await page.waitForTimeout(300); return true;
@@ -83,18 +99,18 @@ async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
   await type("#last_name", SETTINGS.lastName);
   await type("#email", SETTINGS.email);
   const phoneDigits = SETTINGS.phone.replace(/[^\d+]/g, "");
-  if (await page.locator("#country").count() && SETTINGS.phoneCountry) { (await pickOption("#country", SETTINGS.phoneCountry, new RegExp(`^${SETTINGS.phoneCountry}\\b`, "i"))) || notes.push("Could not pick phone country"); }
+  if (await root.locator("#country").count() && SETTINGS.phoneCountry) { (await pickOption("#country", SETTINGS.phoneCountry, new RegExp(`^${SETTINGS.phoneCountry}\\b`, "i"))) || notes.push("Could not pick phone country"); }
   await type("#phone", phoneDigits.replace(/^\+\d{1,3}/, ""));
-  if (await page.locator("#candidate-location").count() && SETTINGS.location) {
+  if (await root.locator("#candidate-location").count() && SETTINGS.location) {
     const city = SETTINGS.location.split(",")[0].trim();
     await type("#candidate-location", city);
     await page.waitForTimeout(1800);
-    const opts = page.getByRole("option"); const texts = await opts.allInnerTexts();
+    const opts = root.getByRole("option"); const texts = await opts.allInnerTexts();
     const i = texts.findIndex((t) => t.toLowerCase().includes(city.toLowerCase()));
     if (i >= 0) await opts.nth(i).click(); else notes.push(`Location autocomplete had no match for ${city}`);
   }
   const resumePath = await downloadResume(app);
-  await page.locator("input#resume").setInputFiles(resumePath);
+  await root.locator("input#resume").setInputFiles(resumePath);
   await page.waitForTimeout(2500);
   notes.push("Resume attached");
 
@@ -110,7 +126,7 @@ async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
       const ok = await pickOption(sel, "", new RegExp(`^${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"));
       if (!ok) {
         // Checkbox groups (privacy acknowledgement) render as inputs named question_X[]
-        const cb = page.locator(`input[name="${baseId}[]"]`).first();
+        const cb = root.locator(`input[name="${baseId}[]"]`).first();
         if (await cb.count()) { if (!(await cb.isChecked())) await cb.click({ force: true }); }
         else notes.push(`Could not select "${value}" for ${q.label}`);
       }
@@ -121,12 +137,13 @@ async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
 }
 
 async function submitGreenhouse(page: Page) {
-  await page.getByRole("button", { name: /submit application/i }).click();
+  const root = await greenhouseRoot(page);
+  await root.getByRole("button", { name: /submit application/i }).click();
   await page.waitForTimeout(4000);
-  const text = (await page.evaluate(() => document.body.innerText)).toLowerCase();
+  const text = (await root.locator("body").innerText()).toLowerCase();
   if (/thank you|application (has been )?submitted|we have received/i.test(text)) return true;
   if (/captcha|verify you are human/i.test(text)) throw new Error("reCAPTCHA challenge shown; complete it in the window and press Submit there.");
-  const errors = await page.locator(".field-error, [role=alert], .error").allInnerTexts();
+  const errors = await root.locator(".field-error, [role=alert], .error").allInnerTexts();
   throw new Error(`No confirmation after submit. ${errors.filter(Boolean).slice(0, 3).join(" | ")}`);
 }
 
