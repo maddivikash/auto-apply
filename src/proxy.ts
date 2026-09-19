@@ -1,7 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 // Connector surfaces do their own auth (OAuth tokens, API keys) inside the handlers.
-const isPublic = createRouteMatcher(["/", "/sign-in(.*)", "/sign-up(.*)", "/api/runner(.*)", "/api/v1(.*)", "/mcp(.*)", "/.well-known(.*)", "/openapi.json", "/connect/docs", "/privacy", "/terms"]);
+const isPublic = createRouteMatcher(["/", "/sign-in(.*)", "/sign-up(.*)", "/api/runner(.*)", "/api/applications/(.*)/(pdf|screenshot)", "/api/v1(.*)", "/mcp(.*)", "/.well-known(.*)", "/openapi.json", "/connect/docs", "/privacy", "/terms"]);
 
 // Local design previews only: never set on Vercel.
 const preview = process.env.NODE_ENV !== "production" && !!process.env.DEV_FAKE_USER;
