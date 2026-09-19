@@ -12,7 +12,7 @@ import { tmpdir, homedir } from "node:os";
 import { answerFor } from "../src/lib/defaults";
 import { resumeFileName } from "../src/lib/resume/filename";
 import { parsedEducation, degreeOptionPatterns, disciplineScore, schoolQueries, DISCIPLINE_MIN, type ParsedEducation } from "../src/lib/apply/education";
-import { discoverLiveFields } from "../src/lib/apply/discover";
+import { discoverLiveFields, findEmptyRequiredLive } from "../src/lib/apply/discover";
 import type { Application, QuestionState } from "../src/lib/store";
 import type { Settings } from "../src/lib/profile/types";
 
@@ -260,6 +260,7 @@ async function fillGreenhouseEducation(root: Page, page: Page, notes: string[], 
   const entries = parsedEducation(SETTINGS.education);
   if (!entries.length) return;
   type Kind = "school" | "degree" | "discipline" | "startMonth" | "startYear" | "endMonth" | "endYear";
+  await root.evaluate("window.__name = window.__name || function (f) { return f; }");
   const rows = () => root.evaluate(() => {
     const kinds: [RegExp, string][] = [[/^school\b/i, "school"], [/^degree\b/i, "degree"], [/^discipline\b|field of study|^major\b/i, "discipline"], [/start.*month/i, "startMonth"], [/start.*year/i, "startYear"], [/end.*month/i, "endMonth"], [/end.*year/i, "endYear"]];
     const out: Record<string, Record<string, string>> = {};
@@ -404,6 +405,67 @@ async function enterGreenhouseCode(page: Page, code: string): Promise<boolean> {
 
 // ---- Lever / Ashby: generic label-driven fill ------------------------------
 
+/**
+ * The resume goes into the field labelled Resume/CV, never the first file input on the page: Ashby puts an
+ * "autofill from your resume" dropzone above the form, and a file dropped there is not the application's resume.
+ * Confirms the file name shows up afterwards, and falls back to the visible Upload button's file chooser.
+ */
+async function attachResumeGeneric(page: Page, resumePath: string, notes: string[]) {
+  const fileName = resumePath.split("/").pop() || "";
+  await page.evaluate("window.__name = window.__name || function (f) { return f; }"); // tsx wraps inner functions in __name
+  const tagged = await page.evaluate(() => {
+    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>("input[type=file]"));
+    if (!inputs.length) return false;
+    const score = (f: HTMLInputElement) => {
+      const box = f.closest("[data-field-entry-id], fieldset, [class*=field-entry], [class*=field], li, div");
+      const label = (box?.querySelector("label, legend, [class*=title]")?.textContent || "") + " " + f.id + " " + (f.getAttribute("name") || "");
+      let s = 0;
+      if (/resume|\bcv\b|curriculum/i.test(label)) s += 5;
+      if (/cover/i.test(label)) s -= 5;
+      if (f.closest("[class*=autofill], [class*=auto-fill], [class*=parse]")) s -= 10;
+      return s;
+    };
+    const best = inputs.map((f) => [score(f), f] as const).sort((a, b) => b[0] - a[0])[0][1];
+    best.setAttribute("data-aa-resume", "1");
+    return true;
+  });
+  if (!tagged) { notes.push("No file input for the resume on this form"); return; }
+  const input = page.locator("input[type=file][data-aa-resume]").first();
+  await input.setInputFiles(resumePath);
+  const appeared = async () => { for (let i = 0; i < 12; i++) { if ((await page.locator("body").innerText()).includes(fileName)) return true; await page.waitForTimeout(500); } return false; };
+  if (await appeared()) { notes.push("Resume attached"); return; }
+  // Some uploaders only react to their own button. Use it, answering the file chooser it opens.
+  const btn = page.getByRole("button", { name: /upload|attach|choose file|browse/i }).first();
+  if (await btn.count()) {
+    try {
+      const [chooser] = await Promise.all([page.waitForEvent("filechooser", { timeout: 5000 }), btn.click()]);
+      await chooser.setFiles(resumePath);
+      if (await appeared()) { notes.push("Resume attached via the upload button"); return; }
+    } catch { /* fall through */ }
+  }
+  notes.push(`Resume upload could not be confirmed on the page (looked for "${fileName}")`);
+}
+
+/**
+ * After typing into a text field, some forms open a suggestion list (Lever's location, Google Places
+ * widgets, listbox autocompletes). Typed text that is not picked from the list is thrown away on blur,
+ * so pick the entry that names what was typed, or the first one. Returns the chosen text, or undefined
+ * when no list appeared.
+ */
+async function pickSuggestion(page: Page, typed: string): Promise<string | undefined> {
+  await page.waitForTimeout(1300);
+  const items = page.locator('[role="option"], [role="listbox"] li, [class*="dropdown-location"], [class*="dropdown-results"] > *, .pac-item, [class*="suggestion"] li, [class*="autocomplete"] li, [class*="autocomplete"] [class*="item"]').filter({ visible: true });
+  const n = await items.count();
+  if (!n) return undefined;
+  const texts = (await items.allInnerTexts()).map((t) => t.replace(/\s+/g, " ").trim());
+  const want = typed.toLowerCase();
+  let i = texts.findIndex((t) => t.toLowerCase().startsWith(want));
+  if (i < 0) i = texts.findIndex((t) => t.toLowerCase().includes(want));
+  if (i < 0) i = 0;
+  await items.nth(i).click(); await page.waitForTimeout(500);
+  return texts[i];
+}
+
 async function discoverAndFillGeneric(page: Page, app: Application, notes: string[]) {
   // Lever and Ashby pages keep analytics beacons open, so "networkidle" may never arrive. Wait for the
   // document, give the network a short grace period, then wait for the form itself.
@@ -411,8 +473,7 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
   await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
   await page.locator("form, input[type=file], input[name], textarea").first().waitFor({ timeout: 20000 }).catch(() => { throw new Error("The application form did not appear within 20 seconds; the posting may have closed or need a click to open the form."); });
   const resumePath = await downloadResume(app);
-  const fileInput = page.locator('input[type=file]').first();
-  if (await fileInput.count()) { await fileInput.setInputFiles(resumePath); notes.push("Resume attached"); await page.waitForTimeout(3000); }
+  await attachResumeGeneric(page, resumePath, notes);
 
   const fields = await discoverLiveFields(page);
 
@@ -430,6 +491,14 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
     try {
       if (f.type === "select") await page.locator(f.selector).first().selectOption({ label: value });
       else if (f.type === "checkbox") { const el = page.locator(f.selector).first(); if (!(await el.isChecked())) await el.check({ force: true }); }
+      else if (f.type === "buttons") {
+        // Segmented buttons (Ashby's Yes/No): click the one whose text is the answer, then confirm it took.
+        const btn = page.locator(f.selector).filter({ hasText: new RegExp(`^\\s*${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "i") }).first();
+        if (!(await btn.count())) { notes.push(`Could not find a "${value}" button for ${f.label}`); continue; }
+        await btn.scrollIntoViewIfNeeded(); await btn.click(); await page.waitForTimeout(400);
+        const pressed = await btn.getAttribute("aria-pressed");
+        if (pressed === "false") { await btn.click(); await page.waitForTimeout(400); }
+      }
       else if (f.type === "group") {
         // Click the option whose label matches the chosen value.
         const inputs = page.locator(f.selector);
@@ -443,7 +512,16 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
         }
         if (!hit) notes.push(`Could not pick "${value}" for ${f.label}`);
       }
-      else { const el = page.locator(f.selector).first(); await el.scrollIntoViewIfNeeded(); await el.fill(""); await el.pressSequentially(value, { delay: jitter(35, 80) }); }
+      else {
+        const el = page.locator(f.selector).first(); await el.scrollIntoViewIfNeeded(); await el.fill("");
+        // Location-like fields are usually autocompletes: type the city alone, then take the suggestion that names it.
+        const isPlace = /location|city|where (are|do) you/i.test(f.label);
+        const typed = isPlace ? value.split(",")[0].trim() : value;
+        await el.pressSequentially(typed, { delay: jitter(35, 80) });
+        const picked = await pickSuggestion(page, typed);
+        if (picked) notes.push(`${f.label}: chose "${picked}" from the suggestions`);
+        else if (isPlace && (await el.inputValue()) !== typed) notes.push(`${f.label}: the field did not keep "${typed}"; check it in the window`);
+      }
     } catch (e) { notes.push(`Could not fill "${f.label}": ${(e as Error).message.slice(0, 80)}`); }
   }
   await fillAshbyEducation(page, notes);
@@ -464,6 +542,11 @@ async function submitGeneric(page: Page) {
   await page.waitForTimeout(5000);
   const text = (await page.evaluate(() => document.body.innerText)).toLowerCase();
   if (/thank you|submitted|we('ve| have) received|success/i.test(text)) return true;
+  const corrections = [...text.matchAll(/missing entry for required field:\s*([^\n]+)/gi)].map((m) => m[1].trim());
+  if (/needs corrections|could not read this file/i.test(text) || corrections.length) {
+    const fileProblem = /could not read this file/i.test(text) ? ["Resume upload was rejected; re-attach it in the window"] : [];
+    throw new Error(`The form reported corrections: ${[...corrections, ...fileProblem].join("; ") || "see the window"}.`);
+  }
   if (/flagged as (possible )?spam|couldn'?t submit your application|unusual (traffic|activity)/i.test(text)) {
     hostBackoffUntil.set(new URL(page.url()).host, Date.now() + SPAM_BACKOFF_MS);
     throw new Error("The site flagged the submission as possible spam. The form is still filled in the window: wait a few minutes, then press Submit there yourself, and use Mark as submitted here. The runner will not retry this host for a while.");
@@ -504,12 +587,21 @@ async function submit(app: Application) {
     entry = live.get(app.id);
     if (!entry) return;
   }
-  if (DRY_RUN) {
-    await report(app.id, { status: "filled", error: "Test runner: Submit was not pressed (dry run). The filled form stays open in the window.", notes: ["Dry run: Submit skipped"] });
-    log(`DRY RUN: not submitting ${app.id} (${app.job!.company})`);
-    return;
-  }
   try {
+    // A person checks the form before pressing Submit; so does the runner. Empty required fields go back to the user as questions.
+    const missing = await findEmptyRequiredLive(entry.page).catch(() => [] as string[]);
+    if (missing.length) {
+      const known = new Set(app.questions.map((q) => q.label.toLowerCase()));
+      const fresh = missing.filter((m) => !known.has(m.toLowerCase()));
+      await report(app.id, { status: "filled", error: `${missing.length} required field${missing.length > 1 ? "s are" : " is"} still empty: ${missing.join("; ")}. Answer them here and press Submit again.`, notes: [`Pre-submit check: empty required fields: ${missing.join("; ")}`], questions: fresh.map((label) => ({ label, required: true, type: "text" })) });
+      log(`not submitting ${app.id}: empty required fields: ${missing.join("; ")}`);
+      return;
+    }
+  if (DRY_RUN) {
+      await report(app.id, { status: "filled", error: "Test runner: Submit was not pressed (dry run). The filled form stays open in the window.", notes: ["Dry run: Submit skipped"] });
+      log(`DRY RUN: not submitting ${app.id} (${app.job!.company})`);
+      return;
+    }
     const outcome = app.job!.board === "greenhouse" ? await submitGreenhouse(entry.page) : (await submitGeneric(entry.page)) ? "submitted" : "failed";
     const shot = await entry.page.screenshot({ fullPage: true });
     if (outcome === "code_required") {
