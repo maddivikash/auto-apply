@@ -103,6 +103,17 @@ export async function processApplication(userId: string, id: string): Promise<vo
       const next = await attempt(notes, best.rendered.resume);
       if (next.match.tailored > best.match.tailored) best = next;
     }
+    // A regenerate without instructions must beat the version it replaces, otherwise the previous tailored
+    // resume stays: the model samples differently each run, and a worse sample is not an improvement.
+    const previous = !app.revisionNotes?.trim() ? app.variants?.tailored : undefined;
+    let keptPrevious = false;
+    if (previous && previous.match.tailored > best.match.tailored) {
+      await step("rendering");
+      const again = await renderPdf(previous.resume, renderProfile, sharedLaunch);
+      best = { result: { ...best.result, resume: { ...best.result.resume, headline: previous.headline }, fitNotes: app.fitNotes || best.result.fitNotes }, rendered: again, match: matchResume(description, again.resume, profile, job.company) };
+      keptPrevious = true;
+      console.log(`application ${id}: regenerated version scored lower (${previous.match.tailored} before); previous tailored resume kept`);
+    }
     const { result, rendered } = best;
     // The full profile laid out as-is is always rendered too, so the user can switch and so a tailored
     // version that scores lower than the plain resume is never the default.
@@ -135,7 +146,8 @@ export async function processApplication(userId: string, id: string): Promise<vo
           ? [`We could not find a tailored version that matches this posting better than your original (${compare} after ${retries + 1} attempts), so the original is attached. Switch above if you prefer the tailored one.`]
           : best.match.tailored < best.match.profile ? [`Keyword match ${best.match.tailored}% is below your raw profile text's ${best.match.profile}%, but still above the original once fitted to one page (${plainMatch.tailored}%).`] : [];
     const sparse = rendered.sparse ? ["Your profile is on the light side, so the type was enlarged to fill the page. Add a few more bullets or a project on the Profile page for a denser resume."] : [];
-    app.resumeWarnings = [...result.warnings, ...validate(rendered.resume, profile), ...sparse, ...notice].filter((w, i, a) => a.indexOf(w) === i);
+    const keptNote = keptPrevious ? ["The regenerated resume did not score higher than the one you already had, so the previous tailored version was kept. Add a note to Regenerate if you want a specific change regardless of score."] : [];
+    app.resumeWarnings = [...result.warnings, ...validate(rendered.resume, profile), ...sparse, ...notice, ...keptNote].filter((w, i, a) => a.indexOf(w) === i);
     await questionsTask;
     app.error = undefined;
     await step("ready");
