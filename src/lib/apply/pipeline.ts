@@ -60,7 +60,7 @@ export async function processApplication(userId: string, id: string): Promise<vo
       return t ? { ...q, answer: t.answer, source: t.source, needsHuman: false } : q;
     });
     // Free-text questions nobody's settings can answer get a first draft from the profile and the posting, marked as such.
-    try { const n = await draftAnswers(job, profile, app.questions); if (n) console.log(`application ${id}: drafted ${n} free-text answer(s)`); }
+    try { const n = await draftAnswers(job, profile, app.questions, settings); if (n) console.log(`application ${id}: drafted ${n} free-text answer(s), awaiting confirmation`); }
     catch (e) { console.warn(`application ${id}: drafting failed:`, (e as Error).message); }
 
     // The personal website goes on the resume only for roles that prize building things alone: founding

@@ -9,6 +9,8 @@ import { requireUserId, userEmail } from "@/lib/auth";
 import { getApplication, saveApplication, deleteApplication, saveProfile, getProfile, getSettings, saveSettings, saveRunnerToken, deleteRunnerToken, saveApiKey, deleteApiKey, listApplications, applyResumeChoice, type Application } from "@/lib/store";
 import { Profile, Settings } from "@/lib/profile/types";
 import { processApplication } from "@/lib/apply/pipeline";
+import { draftAnswers } from "@/lib/apply/draft";
+import { fetchJob } from "@/lib/jobs/fetch";
 import { pdfToText, textToProfile } from "@/lib/profile/import";
 import { mergeProfiles } from "@/lib/profile/merge";
 import { ANSWERS_MATTER, refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
@@ -56,7 +58,10 @@ export async function saveAnswersAction(formData: FormData) {
   if (!app) redirect("/dashboard");
   for (const q of app.questions) {
     const v = formData.get(`q:${q.id}`);
-    if (typeof v === "string" && v.trim() !== (q.answer || "")) { q.answer = v.trim() || undefined; q.source = v.trim() ? "user" : undefined; q.needsHuman = !v.trim() && q.required; }
+    if (typeof v !== "string") continue;
+    const changed = v.trim() !== (q.answer || "");
+    // Saving the page confirms AI drafts as they stand; an edited draft becomes the user's own answer.
+    if (changed || (q.source === "ai" && q.needsHuman && v.trim())) { q.answer = v.trim() || undefined; q.source = v.trim() ? "user" : undefined; q.needsHuman = !v.trim() && q.required; }
   }
   await saveApplication(app);
   revalidatePath(`/a/${id}`);
@@ -69,6 +74,8 @@ export async function approveAction(id: string): Promise<ActionResult> {
     const app = await getApplication(userId, id);
     if (!app) return { ok: false, error: "This application no longer exists." };
     if (app.status !== "ready") return { ok: false, error: `Cannot approve while it is ${LABEL[app.status].toLowerCase()}.` };
+    const drafts = app.questions.filter((q) => q.source === "ai" && q.needsHuman).length;
+    if (drafts) return { ok: false, error: `${drafts} AI draft${drafts > 1 ? "s" : ""} still need your confirmation. Edit or accept them first.` };
     app.status = "approved"; app.approvedAt = new Date().toISOString();
     await saveApplication(app);
     revalidatePath("/", "layout");
@@ -161,6 +168,45 @@ export async function chooseResumeAction(id: string, choice: "tailored" | "full"
     return { ok: true, message: choice === "full" ? "Original resume selected." : "Tailored resume selected." };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not switch the resume." };
+  }
+}
+
+/** Rewrite one drafted answer with the user's instructions, like Regenerate for the resume. */
+export async function redraftAction(id: string, questionId: string, notes?: string): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const app = await getApplication(userId, id);
+    if (!app) return { ok: false, error: "This application no longer exists." };
+    const q = app.questions.find((x) => x.id === questionId);
+    if (!q) return { ok: false, error: "That question is no longer on the form." };
+    const profile = await getProfile(userId);
+    if (!profile) return { ok: false, error: "Add your profile first." };
+    const job = await fetchJob(app.url);
+    const settings = withProfileFallback(Settings.parse((await getSettings(userId)) ?? {}), profile);
+    const n = await draftAnswers(job, profile, app.questions, settings, { id: questionId, notes });
+    if (!n) return { ok: false, error: "Could not write a supported answer for that question from your profile. Type it yourself, or add the relevant facts to your profile." };
+    await saveApplication(app);
+    revalidatePath(`/a/${id}`);
+    return { ok: true, message: "Rewritten. Read it, then save or accept." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not rewrite the answer." };
+  }
+}
+
+/** Accept every AI draft on an application as-is. */
+export async function acceptDraftsAction(id: string): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const app = await getApplication(userId, id);
+    if (!app) return { ok: false, error: "This application no longer exists." };
+    let n = 0;
+    for (const q of app.questions) if (q.source === "ai" && q.needsHuman && q.answer) { q.source = "user"; q.needsHuman = false; n++; }
+    if (!n) return { ok: false, error: "No AI drafts are waiting for confirmation." };
+    await saveApplication(app);
+    revalidatePath("/", "layout");
+    return { ok: true, message: `${n} draft${n > 1 ? "s" : ""} accepted.` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not accept the drafts." };
   }
 }
 
@@ -289,7 +335,7 @@ export async function revokeApiKeyAction(): Promise<ActionResult> {
 export async function approveAllAction(): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
-    const apps = (await listApplications(userId)).filter((a) => a.status === "ready" && !a.questions.some((q) => q.needsHuman && !q.answer));
+    const apps = (await listApplications(userId)).filter((a) => a.status === "ready" && !a.questions.some((q) => q.needsHuman));
     if (!apps.length) return { ok: false, error: "Nothing to approve: every ready application still has an open question, or none is ready." };
     const now = new Date().toISOString();
     await Promise.all(apps.map((a) => { a.status = "approved"; a.approvedAt = now; return saveApplication(a); }));
@@ -310,7 +356,7 @@ export async function retryFailedAction(): Promise<ActionResult> {
     for (const a of apps) {
       a.error = undefined;
       if (a.resumePdfUrl && a.job) {
-        const open = a.questions.some((q) => q.needsHuman && !q.answer);
+        const open = a.questions.some((q) => q.needsHuman);
         a.status = open ? "ready" : "approved"; a.approvedAt = open ? undefined : new Date().toISOString(); refill++;
       } else { a.status = "queued"; redo++; after(() => processApplication(userId, a.id)); }
       await saveApplication(a);

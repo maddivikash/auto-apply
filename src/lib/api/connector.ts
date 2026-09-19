@@ -16,6 +16,8 @@ import { ANSWERS_MATTER, refreshAnswers, withProfileFallback } from "../apply/an
 import { textToProfile } from "../profile/import";
 import { mergeProfiles } from "../profile/merge";
 import { signedPdfUrl } from "./sign";
+import { draftAnswers } from "../apply/draft";
+import { fetchJob } from "../jobs/fetch";
 import { resumeFileName } from "../resume/filename";
 import { ApiError } from "./auth";
 import { LABEL } from "@/components/status";
@@ -40,10 +42,13 @@ function nextStep(app: Application, open: number): string {
       return "Still preparing. Check again in about 30 seconds; the resume usually takes a minute.";
     case "unsupported":
       return "This link is not a Greenhouse, Lever or Ashby job posting, so it cannot be prepared. Ask the user for the posting's direct apply link on one of those boards.";
-    case "ready":
+    case "ready": {
+      const drafts = app.questions.filter((q) => q.source === "ai" && q.needsHuman).length;
+      if (drafts) return `Resume is ready. ${drafts} answer${drafts > 1 ? "s were" : " was"} drafted from the user's profile (source "ai") and must be confirmed: read each draft to the user; call accept_drafts to accept them as they are, or answer_questions with the user's edits.${open > drafts ? ` ${open - drafts} other question${open - drafts > 1 ? "s" : ""} still need the user's answer.` : ""}`;
       return open
         ? `Resume is ready. ${open} form question${open > 1 ? "s" : ""} still need the user's answer (see questions where needsHuman is true). Ask the user, then call answer_questions.`
         : "Resume is ready and every form question has an answer. To submit: fetch the form answers and the PDF, fill the application form in the browser, submit it, then call mark_submitted. Or call approve_application to have the user's own desktop runner fill it instead.";
+    }
     case "approved": return "Approved. The user's desktop runner will fill the form when it is running. Nothing to do here unless you want to fill the form yourself.";
     case "filling": return "The desktop runner is filling the form right now.";
     case "filled": return "The desktop runner filled the form and is waiting for the user to press Submit in the app. Confirm with the user, then the runner submits.";
@@ -131,9 +136,34 @@ export async function answerQuestions(userId: string, id: string, answers: Recor
   return { ...summarize(app), unknownQuestions: unknown.length ? unknown : undefined };
 }
 
+/** Rewrite one answer from the profile, optionally with instructions. Works for empty questions too. */
+export async function redraftAnswer(userId: string, id: string, questionId: string, notes?: string) {
+  const app = await load(userId, id);
+  const q = app.questions.find((x) => x.id === questionId) || app.questions.find((x) => x.label.toLowerCase() === questionId.toLowerCase());
+  if (!q) throw new ApiError(404, "No such question on this application.");
+  const profile = await readProfile(userId);
+  const job = await fetchJob(app.url);
+  const settings = withProfileFallback(Settings.parse((await getSettings(userId)) ?? {}), profile);
+  const n = await draftAnswers(job, profile, app.questions, settings, { id: q.id, notes });
+  if (!n) throw new ApiError(422, "Could not write a supported answer from the profile; ask the user or add facts to the profile.");
+  await saveApplication(app);
+  return summarize(app);
+}
+
+export async function acceptDrafts(userId: string, id: string) {
+  const app = await load(userId, id);
+  let n = 0;
+  for (const q of app.questions) if (q.source === "ai" && q.needsHuman && q.answer) { q.source = "user"; q.needsHuman = false; n++; }
+  if (!n) throw new ApiError(409, "No AI drafts are waiting for confirmation.");
+  await saveApplication(app);
+  return { ...summarize(app), accepted: n };
+}
+
 export async function approve(userId: string, id: string) {
   const app = await load(userId, id);
   if (app.status !== "ready") throw new ApiError(409, `Cannot approve while it is ${LABEL[app.status].toLowerCase()}.`);
+  const drafts = app.questions.filter((q) => q.source === "ai" && q.needsHuman).length;
+  if (drafts) throw new ApiError(409, `${drafts} AI draft(s) still need the user's confirmation: call accept_drafts or answer_questions first.`);
   app.status = "approved"; app.approvedAt = new Date().toISOString();
   await saveApplication(app);
   return summarize(app);

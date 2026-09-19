@@ -54,6 +54,18 @@ const handler = createMcpHandler((server) => {
     inputSchema: z.object({ id: z.string(), answers: z.record(z.string(), z.string()) })
   }, async ({ id, answers }, extra) => run(() => c.answerQuestions(uid(extra), id, answers)));
 
+  server.registerTool("accept_drafts", {
+    title: "Accept the AI-drafted answers",
+    description: "Confirm every answer that was drafted from the user's profile (questions with source 'ai' and needsHuman true) as it stands. Read the drafts to the user first; to change one, use answer_questions instead.",
+    inputSchema: z.object({ id: z.string() })
+  }, async ({ id }, extra) => run(() => c.acceptDrafts(uid(extra), id)));
+
+  server.registerTool("redraft_answer", {
+    title: "Rewrite one answer from the profile",
+    description: "Write or rewrite the answer to one free-text question from the user's profile and the posting, optionally following the user's instructions (e.g. 'shorter', 'mention the MCP project'). The result is a draft the user must confirm (accept_drafts or answer_questions).",
+    inputSchema: z.object({ id: z.string(), questionId: z.string().describe("Question id or its exact label"), notes: z.string().optional() })
+  }, async ({ id, questionId, notes }, extra) => run(() => c.redraftAnswer(uid(extra), id, questionId, notes)));
+
   server.registerTool("get_form_answers", {
     title: "Get everything needed to fill the form",
     description: "For a ready application: the apply URL, contact details, every form field with its value, and a 24-hour link to the resume PDF, plus filling instructions. Use this when you will fill and submit the form yourself in a browser. Refuses while questions are still unanswered unless allowOpen is true.",

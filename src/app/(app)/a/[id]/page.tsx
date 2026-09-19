@@ -7,7 +7,8 @@ import { Settings } from "@/lib/profile/types";
 import { refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
 import { markStale } from "@/lib/apply/stale";
 import { openQuestions } from "@/lib/stats";
-import { approveAction, deleteAction, reprocessAction, requestSubmitAction, saveAnswersAction, submitCodeAction, markSubmittedAction, requestNewCodeAction, chooseResumeAction } from "../../../actions";
+import { approveAction, deleteAction, reprocessAction, requestSubmitAction, saveAnswersAction, submitCodeAction, markSubmittedAction, requestNewCodeAction, chooseResumeAction, acceptDraftsAction, redraftAction } from "../../../actions";
+import { RedraftPanel } from "@/components/redraft-panel";
 import { IN_PROGRESS, LABEL, StatusBadge, StageTrack } from "@/components/status";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { SubmitButton } from "@/components/submit-button";
@@ -85,17 +86,21 @@ export default async function ApplicationPage({ params, searchParams }: { params
                   {open.length > 0 && (
                     <div className="border-b border-line px-5 py-4">
                       <h3 className="flex items-center gap-2 text-[13px] font-medium text-signal"><span className="h-1.5 w-1.5 rounded-full bg-signal" />Need you</h3>
-                      <div className="mt-3 space-y-4">{open.map((q) => <QuestionField key={q.id} q={q} />)}</div>
+                      <div className="mt-3 space-y-4">{open.map((q) => <QuestionField key={q.id} q={q} appId={app.id} />)}</div>
                     </div>
                   )}
                   {answered.length > 0 && (
                     <details open={open.length === 0} className="group border-b border-line">
                       <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3.5 text-[13px] text-muted hover:text-fg"><span>Filled from your answers</span><span className="text-[12px] group-open:hidden">Show</span><span className="hidden text-[12px] group-open:inline">Hide</span></summary>
-                      <div className="space-y-4 px-5 pb-5">{answered.map((q) => <QuestionField key={q.id} q={q} />)}</div>
+                      <div className="space-y-4 px-5 pb-5">{answered.map((q) => <QuestionField key={q.id} q={q} appId={app.id} />)}</div>
                     </details>
                   )}
                   {files.length > 0 && <ul className="border-b border-line px-5 py-3.5 text-[13px] text-muted">{files.map((q) => <li key={q.id}>{q.label}: {/resume|cv/i.test(q.label) ? "the tailored PDF is attached by the runner." : "optional upload, skipped."}</li>)}</ul>}
-                  <div className="flex items-center gap-3 px-5 py-3.5"><SubmitButton pending="Saving" className="btn-ghost">Save answers</SubmitButton>{saved && <span className="text-[13px] text-go">Saved.</span>}</div>
+                  <div className="flex flex-wrap items-center gap-3 px-5 py-3.5">
+                    <SubmitButton pending="Saving" className="btn-ghost">Save answers</SubmitButton>
+                    {app.questions.some((q) => q.source === "ai" && q.needsHuman) && <><ActionButton action={acceptDraftsAction} id={app.id} pending="Accepting" className="btn-primary h-9">Accept all AI drafts</ActionButton><span className="text-[12.5px] text-muted">Saving also confirms the drafts as shown.</span></>}
+                    {saved && <span className="text-[13px] text-go">Saved.</span>}
+                  </div>
                 </form>
               )}
             </section>
@@ -199,11 +204,12 @@ function Step({ n, title, state, body, children }: { n: number; title: string; s
   );
 }
 
-function QuestionField({ q }: { q: QuestionState }) {
+function QuestionField({ q, appId }: { q: QuestionState; appId: string }) {
   const name = `q:${q.id}`;
-  const label = <label htmlFor={name} className="flex flex-wrap items-baseline gap-x-2 text-[13px] font-medium">{q.label}{q.required && !q.answer && <span className="text-danger">required</span>}{q.source === "user" && q.answer && <span className="text-[11.5px] font-normal text-faint">you answered</span>}{q.source === "ai" && q.answer && <span className="rounded-full bg-accent-soft px-1.5 py-[1px] text-[11px] font-medium text-accent">AI draft, edit if you like</span>}{q.source && q.source !== "user" && q.source !== "ai" && <span className="text-[11.5px] font-normal text-faint">from your answers</span>}</label>;
+  const redraft = q.source === "ai" || (q.type === "textarea" && !q.answer && q.needsHuman) ? <RedraftPanel id={appId} questionId={q.id} action={redraftAction} /> : null;
+  const label = <label htmlFor={name} className="flex flex-wrap items-baseline gap-x-2 text-[13px] font-medium">{q.label}{q.required && (!q.answer || q.needsHuman) && <span className="text-danger">required</span>}{q.source === "user" && q.answer && <span className="text-[11.5px] font-normal text-faint">you answered</span>}{q.source === "ai" && q.answer && <span className={`rounded-full px-1.5 py-[1px] text-[11px] font-medium ${q.needsHuman ? "bg-signal-soft text-signal" : "bg-accent-soft text-accent"}`}>{q.needsHuman ? "AI draft from your profile, needs your confirmation" : "AI draft, accepted"}</span>}{q.source && q.source !== "user" && q.source !== "ai" && <span className="text-[11.5px] font-normal text-faint">from your answers</span>}</label>;
   if (q.type === "file") return null;
   if (q.options?.length) return <div>{label}<select id={name} name={name} defaultValue={q.answer || ""} className="field mt-1.5"><option value="">Choose</option>{q.options.map((o) => <option key={o} value={o}>{o}</option>)}</select></div>;
-  if (q.type === "textarea" || q.needsHuman || q.source === "ai") return <div>{label}<textarea id={name} name={name} defaultValue={q.answer || ""} rows={q.source === "ai" ? 5 : 3} className="field mt-1.5" /></div>;
+  if (q.type === "textarea" || q.needsHuman || q.source === "ai") return <div>{label}<textarea id={name} name={name} defaultValue={q.answer || ""} rows={q.source === "ai" ? 5 : 3} className="field mt-1.5" />{redraft}</div>;
   return <div>{label}<input id={name} name={name} defaultValue={q.answer || ""} className="field mono mt-1.5 text-[13px]" /></div>;
 }
