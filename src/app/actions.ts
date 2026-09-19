@@ -194,6 +194,17 @@ export async function redraftAction(id: string, questionId: string, notes?: stri
   }
 }
 
+/** The country the user wants roles in; Discover asks for it once and uses it for suggestions. */
+export async function setSearchCountryAction(formData: FormData) {
+  const userId = await requireUserId();
+  const country = String(formData.get("country") || "").trim().slice(0, 60);
+  if (!country) redirect("/discover");
+  const current = Settings.parse((await getSettings(userId)) ?? {});
+  await saveSettings(userId, { ...current, workAuthorizedCountries: current.workAuthorizedCountries || country });
+  revalidatePath("/discover");
+  redirect(`/discover?location=${encodeURIComponent(`${country}, Remote`)}`);
+}
+
 /** Add a company's Greenhouse, Lever or Ashby board to the user's Discover list. */
 export async function addCompanyAction(formData: FormData) {
   const userId = await requireUserId();

@@ -6,7 +6,7 @@ import { Settings } from "@/lib/profile/types";
 import { withProfileFallback } from "@/lib/apply/answers";
 import { allCompanies, allListings, rankListings } from "@/lib/jobs/boards";
 import type { Board } from "@/lib/jobs/fetch";
-import { createApplicationAction, addCompanyAction } from "../../actions";
+import { createApplicationAction, addCompanyAction, setSearchCountryAction } from "../../actions";
 import { PageHeader } from "@/components/page-header";
 import { SubmitButton } from "@/components/submit-button";
 
@@ -30,7 +30,9 @@ export default async function Discover({ searchParams }: { searchParams: Promise
   const [profile, settings, companies] = await Promise.all([getProfile(uid), getSettings(uid), allCompanies(uid)]);
   const known = withProfileFallback(Settings.parse(settings ?? {}), profile);
   const q = sp.q ?? (profile ? defaultQuery(known.currentTitle || profile.roles[0]?.title || "", profile.skills) : "software engineer");
-  const location = sp.location ?? (known.workAuthorizedCountries ? `${known.workAuthorizedCountries.split(",")[0].trim()}, Remote` : "Remote");
+  const country = known.workAuthorizedCountries.split(",")[0].trim();
+  const needsCountry = !country && !sp.location;
+  const location = sp.location ?? (country ? `${country}, Remote` : "");
   const boards = (sp.board || "").split(",").filter((b): b is Board => BOARDS.includes(b as Board));
   const listings = await allListings(companies);
   const results = rankListings(listings, { query: q, location, limit: 60, boards: boards.length ? boards : undefined });
@@ -41,6 +43,16 @@ export default async function Discover({ searchParams }: { searchParams: Promise
     <div className="space-y-8">
       <PageHeader title="Discover" description={`${listings.length.toLocaleString()} open roles across ${companies.length} companies that hire through Greenhouse, Ashby or Lever. Anything here can be prepared with one click.`} />
 
+      {needsCountry && (
+        <form action={setSearchCountryAction} className="flex flex-col gap-3 border border-line-strong bg-surface p-4 md:flex-row md:items-center md:px-5">
+          <div className="flex items-start gap-3 md:flex-1">
+            <span className="mt-[3px] h-2 w-2 shrink-0 bg-accent" aria-hidden />
+            <div><div className="text-[14px] font-medium">Which country do you want to work in?</div><p className="mt-0.5 text-[13px] text-muted">Suggestions below are ranked for that country plus remote roles. Change it any time on the Answers page.</p></div>
+          </div>
+          <input name="country" placeholder="India" className="field mono h-9 md:w-48" aria-label="Country" required />
+          <SubmitButton pending="Saving" className="btn-primary h-9">Show roles</SubmitButton>
+        </form>
+      )}
       <form method="get" className="panel flex flex-col gap-2 p-2 md:flex-row">
         <input name="q" defaultValue={q} placeholder="Title words: AI agents, platform, full stack" className="field mono h-11 flex-1 text-[13.5px]" aria-label="Title words" />
         <input name="location" defaultValue={location} placeholder="Location: Bengaluru, India, Remote" className="field mono h-11 md:w-64 text-[13.5px]" aria-label="Location" />
@@ -54,7 +66,7 @@ export default async function Discover({ searchParams }: { searchParams: Promise
       </div>
 
       <section className="panel overflow-hidden">
-        <div className="panel-head"><h2 className="text-[15px] font-semibold">Best matches</h2><span className="meta">{results.length} shown</span></div>
+        <div className="panel-head"><h2 className="text-[15px] font-semibold">{needsCountry ? "Matches everywhere" : "Best matches"}</h2><span className="meta">{results.length} shown{needsCountry ? ", set a country above to rank by place" : ""}</span></div>
         {results.length === 0 ? <p className="px-5 py-10 text-center text-[13.5px] text-muted">Nothing matched those words in that location. Try fewer words, or widen the location to a country or Remote.</p> : (
           <ul className="divide-rows">
             {results.map((l) => (
