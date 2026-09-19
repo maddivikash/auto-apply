@@ -5,7 +5,7 @@
  *
  *   APP_URL=https://auto-apply-vikash.vercel.app RUNNER_TOKEN=... npx tsx scripts/runner.ts
  */
-import { chromium, type Browser, type FrameLocator, type Page } from "playwright";
+import { chromium, type Browser, type Page } from "playwright";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -65,24 +65,29 @@ const answerOf = (app: Application, q: QuestionState) => q.answer || answerFor(S
 
 // ---- Greenhouse ----------------------------------------------------------
 
-/** Where the Greenhouse form lives: the page itself, or an embedded Greenhouse iframe on a company careers page. */
-async function greenhouseRoot(page: Page): Promise<Page | FrameLocator> {
+/**
+ * Where the Greenhouse form lives. Company careers pages (MongoDB, for one) embed it in an iframe;
+ * when that is the case, open the iframe's own URL so the form is a plain page and every selector works.
+ */
+async function greenhouseRoot(page: Page): Promise<Page> {
   const deadline = Date.now() + 60000;
   while (Date.now() < deadline) {
     if (await page.locator("#first_name").isVisible().catch(() => false)) return page;
-    if (await page.locator(GH_IFRAME).count()) {
-      const fl = page.frameLocator(GH_IFRAME).first();
-      if (await fl.locator("#first_name").isVisible().catch(() => false)) { await fl.locator("#first_name").scrollIntoViewIfNeeded(); return fl; }
+    const frame = page.frames().find((f) => /greenhouse\.io\/embed\/job_app/.test(f.url()));
+    if (frame) {
+      const url = frame.url();
+      log(`greenhouse form is embedded, opening it directly: ${url.slice(0, 90)}`);
+      await page.goto(url, { waitUntil: "domcontentloaded" });
+      await page.locator("#first_name").waitFor({ state: "visible", timeout: 30000 });
+      return page;
     }
     await page.waitForTimeout(1000);
   }
-  throw new Error("Greenhouse form not found: no first-name field on the page or inside an embedded Greenhouse iframe");
+  throw new Error("Greenhouse form not found: no first-name field on the page and no embedded Greenhouse application frame");
 }
-const GH_IFRAME = 'iframe#grnhse_iframe, iframe[src*="greenhouse.io"]';
 
 async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
   const root = await greenhouseRoot(page);
-  if (root !== page) notes.push("Form is embedded in an iframe on the company page");
   const type = async (sel: string, value: string) => { const el = root.locator(sel).first(); if (!(await el.count())) return false; await el.scrollIntoViewIfNeeded(); await el.click(); await el.fill(""); await el.pressSequentially(value, { delay: 15 }); return true; };
   const pickOption = async (sel: string, typed: string, re: RegExp) => {
     const el = root.locator(sel).first(); if (!(await el.count())) return false;
