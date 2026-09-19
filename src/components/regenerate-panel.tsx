@@ -17,7 +17,7 @@ export function RegeneratePanel({ id, action, disabled, lastNotes }: { id: strin
   const run = () => start(async () => {
     try {
       const r = await action(id, notes);
-      if (r.ok) { toast(r.message ?? "Regenerating.", "success"); setOpen(false); setNotes(""); router.refresh(); setTimeout(() => router.refresh(), 1500); setTimeout(() => router.refresh(), 4000); // storage can lag a moment behind the write }
+      if (r.ok) { toast(r.message ?? "Regenerating.", "success"); setOpen(false); setNotes(""); router.refresh(); setTimeout(() => router.refresh(), 1500); setTimeout(() => router.refresh(), 4000); }
       else toast(r.error, "error");
     } catch {
       toast("Something went wrong. Please try again.", "error");
