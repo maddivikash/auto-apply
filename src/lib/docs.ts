@@ -41,7 +41,10 @@ const text = (v: HranaValue) => (v.type === "text" ? v.value : v.type === "null"
 const arg = (value: string): HranaValue => ({ type: "text", value });
 
 function ensureTable() {
-  tableReady ??= turso([{ sql: "CREATE TABLE IF NOT EXISTS docs (path TEXT PRIMARY KEY, body TEXT NOT NULL, updated_at TEXT NOT NULL)" }]).then(() => undefined);
+  tableReady ??= turso([
+    { sql: "CREATE TABLE IF NOT EXISTS docs (path TEXT PRIMARY KEY, body TEXT NOT NULL, updated_at TEXT NOT NULL)" },
+    { sql: "CREATE TABLE IF NOT EXISTS files (path TEXT PRIMARY KEY, content_type TEXT NOT NULL, body_b64 TEXT NOT NULL, updated_at TEXT NOT NULL)" }
+  ]).then(() => undefined);
   return tableReady;
 }
 
@@ -155,4 +158,24 @@ export async function delDoc(path: string): Promise<void> {
       const p = join(LOCAL_DIR, path); if (existsSync(p)) unlinkSync(p);
     }
   }
+}
+
+// ---- files (Turso and fs only; the Blob backend keeps files in Blob, see store.ts) -------------
+export async function putFile(path: string, data: Buffer, contentType: string): Promise<void> {
+  if (backend() === "turso") {
+    await ensureTable();
+    await turso([{ sql: "INSERT INTO files (path, content_type, body_b64, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(path) DO UPDATE SET content_type = excluded.content_type, body_b64 = excluded.body_b64, updated_at = excluded.updated_at", args: [arg(path), arg(contentType), arg(data.toString("base64")), arg(new Date().toISOString())] }]);
+    return;
+  }
+  const p = join(LOCAL_DIR, path); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, data);
+}
+
+export async function getFile(path: string): Promise<{ data: Uint8Array; contentType: string } | null> {
+  if (backend() === "turso") {
+    await ensureTable();
+    const [rows] = await turso([{ sql: "SELECT content_type, body_b64 FROM files WHERE path = ?", args: [arg(path)] }]);
+    return rows[0] ? { contentType: text(rows[0][0]), data: new Uint8Array(Buffer.from(text(rows[0][1]), "base64")) } : null;
+  }
+  const p = join(LOCAL_DIR, path);
+  return existsSync(p) ? { contentType: path.endsWith(".pdf") ? "application/pdf" : "image/png", data: new Uint8Array(readFileSync(p)) } : null;
 }

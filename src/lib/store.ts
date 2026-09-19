@@ -2,11 +2,10 @@
  * The app's state, as JSON documents namespaced per user (see docs.ts for the backends), plus
  * binary files (PDFs, screenshots) in Vercel Blob.
  */
-import { put, list } from "@vercel/blob";
-import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { put } from "@vercel/blob";
+import { readFileSync } from "node:fs";
 import { nanoid } from "nanoid";
-import { getDoc, putDoc, listDocs, delDoc } from "./docs";
+import { getDoc, putDoc, listDocs, delDoc, putFile, getFile, backend } from "./docs";
 import type { JobPosting, JobQuestion } from "./jobs/fetch";
 import type { TailoredResume } from "./resume/schema";
 import type { Match } from "./resume/match";
@@ -63,8 +62,6 @@ export type Notification = {
   read: boolean;
 };
 
-const blobEnabled = () => !!process.env.BLOB_READ_WRITE_TOKEN;
-const LOCAL_DIR = join(process.cwd(), ".data");
 const putJson = (path: string, value: unknown) => putDoc(path, value);
 const getJson = <T,>(path: string) => getDoc<T>(path);
 const listJson = <T,>(prefix: string) => listDocs<T>(prefix);
@@ -106,16 +103,24 @@ export async function markNotificationsRead(userId: string, ids?: string[]) {
 }
 
 // ---- files ------------------------------------------------------------------
-/** Store a binary (PDF, screenshot) and return a URL the email and the runner can fetch. */
+/**
+ * Store a binary (PDF, screenshot). Returns a URL the app can turn back into bytes: a public Blob URL
+ * on the Blob backend, otherwise an internal app:// path served through the application's own routes.
+ */
 export async function saveFile(path: string, data: Buffer, contentType: string): Promise<string> {
-  if (blobEnabled()) {
+  if (backend() === "blob") {
     const blob = await put(path, data, { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType });
     return blob.url;
   }
-  const p = join(LOCAL_DIR, path); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, data);
-  return `file://${p}`;
+  await putFile(path, data, contentType);
+  return `app://${path}`;
 }
 export async function readFileUrl(url: string): Promise<Uint8Array> {
+  if (url.startsWith("app://")) { const f = await getFile(url.slice(6)); if (!f) throw new Error(`File not found: ${url}`); return f.data; }
   if (url.startsWith("file://")) return new Uint8Array(readFileSync(url.slice(7)));
-  return new Uint8Array(await (await fetch(url, { cache: "no-store" })).arrayBuffer());
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error(`File fetch ${r.status}`);
+  return new Uint8Array(await r.arrayBuffer());
 }
+/** Browser-openable URL for a stored file: public Blob URLs as-is, internal files through the app's route. */
+export const fileHref = (appId: string, kind: "pdf" | "screenshot", url?: string) => (!url || url.startsWith("app://") || url.startsWith("file://") ? `/api/applications/${appId}/${kind}` : url);

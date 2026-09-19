@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight, Camera } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
-import { getApplication, getProfile, getSettings, saveApplication, type Application, type QuestionState } from "@/lib/store";
+import { fileHref, getApplication, getProfile, getSettings, saveApplication, type Application, type QuestionState } from "@/lib/store";
 import { Settings } from "@/lib/profile/types";
 import { refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
 import { markStale } from "@/lib/apply/stale";
@@ -109,7 +109,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
                 </Step>
                 <Step n={2} title="The runner fills the form" state={step === 2 ? "current" : step > 2 ? "done" : "later"} body="It types every answer, attaches the PDF and leaves a screenshot.">
                   {["approved", "filling"].includes(app.status) && <p className="mt-2 text-[12.5px] text-muted">Not running? Start it with <code className="kbd">npm run runner</code>.</p>}
-                  {app.filledScreenshotUrl && <a className="mt-3 inline-flex items-center gap-1.5 text-[13px] text-accent hover:underline" href={app.filledScreenshotUrl} target="_blank" rel="noreferrer"><Camera size={14} /> View the screenshot</a>}
+                  {app.filledScreenshotUrl && <a className="mt-3 inline-flex items-center gap-1.5 text-[13px] text-accent hover:underline" href={fileHref(app.id, "screenshot", app.filledScreenshotUrl)} target="_blank" rel="noreferrer"><Camera size={14} /> View the screenshot</a>}
                   {app.runnerNotes?.length ? <ul className="mt-3 space-y-1 text-[12.5px] text-muted">{app.runnerNotes.slice(-6).map((n, i) => <li key={i} className="mono truncate">{n}</li>)}</ul> : null}
                 </Step>
                 <Step n={3} title="You press Submit" state={app.status === "submitted" ? "done" : step === 3 ? "current" : "later"} body="Nothing is sent before this.">
