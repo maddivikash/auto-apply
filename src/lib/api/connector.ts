@@ -16,6 +16,7 @@ import { ANSWERS_MATTER, refreshAnswers, withProfileFallback } from "../apply/an
 import { textToProfile } from "../profile/import";
 import { mergeProfiles } from "../profile/merge";
 import { signedPdfUrl } from "./sign";
+import { resumeFileName } from "../resume/filename";
 import { ApiError } from "./auth";
 import { LABEL } from "@/components/status";
 
@@ -173,7 +174,7 @@ export async function formAnswers(userId: string, id: string, allowOpen = false)
     applyUrl: app.job?.applyUrl || app.url,
     company: app.job?.company, title: app.job?.title,
     resumePdfUrl: signedPdfUrl(origin(), userId, app.id),
-    resumeFileName: `Resume_${app.job?.company || "tailored"}.pdf`,
+    resumeFileName: resumeFileName(settings.firstName, settings.lastName),
     contact,
     fields: app.questions.map((q) => ({ id: q.id, label: q.label, type: q.type, required: q.required, options: q.options, value: q.answer ?? (q.type === "file" ? (/resume|\bcv\b|curriculum/i.test(q.label) ? "<attach resumePdfUrl>" : q.required ? "<file required: ask the user>" : "<optional upload: skip>") : ""), needsHuman: q.needsHuman })),
     instructions: [

@@ -18,7 +18,7 @@ async function send(to: string, subject: string, html: string, attachments?: { f
   if (error) console.error(`Resend: ${error.message}`);
 }
 
-export async function emailResumeReady(to: string, app: Application, pdf: Buffer) {
+export async function emailResumeReady(to: string, app: Application, pdf: Buffer, fileName = "Resume.pdf") {
   const job = app.job!;
   const open = app.questions.filter((q) => q.needsHuman);
   const link = `${APP_URL}/a/${app.id}`;
@@ -30,7 +30,7 @@ export async function emailResumeReady(to: string, app: Application, pdf: Buffer
     <ol>${open.map((q) => `<li>${esc(q.label)}${q.required ? " *" : ""}${q.options?.length ? `<br><span style="color:#6B7280;font-size:13px">Options: ${esc(q.options.join(" / "))}</span>` : ""}</li>`).join("")}</ol>`
     : `<p><b>No open questions.</b> Everything on the form has a known answer.</p>`}
   <p style="margin-top:20px"><a href="${link}" style="background:#166534;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">Review and approve</a></p>`;
-  await send(to, `Resume ready: ${job.company}, ${job.title}`, wrap("Resume ready", body), [{ filename: `Resume_${job.company}.pdf`, content: pdf }]);
+  await send(to, `Resume ready: ${job.company}, ${job.title}`, wrap("Resume ready", body), [{ filename: fileName, content: pdf }]);
 }
 export async function emailNotPossible(to: string, app: Application, reason: string) {
   await send(to, `Can't auto-apply: ${app.url}`, wrap("This link is not supported", `<p>${esc(reason)}</p><p>Supported today: Greenhouse, Lever and Ashby job pages.</p>`));

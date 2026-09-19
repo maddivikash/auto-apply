@@ -7,6 +7,7 @@ import { getApplication, saveApplication, saveFile, getProfile, getSettings, add
 import { Settings } from "../profile/types";
 import { launchBrowser } from "../browser";
 import { emailNotPossible, emailResumeReady } from "../email";
+import { resumeFileName } from "../resume/filename";
 
 /** Everything between "link pasted" and "resume ready". Safe to re-run: it overwrites. */
 export async function processApplication(userId: string, id: string): Promise<void> {
@@ -64,7 +65,7 @@ export async function processApplication(userId: string, id: string): Promise<vo
 
     const open = app.questions.filter((q) => q.needsHuman).length;
     await addNotification({ userId, kind: open ? "needs_details" : "ready", applicationId: id, title: `Resume ready for ${job.company}`, body: open ? `${open} question${open > 1 ? "s" : ""} need your answer before approval.` : "All form questions have answers. Review and approve." });
-    await emailResumeReady(to, app, rendered.pdf);
+    await emailResumeReady(to, app, rendered.pdf, resumeFileName(profile.name));
     app.emailedAt = new Date().toISOString();
     await saveApplication(app);
   } catch (e) {

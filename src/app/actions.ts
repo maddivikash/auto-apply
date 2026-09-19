@@ -248,6 +248,35 @@ export async function revokeApiKeyAction(): Promise<ActionResult> {
   }
 }
 
+/** Approve every ready application whose questions are all answered. The runner fills them one by one. */
+export async function approveAllAction(): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const apps = (await listApplications(userId)).filter((a) => a.status === "ready" && !a.questions.some((q) => q.needsHuman && !q.answer));
+    if (!apps.length) return { ok: false, error: "Nothing to approve: every ready application still has an open question, or none is ready." };
+    const now = new Date().toISOString();
+    await Promise.all(apps.map((a) => { a.status = "approved"; a.approvedAt = now; return saveApplication(a); }));
+    revalidatePath("/", "layout");
+    return { ok: true, message: `Approved ${apps.length} application${apps.length > 1 ? "s" : ""}. The runner fills them next.` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not approve." };
+  }
+}
+
+/** Request Submit on every filled application. Check the screenshots first; this presses the real Submit button. */
+export async function submitAllAction(): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const apps = (await listApplications(userId)).filter((a) => a.status === "filled");
+    if (!apps.length) return { ok: false, error: "No filled applications are waiting for Submit." };
+    await Promise.all(apps.map((a) => { a.status = "submit_requested"; return saveApplication(a); }));
+    revalidatePath("/", "layout");
+    return { ok: true, message: `Submit requested for ${apps.length} application${apps.length > 1 ? "s" : ""}. The runner presses Submit on each live form.` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not request the submits." };
+  }
+}
+
 export async function markAllReadAction() {
   const userId = await requireUserId();
   await markNotificationsRead(userId);

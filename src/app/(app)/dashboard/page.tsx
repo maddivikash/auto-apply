@@ -6,7 +6,8 @@ import { Settings } from "@/lib/profile/types";
 import { refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
 import { markStale } from "@/lib/apply/stale";
 import { summarize, openQuestions } from "@/lib/stats";
-import { createApplicationAction } from "../../actions";
+import { createApplicationAction, approveAllAction, submitAllAction } from "../../actions";
+import { ActionButton } from "@/components/action-button";
 import { StatusBadge, StageTrack } from "@/components/status";
 import { LinkInput } from "@/components/link-input";
 import { SubmitButton } from "@/components/submit-button";
@@ -52,11 +53,19 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       )}
 
       {apps.length > 0 && (
-        <ul className="flex flex-wrap gap-x-5 gap-y-2 text-[13px]">
-          {counts.map((c) => (
-            <li key={c.label} className={`flex items-center gap-2 ${c.n ? "text-fg" : "text-faint"}`}><span className={`h-1.5 w-1.5 rounded-full ${c.n ? c.tone : "bg-line-strong"}`} /><span className="font-semibold tabular-nums">{c.n}</span> {c.label}</li>
-          ))}
-        </ul>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <ul className="flex flex-wrap gap-x-5 gap-y-2 text-[13px]">
+            {counts.map((c) => (
+              <li key={c.label} className={`flex items-center gap-2 ${c.n ? "text-fg" : "text-faint"}`}><span className={`h-1.5 w-1.5 rounded-full ${c.n ? c.tone : "bg-line-strong"}`} /><span className="font-semibold tabular-nums">{c.n}</span> {c.label}</li>
+            ))}
+          </ul>
+          {(s.readyToApprove > 0 || s.awaitingSubmit > 0) && (
+            <div className="flex flex-wrap gap-2">
+              {s.readyToApprove > 0 && <ActionButton action={approveAllAction} id="all" pending="Approving" className="btn-ghost h-9">Approve all ready ({s.readyToApprove})</ActionButton>}
+              {s.awaitingSubmit > 0 && <ActionButton action={submitAllAction} id="all" pending="Requesting" className="btn-primary h-9">Submit all filled ({s.awaitingSubmit})</ActionButton>}
+            </div>
+          )}
+        </div>
       )}
 
       <section>
@@ -78,6 +87,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                         {a.job?.location && <span className="truncate">{a.job.location}</span>}
                         {a.job && <span className="capitalize">{a.job.board}</span>}
                         <span>{date}</span>
+                        {a.match && a.resume && (
+                          <span className={`tabular-nums ${a.match.tailored > a.match.profile ? "text-go" : a.match.tailored < a.match.profile ? "text-signal" : ""}`} title="Keyword match with the posting: your full profile vs the tailored resume">
+                            Match {a.match.profile}% <span aria-hidden>→</span><span className="sr-only">to</span> {a.match.tailored}%
+                          </span>
+                        )}
                         {open > 0 && a.status === "ready" && <span className="text-signal">{open} question{open > 1 ? "s need" : " needs"} you</span>}
                         {a.status === "code_required" && !a.verificationCode && <span className="text-signal">Enter the code Greenhouse emailed you</span>}
                         {a.error && ["failed", "unsupported"].includes(a.status) && <span className="truncate text-danger">{a.error.slice(0, 80)}</span>}

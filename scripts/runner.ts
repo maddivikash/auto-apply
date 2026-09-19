@@ -5,11 +5,12 @@
  *
  *   APP_URL=https://auto-apply-vikash.vercel.app RUNNER_TOKEN=... npx tsx scripts/runner.ts
  */
-import { chromium, type Browser, type Page } from "playwright";
+import { chromium, type Browser, type Locator, type Page } from "playwright";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { answerFor } from "../src/lib/defaults";
+import { resumeFileName } from "../src/lib/resume/filename";
 import { discoverLiveFields } from "../src/lib/apply/discover";
 import type { Application, QuestionState } from "../src/lib/store";
 import type { Settings } from "../src/lib/profile/types";
@@ -55,7 +56,8 @@ async function getBrowser() {
 
 async function downloadResume(app: Application): Promise<string> {
   const dir = join(tmpdir(), "auto-apply"); mkdirSync(dir, { recursive: true });
-  const p = join(dir, `Resume_${app.job!.company}.pdf`);
+  // The uploaded file's name is what the recruiter sees: the person's name, never the company.
+  const p = join(dir, resumeFileName(SETTINGS.firstName, SETTINGS.lastName));
   const r = await fetch(`${APP_URL}/api/applications/${app.id}/pdf`, { headers: { Authorization: `Bearer ${TOKEN}` } });
   writeFileSync(p, Buffer.from(await r.arrayBuffer()));
   return p;
@@ -89,6 +91,11 @@ async function greenhouseRoot(page: Page): Promise<Page> {
 async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
   const root = await greenhouseRoot(page);
   const type = async (sel: string, value: string) => { const el = root.locator(sel).first(); if (!(await el.count())) return false; await el.scrollIntoViewIfNeeded(); await el.click(); await el.fill(""); await el.pressSequentially(value, { delay: 15 }); return true; };
+  const norm = (t: string) => t.replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"').replace(/\s+/g, " ").trim().toLowerCase();
+  const labelOf = async (cb: Locator) => {
+    const id = await cb.getAttribute("id");
+    return (id && (await root.locator(`label[for="${id}"]`).first().innerText().catch(() => ""))) || (await cb.locator("xpath=ancestor::label[1]").innerText().catch(() => "")) || "";
+  };
   const pickOption = async (sel: string, typed: string, re: RegExp) => {
     const el = root.locator(sel).first(); if (!(await el.count())) return false;
     await el.scrollIntoViewIfNeeded(); await el.click(); await page.waitForTimeout(250);
@@ -134,10 +141,23 @@ async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
     if (q.options?.length) {
       const ok = await pickOption(sel, "", new RegExp(`^${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"));
       if (!ok) {
-        // Checkbox groups (privacy acknowledgement) render as inputs named question_X[]
-        const cb = root.locator(`input[name="${baseId}[]"]`).first();
-        if (await cb.count()) { if (!(await cb.isChecked())) await cb.click({ force: true }); }
-        else notes.push(`Could not select "${value}" for ${q.label}`);
+        // Checkbox groups ("select all that apply", privacy acknowledgement) render as inputs named question_X[].
+        // Tick the box whose label matches the answer, never simply the first one: a sanctions question ticked
+        // wrong is worse than one left blank.
+        const boxes = root.locator(`input[name="${baseId}[]"]`);
+        const n = await boxes.count();
+        if (!n) { notes.push(`Could not select "${value}" for ${q.label}`); continue; }
+        const wanted = value.split(/\s*\|\s*/).map(norm);
+        let hits = 0;
+        for (let i = 0; i < n; i++) {
+          const cb = boxes.nth(i);
+          const match = wanted.includes(norm(await labelOf(cb)));
+          if (match !== (await cb.isChecked())) { await cb.scrollIntoViewIfNeeded(); await cb.click({ force: true }); }
+          if (match) hits++;
+        }
+        if (!hits && n === 1) { const cb = boxes.first(); if (!(await cb.isChecked())) await cb.click({ force: true }); hits = 1; }
+        if (hits) notes.push(`${q.label.replace(/\s+/g, " ").slice(0, 60)}: ${value}`);
+        else notes.push(`Could not select "${value}" for ${q.label}; left blank for you to tick`);
       }
     } else {
       (await type(sel, value)) || notes.push(`Field not found: ${q.label}`);
