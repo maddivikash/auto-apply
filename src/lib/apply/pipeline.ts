@@ -63,13 +63,20 @@ export async function processApplication(userId: string, id: string): Promise<vo
     try { const n = await draftAnswers(job, profile, app.questions); if (n) console.log(`application ${id}: drafted ${n} free-text answer(s)`); }
     catch (e) { console.warn(`application ${id}: drafting failed:`, (e as Error).message); }
 
+    // The personal website goes on the resume only for roles that prize building things alone: founding
+    // engineer, first hire, zero-to-one. Everywhere else the header stays to LinkedIn and GitHub.
+    const FOUNDING = /founding (engineer|team|member)|first (engineer|engineering hire|hire)|founder|0\s*(to|->|\u2192)\s*1\b|zero[- ]to[- ]one|from scratch|from the ground up|greenfield|indie hacker|solo (builder|founder)/i;
+    const showSite = FOUNDING.test(`${job.title} ${description}`);
+    const renderProfile = showSite ? profile : { ...profile, website: "" };
+    if (!showSite && profile.website) console.log(`application ${id}: website left off the resume (not a founding-style role)`);
+
     // Tailor, render, measure. A tailored resume that matches the posting worse than the raw profile is
     // a regression, so retry with the dropped terms called out and keep whichever attempt scores best.
     const attempt = async (notes?: string, previous?: typeof app.resume) => {
       await step("tailoring");
       const result = await tailorResume(job, profile, { notes, previous });
       await step("rendering");
-      const rendered = await renderPdf(sanitize(result.resume), profile, launchBrowser);
+      const rendered = await renderPdf(sanitize(result.resume), renderProfile, launchBrowser);
       return { result, rendered, match: matchResume(description, rendered.resume, profile, job.company) };
     };
     let best = await attempt(app.revisionNotes, app.resume);
@@ -89,7 +96,7 @@ export async function processApplication(userId: string, id: string): Promise<vo
     // The full profile laid out as-is is always rendered too, so the user can switch and so a tailored
     // version that scores lower than the plain resume is never the default.
     await step("rendering");
-    const plain = await renderPdf(profileAsResume(profile), profile, launchBrowser);
+    const plain = await renderPdf(profileAsResume(profile), renderProfile, launchBrowser);
     const plainMatch = matchResume(description, plain.resume, profile, job.company);
     const [tailoredUrl, fullUrl] = await Promise.all([
       saveFile(`users/${userId}/resumes/${id}.pdf`, rendered.pdf, "application/pdf"),
