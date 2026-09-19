@@ -86,8 +86,8 @@ const RULES: Rule[] = [
   { test: /18 years|legal age|at least 18/i, answer: (_s, o) => pick(o, /^yes\b/i) },
   { test: /\b\d+\s*\+?\s*(or more\s*)?(years?|yrs)\b(?! of age)/i, answer: (s, o, _c, label) => { const n = Number((label || "").match(/(\d+)\s*\+?\s*(or more\s*)?(years?|yrs)/i)?.[1]); const mine = parseFloat(s.yearsExperience); if (!o?.length || !n || isNaN(mine)) return undefined; return pick(o, mine >= n ? /^yes\b/i : /^no\b/i); } },
   { test: /years? of (professional |relevant |work |industry )?experience/i, answer: (s, o) => o?.length ? (s.yearsExperience ? pick(o, new RegExp(`^${s.yearsExperience}\\b`)) : undefined) : or(s.yearsExperience) },
-  { test: /current (employer|company)/i, answer: (s) => or(s.currentCompany) },
-  { test: /current (title|role|position)/i, answer: (s) => or(s.currentTitle) },
+  { test: /(current|most recent|latest|present)[^.?]{0,25}(employer|company|organi[sz]ation)\b/i, answer: (s) => or(s.currentCompany) },
+  { test: /(current|most recent|latest|present)[^.?]{0,25}(job )?(title|role|position|designation)\b/i, answer: (s) => or(s.currentTitle) },
   { test: /salary|compensation expect/i, answer: (s) => or(s.salaryExpectation) },
   { test: /gender/i, answer: (s, o) => {
     const decline = /decline|prefer not|do not wish|don't wish|self.?describe/i;
