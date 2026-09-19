@@ -1,11 +1,12 @@
 /**
- * JSON document store on Vercel Blob, namespaced per user. Low volume, no DB to provision.
- * Falls back to the local filesystem when BLOB_READ_WRITE_TOKEN is absent.
+ * The app's state, as JSON documents namespaced per user (see docs.ts for the backends), plus
+ * binary files (PDFs, screenshots) in Vercel Blob.
  */
-import { put, list, del } from "@vercel/blob";
-import { nanoid } from "nanoid";
-import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, unlinkSync } from "node:fs";
+import { put, list } from "@vercel/blob";
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
+import { nanoid } from "nanoid";
+import { getDoc, putDoc, listDocs, delDoc } from "./docs";
 import type { JobPosting, JobQuestion } from "./jobs/fetch";
 import type { TailoredResume } from "./resume/schema";
 import type { Match } from "./resume/match";
@@ -64,44 +65,10 @@ export type Notification = {
 
 const blobEnabled = () => !!process.env.BLOB_READ_WRITE_TOKEN;
 const LOCAL_DIR = join(process.cwd(), ".data");
-
-async function putJson(path: string, value: unknown) {
-  const body = JSON.stringify(value, null, 2);
-  if (blobEnabled()) {
-    await put(path, body, { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType: "application/json", cacheControlMaxAge: 0 });
-  } else {
-    const p = join(LOCAL_DIR, path); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, body);
-  }
-}
-async function getJson<T>(path: string): Promise<T | null> {
-  if (blobEnabled()) {
-    const { blobs } = await list({ prefix: path, limit: 1 });
-    const hit = blobs.find((b) => b.pathname === path);
-    if (!hit) return null;
-    const r = await fetch(`${hit.url}?t=${Date.now()}`, { cache: "no-store" });
-    return (await r.json()) as T;
-  }
-  const p = join(LOCAL_DIR, path);
-  return existsSync(p) ? (JSON.parse(readFileSync(p, "utf8")) as T) : null;
-}
-async function listJson<T>(prefix: string): Promise<T[]> {
-  if (blobEnabled()) {
-    const { blobs } = await list({ prefix, limit: 500 });
-    return Promise.all(blobs.filter((b) => b.pathname.endsWith(".json")).map(async (b) => (await fetch(`${b.url}?t=${Date.now()}`, { cache: "no-store" })).json()));
-  }
-  const dir = join(LOCAL_DIR, prefix);
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")));
-}
-async function delJson(path: string) {
-  if (blobEnabled()) {
-    const { blobs } = await list({ prefix: path, limit: 1 });
-    const hit = blobs.find((b) => b.pathname === path);
-    if (hit) await del(hit.url);
-  } else {
-    const p = join(LOCAL_DIR, path); if (existsSync(p)) unlinkSync(p);
-  }
-}
+const putJson = (path: string, value: unknown) => putDoc(path, value);
+const getJson = <T,>(path: string) => getDoc<T>(path);
+const listJson = <T,>(prefix: string) => listDocs<T>(prefix);
+const delJson = (path: string) => delDoc(path);
 
 // ---- applications -----------------------------------------------------------
 const appKey = (userId: string, id: string) => `users/${userId}/applications/${id}.json`;
