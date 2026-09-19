@@ -5,10 +5,10 @@
  *
  *   APP_URL=https://auto-apply-vikash.vercel.app RUNNER_TOKEN=... npx tsx scripts/runner.ts
  */
-import { chromium, type Browser, type Locator, type Page } from "playwright";
+import { chromium, type Browser, type BrowserContext, type Locator, type Page } from "playwright";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { tmpdir, homedir } from "node:os";
 import { answerFor } from "../src/lib/defaults";
 import { resumeFileName } from "../src/lib/resume/filename";
 import { parsedEducation, degreeOptionPatterns, disciplineScore, schoolQueries, DISCIPLINE_MIN, type ParsedEducation } from "../src/lib/apply/education";
@@ -34,7 +34,13 @@ const report = (id: string, body: Record<string, unknown>) => api(`/${id}`, { me
 type Live = { page: Page; app: Application; filledAt: number };
 const live = new Map<string, Live>();
 const inFlight = new Set<string>();
-let browser: Browser | null = null;
+let browser: Browser | BrowserContext | null = null;
+/** When each host last accepted a submit, and until when a host is backing off after a spam flag. */
+let lastSubmitAt = 0;
+const hostBackoffUntil = new Map<string, number>();
+const SUBMIT_GAP_MS = 90_000;
+const SPAM_BACKOFF_MS = 6 * 60_000;
+const jitter = (min: number, max: number) => min + Math.random() * (max - min);
 
 // One runner per machine. A second instance would fill the same form twice.
 import { existsSync, readFileSync as readSync, unlinkSync } from "node:fs";
@@ -49,10 +55,31 @@ process.on("exit", () => { try { unlinkSync(LOCK); } catch {} });
 process.on("SIGINT", () => process.exit(0));
 process.on("SIGTERM", () => process.exit(0));
 
-async function getBrowser() {
-  if (browser && browser.isConnected()) return browser;
-  browser = await chromium.launch({ headless: false, args: ["--window-size=1400,1000"] });
+/**
+ * The user's own Chrome with a persistent profile, so the forms see an ordinary browser with real cookies
+ * and history, not Playwright's bundled Chromium announcing itself as automated. These are the user's own
+ * applications; the point is not to be misfiled as spam, not to hide anything.
+ */
+async function getBrowser(): Promise<Browser | BrowserContext> {
+  if (browser && (("isConnected" in browser && browser.isConnected()) || !("isConnected" in browser))) return browser;
+  const profile = join(homedir(), ".auto-apply", "chrome-profile"); mkdirSync(profile, { recursive: true });
+  try {
+    browser = await chromium.launchPersistentContext(profile, { channel: "chrome", headless: false, viewport: null, args: ["--window-size=1400,1000", "--disable-blink-features=AutomationControlled"], ignoreDefaultArgs: ["--enable-automation"] });
+    log("using installed Chrome with a persistent profile");
+  } catch (e) {
+    log("installed Chrome not available, falling back to bundled Chromium:", (e as Error).message.split("\n")[0]);
+    browser = await chromium.launch({ headless: false, args: ["--window-size=1400,1000"] });
+  }
   return browser;
+}
+
+/** Space submits like a person would: one at a time, at least 90 s apart, and leave a host alone for a while after it flagged us. */
+async function paceSubmit(url: string) {
+  const host = new URL(url).host;
+  const until = hostBackoffUntil.get(host) || 0;
+  if (Date.now() < until) { log(`${host} flagged a submit recently; waiting ${Math.ceil((until - Date.now()) / 1000)}s before the next one`); await new Promise((r) => setTimeout(r, until - Date.now())); }
+  const wait = lastSubmitAt + SUBMIT_GAP_MS - Date.now();
+  if (wait > 0) { log(`pacing: next submit in ${Math.ceil(wait / 1000)}s`); await new Promise((r) => setTimeout(r, wait)); }
 }
 
 async function downloadResume(app: Application): Promise<string> {
@@ -91,7 +118,7 @@ async function greenhouseRoot(page: Page): Promise<Page> {
 
 async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
   const root = await greenhouseRoot(page);
-  const type = async (sel: string, value: string) => { const el = root.locator(sel).first(); if (!(await el.count())) return false; await el.scrollIntoViewIfNeeded(); await el.click(); await el.fill(""); await el.pressSequentially(value, { delay: 15 }); return true; };
+  const type = async (sel: string, value: string) => { const el = root.locator(sel).first(); if (!(await el.count())) return false; await el.scrollIntoViewIfNeeded(); await el.click(); await el.fill(""); await el.pressSequentially(value, { delay: jitter(35, 80) }); return true; };
   const norm = (t: string) => t.replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"').replace(/\s+/g, " ").trim().toLowerCase();
   const labelOf = async (cb: Locator) => {
     const id = await cb.getAttribute("id");
@@ -399,7 +426,7 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
         }
         if (!hit) notes.push(`Could not pick "${value}" for ${f.label}`);
       }
-      else { const el = page.locator(f.selector).first(); await el.scrollIntoViewIfNeeded(); await el.fill(""); await el.pressSequentially(value, { delay: 12 }); }
+      else { const el = page.locator(f.selector).first(); await el.scrollIntoViewIfNeeded(); await el.fill(""); await el.pressSequentially(value, { delay: jitter(35, 80) }); }
     } catch (e) { notes.push(`Could not fill "${f.label}": ${(e as Error).message.slice(0, 80)}`); }
   }
   await fillAshbyEducation(page, notes);
@@ -414,11 +441,17 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
 
 async function submitGeneric(page: Page) {
   const btn = page.getByRole("button", { name: /submit( application)?|apply/i }).last();
+  await btn.scrollIntoViewIfNeeded(); await page.waitForTimeout(jitter(800, 2000));
+  await btn.hover(); await page.waitForTimeout(jitter(200, 600));
   await btn.click();
   await page.waitForTimeout(5000);
   const text = (await page.evaluate(() => document.body.innerText)).toLowerCase();
-  if (/thank|submitted|received|success/i.test(text)) return true;
-  if (/captcha|robot/i.test(text)) throw new Error("Captcha shown; complete it in the window and press Submit there.");
+  if (/thank you|submitted|we('ve| have) received|success/i.test(text)) return true;
+  if (/flagged as (possible )?spam|couldn'?t submit your application|unusual (traffic|activity)/i.test(text)) {
+    hostBackoffUntil.set(new URL(page.url()).host, Date.now() + SPAM_BACKOFF_MS);
+    throw new Error("The site flagged the submission as possible spam. The form is still filled in the window: wait a few minutes, then press Submit there yourself, and use Mark as submitted here. The runner will not retry this host for a while.");
+  }
+  if (/captcha|robot|verify you are human/i.test(text) || (await page.locator("iframe[src*=hcaptcha], iframe[src*=recaptcha], iframe[src*=turnstile]").count())) throw new Error("A captcha is shown. Solve it in the window, press Submit there, then use Mark as submitted here.");
   throw new Error("No confirmation text after submit");
 }
 
@@ -511,7 +544,7 @@ async function loop() {
         inFlight.add(app.id);
         try {
           if (app.status === "approved" && !live.has(app.id)) await fill(app);
-          else if (app.status === "submit_requested") await submit(app);
+          else if (app.status === "submit_requested") { await paceSubmit(app.job!.applyUrl); await submit(app); lastSubmitAt = Date.now(); }
           else if (app.status === "code_required" && app.verificationCode) await enterCode(app);
         } finally { inFlight.delete(app.id); }
       }
