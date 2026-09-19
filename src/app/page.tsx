@@ -63,6 +63,7 @@ export default async function Landing() {
           <ul className="divide-rows">
             {[
               ["Facts come only from your profile", "The resume writer cannot add a skill, a number or an employer that is not already in your profile. Flagged mismatches show on the review page."],
+              ["Fit, not overfit", "Tailoring chooses and orders your real work for the role. It does not rewrite your experience in the posting's words, because recruiters can tell, and a resume that echoes the ad reads as one."],
               ["Known answers are filled, open questions are asked", "The form filler uses your Answers page. When a form asks something new, you get it as a question instead of a guess."],
               ["The form is filled on your machine, in view", "The runner drives a visible browser window on your own computer. You can watch it type and check the screenshot it leaves."],
               ["Submit is a button only you can press", "Approving lets the runner fill. Submitting is a second, separate step, and it is yours."],

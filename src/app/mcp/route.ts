@@ -29,7 +29,7 @@ const run = async (fn: () => Promise<unknown>) => {
 const handler = createMcpHandler((server) => {
   server.registerTool("prepare_application", {
     title: "Prepare an application",
-    description: "Start preparing a job application from a Greenhouse, Lever or Ashby posting link: reads the posting, renders two one-page PDFs (the user's original resume as-is, and one tailored to the posting from the profile with nothing invented), scores both against the posting, attaches the one the user's resumeDefault preference asks for (best score, original, or tailored), and works out the answers to the form's questions. Returns immediately with an id; poll get_application until status is 'ready' (one to two minutes).",
+    description: "Start preparing a job application from a Greenhouse, Lever or Ashby posting link: reads the posting, renders two one-page PDFs (the user's original resume as-is, and one tailored to the posting from the profile with nothing invented; tailoring selects and orders real work and deliberately does not rewrite it in the posting's words, because recruiters notice), scores both against the posting, attaches the one the user's resumeDefault preference asks for (best score, original, or tailored), and works out the answers to the form's questions. Returns immediately with an id; poll get_application until status is 'ready' (one to two minutes).",
     inputSchema: z.object({ url: z.string().url().describe("The job posting link") }),
     annotations: { readOnlyHint: false, idempotentHint: false }
   }, async ({ url }, extra) => run(() => c.createApplication(uid(extra), url)));

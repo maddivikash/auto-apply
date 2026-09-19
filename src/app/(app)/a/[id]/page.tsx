@@ -163,6 +163,7 @@ function MatchCard({ match }: { match: NonNullable<Application["match"]> }) {
         <div>
           <h2 className="text-[15px] font-semibold">Match with this job</h2>
           <p className="mt-1 text-[12.5px] text-muted">Keyword match, the way an applicant tracking system reads it. Not a hiring prediction.</p>
+          <p className="mt-2 max-w-md text-[12.5px] leading-relaxed text-muted"><span className="text-fg">Fit, not overfit.</span> The resume selects and orders your real work; it does not rewrite it in the posting&apos;s words. Recruiters notice resumes that echo the ad, so a moderate score with true content beats a high one that reads like the job description.</p>
         </div>
         <div className="flex items-baseline gap-3 tabular-nums">
           <span className="text-[32px] font-semibold leading-none">{match.tailored}</span>
@@ -175,7 +176,7 @@ function MatchCard({ match }: { match: NonNullable<Application["match"]> }) {
         <Meter label="Resume lines that speak to this job" value={match.focus} hint={pct(match.focus)} />
       </div>
       {match.matched.length > 0 && <p className="mt-4 text-[12.5px] text-muted">Matched: {match.matched.join(", ")}.</p>}
-      {match.missing.length > 0 && <p className="mt-1.5 text-[12.5px] text-muted">Not found: <span className="text-fg">{match.missing.join(", ")}</span>. If any of these are true of you, add them on the Profile page and regenerate.</p>}
+      {match.missing.length > 0 && <p className="mt-1.5 text-[12.5px] text-muted">Not found: <span className="text-fg">{match.missing.join(", ")}</span>. Add any of these to your profile only if they are genuinely true of you; the resume will pick them up on the next regenerate.</p>}
     </section>
   );
 }
