@@ -50,7 +50,7 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
               <option value="">Choose</option>
               {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
             </select>
-            <span className="mt-1 block text-[12px] text-faint">Only used for the voluntary demographic question on forms. "Prefer not to say" picks the decline option.</span>
+            <span className="mt-1 block text-[12px] text-faint">Only used for the voluntary demographic question on forms. &quot;Prefer not to say&quot; picks the decline option.</span>
           </label>
         </div>
       </Section>
