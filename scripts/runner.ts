@@ -432,7 +432,8 @@ async function attachResumeGeneric(page: Page, resumePath: string, notes: string
   if (!tagged) { notes.push("No file input for the resume on this form"); return; }
   const input = page.locator("input[type=file][data-aa-resume]").first();
   await input.setInputFiles(resumePath);
-  const appeared = async () => { for (let i = 0; i < 12; i++) { if ((await page.locator("body").innerText()).includes(fileName)) return true; await page.waitForTimeout(500); } return false; };
+  // Some forms render the file name in capitals or show a success mark instead; compare loosely.
+  const appeared = async () => { for (let i = 0; i < 12; i++) { const t = (await page.locator("body").innerText()).toLowerCase(); if (t.includes(fileName.toLowerCase()) || /resume.{0,80}(success|uploaded|attached)/is.test(t)) return true; await page.waitForTimeout(500); } return false; };
   if (await appeared()) { notes.push("Resume attached"); return; }
   // Some uploaders only react to their own button. Use it, answering the file chooser it opens.
   const btn = page.getByRole("button", { name: /upload|attach|choose file|browse/i }).first();

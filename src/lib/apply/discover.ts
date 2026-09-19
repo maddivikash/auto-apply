@@ -48,6 +48,8 @@ export function discoverFields(): LiveField[] {
   document.querySelectorAll<HTMLElement>("input, textarea, select").forEach((el) => {
     const input = el as HTMLInputElement;
     if (["hidden", "submit", "button"].includes(input.type)) return;
+    // Inputs the person cannot see (display:none helpers such as pronoun text fields) are not questions.
+    if (input.type !== "file" && el.offsetParent === null && getComputedStyle(el).display === "none") return;
     // A hidden checkbox or radio under a segmented button group is that group's state, not a field of its own.
     if (el.closest("[data-aa-group]")) return;
 
@@ -77,15 +79,29 @@ export function discoverFields(): LiveField[] {
     const selector = el.id ? `#${CSS.escape(el.id)}` : el.getAttribute("name") ? `[name="${el.getAttribute("name")}"]` : "";
     if (!selector || seen.has(selector)) return;
     seen.add(selector);
+    // The question text wins over the input's own placeholder: Lever's custom questions carry the question in
+    // an .application-label above an input whose placeholder is just "Type your response".
     let label = "";
     if (el.id) label = document.querySelector(`label[for="${el.id}"]`)?.textContent || "";
-    if (!label) label = el.closest("label")?.textContent || el.getAttribute("aria-label") || el.getAttribute("placeholder") || "";
-    if (!label) { const wrap = el.closest("div, li, fieldset"); label = wrap?.querySelector("label, legend, .application-label, [class*=label]")?.textContent || ""; }
+    if (!label) label = el.closest("label")?.textContent || "";
+    if (!label) {
+      // Walk up to the smallest container that holds only this control and carries a label-like element.
+      let node: HTMLElement | null = el.parentElement;
+      while (node && node !== document.body) {
+        const controls = node.querySelectorAll("input:not([type=hidden]):not([type=submit]):not([type=button]), textarea, select").length;
+        if (controls > 1) break;
+        const lab = node.querySelector(".application-label, label, legend, [class*=question-title], [class*=label]:not(input)");
+        if (lab?.textContent?.trim()) { label = lab.textContent; break; }
+        node = node.parentElement;
+      }
+    }
+    if (!label) label = el.getAttribute("aria-label") || el.getAttribute("placeholder") || "";
     label = clean(label);
     // Lever appends helper text to some labels ("Current location No location found..."); keep the first sentence.
     label = label.replace(/(ATTACH RESUME|No location found|Couldn't auto-read|Analyzing resume|Loading).*$/i, "").trim();
     const required = input.required || el.getAttribute("aria-required") === "true" || /\*|✱/.test(el.closest("div, li")?.querySelector("label")?.textContent || "");
-    const type: LiveField["type"] = el.tagName === "SELECT" ? "select" : el.tagName === "TEXTAREA" ? "textarea" : input.type === "file" ? "file" : "text";
+    // A radio or checkbox without a name never joined a group above; it is a lone checkbox, not a text field.
+    const type: LiveField["type"] = el.tagName === "SELECT" ? "select" : el.tagName === "TEXTAREA" ? "textarea" : input.type === "file" ? "file" : input.type === "checkbox" || input.type === "radio" ? "checkbox" : "text";
     const options = el.tagName === "SELECT" ? Array.from((el as HTMLSelectElement).options).map((o) => o.text.trim()).filter(Boolean) : undefined;
     if (label) out.push({ label, selector, type, options, required });
   });
