@@ -59,7 +59,8 @@ export default function ConnectorDocs() {
         <li>The service never submits a form itself. Submission happens in the agent&apos;s browser or the user&apos;s own runner, after a person decides.</li>
         <li>PDF links are signed and expire after 24 hours.</li>
       </ul>
-      <p className="mt-10 text-[12.5px] text-faint">Questions: <a className="underline underline-offset-2" href="mailto:maddi.vikash@gmail.com">maddi.vikash@gmail.com</a></p>
+      <p className="mt-10 text-[12.5px] text-faint"><Link className="underline underline-offset-2" href="/privacy">Privacy policy</Link> · <Link className="underline underline-offset-2" href="/terms">Terms of service</Link></p>
+      <p className="mt-2 text-[12.5px] text-faint">Questions: <a className="underline underline-offset-2" href="mailto:maddi.vikash@gmail.com">maddi.vikash@gmail.com</a></p>
     </main>
   );
 }
