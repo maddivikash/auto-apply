@@ -93,6 +93,40 @@ export async function requestSubmitAction(id: string): Promise<ActionResult> {
   }
 }
 
+/** The user finished the submit themselves in the runner's browser window (for example typed the code there). */
+export async function markSubmittedAction(id: string): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const app = await getApplication(userId, id);
+    if (!app) return { ok: false, error: "This application no longer exists." };
+    if (!["filled", "submit_requested", "code_required", "failed"].includes(app.status)) return { ok: false, error: `Cannot mark a ${LABEL[app.status].toLowerCase()} application as submitted.` };
+    app.status = "submitted"; app.submittedAt = new Date().toISOString(); app.verificationCode = undefined; app.error = undefined;
+    app.runnerNotes = [...(app.runnerNotes || []), "Marked as submitted by you"].slice(-30);
+    await saveApplication(app);
+    revalidatePath("/", "layout");
+    return { ok: true, message: "Marked as submitted." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not update the application." };
+  }
+}
+
+/** The user types the code Greenhouse emailed them; the runner picks it up on its next poll. */
+export async function submitCodeAction(id: string, code: string): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const app = await getApplication(userId, id);
+    if (!app) return { ok: false, error: "This application no longer exists." };
+    if (app.status !== "code_required") return { ok: false, error: "This application is not waiting for a code right now." };
+    const clean = code.replace(/[\s-]/g, "").toUpperCase();
+    if (!/^[A-Z0-9]{6,10}$/.test(clean)) return { ok: false, error: "The code is 8 letters and digits, as in the Greenhouse email." };
+    app.verificationCode = clean; await saveApplication(app);
+    revalidatePath("/", "layout");
+    return { ok: true, message: "Code saved. The runner enters it within a few seconds." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not save the code." };
+  }
+}
+
 export async function deleteAction(formData: FormData) {
   const userId = await requireUserId();
   await deleteApplication(userId, String(formData.get("id")));

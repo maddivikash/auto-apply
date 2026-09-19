@@ -7,12 +7,13 @@ import { Settings } from "@/lib/profile/types";
 import { refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
 import { markStale } from "@/lib/apply/stale";
 import { openQuestions } from "@/lib/stats";
-import { approveAction, deleteAction, reprocessAction, requestSubmitAction, saveAnswersAction } from "../../../actions";
+import { approveAction, deleteAction, reprocessAction, requestSubmitAction, saveAnswersAction, submitCodeAction, markSubmittedAction } from "../../../actions";
 import { IN_PROGRESS, LABEL, StatusBadge, StageTrack } from "@/components/status";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { SubmitButton } from "@/components/submit-button";
 import { ActionButton } from "@/components/action-button";
 import { RegeneratePanel } from "@/components/regenerate-panel";
+import { CodeForm } from "@/components/code-form";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -26,14 +27,15 @@ export default async function ApplicationPage({ params, searchParams }: { params
   if (markStale(app)) await saveApplication(app);
   // Answers follow the current Profile and Answers pages, not the moment the link was pasted.
   if (refreshAnswers(app, withProfileFallback(Settings.parse(settings ?? {}), profile)) && app.status === "ready") await saveApplication(app);
-  const busy = IN_PROGRESS.includes(app.status);
+  const waitingForCode = app.status === "code_required" && !app.verificationCode;
+  const busy = IN_PROGRESS.includes(app.status) || (app.status === "code_required" && !!app.verificationCode);
   // Regenerate is allowed while merely approved (approval is cleared); blocked only while a step is actually running.
-  const processing = ["queued", "fetching", "tailoring", "rendering", "filling", "submit_requested"].includes(app.status);
+  const processing = ["queued", "fetching", "tailoring", "rendering", "filling", "submit_requested"].includes(app.status) || (app.status === "code_required" && !!app.verificationCode);
   const open = openQuestions(app);
   const answered = app.questions.filter((q) => !open.includes(q) && q.type !== "file");
   const files = app.questions.filter((q) => q.type === "file");
   const blocked = open.some((q) => q.required);
-  const step = app.status === "ready" ? 1 : ["approved", "filling"].includes(app.status) ? 2 : ["filled", "submit_requested", "submitted"].includes(app.status) ? 3 : 0;
+  const step = app.status === "ready" ? 1 : ["approved", "filling"].includes(app.status) ? 2 : ["filled", "submit_requested", "code_required", "submitted"].includes(app.status) ? 3 : 0;
 
   return (
     <div className="space-y-8">
@@ -51,6 +53,12 @@ export default async function ApplicationPage({ params, searchParams }: { params
       </div>
 
       {busy && <Notice tone="accent">{LABEL[app.status]}. This page updates on its own. Writing the resume takes about a minute.</Notice>}
+      {waitingForCode && (
+        <Notice tone="signal">
+          <span className="font-medium">Greenhouse emailed you a verification code.</span> Check {settings?.email || profile?.email || "your inbox"} for a message from Greenhouse with an 8-character security code, type it here, and the runner finishes the submit. {app.error && <span className="text-danger">{app.error}</span>}
+          <CodeForm id={app.id} action={submitCodeAction} />
+        </Notice>
+      )}
       {app.status === "failed" && <Notice tone="danger">{app.error} <div className="mt-2"><ActionButton action={reprocessAction} id={app.id} pending="Starting">Try again</ActionButton></div></Notice>}
       {app.status === "unsupported" && <Notice tone="signal">{app.error} Supported boards: Greenhouse, Lever and Ashby.</Notice>}
 
@@ -106,6 +114,10 @@ export default async function ApplicationPage({ params, searchParams }: { params
                 </Step>
                 <Step n={3} title="You press Submit" state={app.status === "submitted" ? "done" : step === 3 ? "current" : "later"} body="Nothing is sent before this.">
                   {app.status === "filled" && <div className="mt-3"><ActionButton action={requestSubmitAction} id={app.id} pending="Submitting" className="btn-go">Submit application</ActionButton></div>}
+                  {app.status === "code_required" && <p className="mt-2 text-[12.5px] text-muted">{app.verificationCode ? "Code received. The runner is entering it." : "Waiting for the verification code above."}</p>}
+                  {["filled", "submit_requested", "code_required"].includes(app.status) && (
+                    <p className="mt-3 flex flex-wrap items-center gap-2 text-[12.5px] text-muted">Finished it yourself in the runner&apos;s browser window? <ActionButton action={markSubmittedAction} id={app.id} pending="Saving" className="btn-quiet h-7 px-2 text-[12.5px] underline underline-offset-2">Mark as submitted</ActionButton></p>
+                  )}
                   {app.status === "submitted" && <p className="mt-2 text-[13px] text-go">Submitted {app.submittedAt && new Date(app.submittedAt).toLocaleString()}.</p>}
                 </Step>
               </ol>

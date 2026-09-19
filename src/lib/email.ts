@@ -39,6 +39,11 @@ export async function emailFormFilled(to: string, app: Application) {
   const job = app.job!; const link = `${APP_URL}/a/${app.id}`;
   await send(to, `Form filled, waiting for your Submit: ${job.company}`, wrap("Form filled, not submitted", `<p>The form for <b>${esc(job.company)}</b>, ${esc(job.title)} is filled in.${app.filledScreenshotUrl ? ` <a href="${link}">See the screenshot</a>.` : ""}</p><p>Check it, then press <b>Submit</b> in the app.</p><p><a href="${link}" style="background:#166534;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">Open application</a></p>`));
 }
+export async function emailCodeRequired(to: string, app: Application) {
+  const job = app.job!; const link = `${APP_URL}/a/${app.id}`;
+  await send(to, `Action needed: enter the verification code for ${job.company}`, wrap("Greenhouse wants a verification code", `<p>To finish submitting to <b>${esc(job.company)}</b>, ${esc(job.title)}, Greenhouse has emailed you an 8-character security code (look for a message from Greenhouse or no-reply@greenhouse.io).</p><p>Type that code into the application page and the runner finishes the submit.</p><p><a href="${link}" style="background:#166534;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">Enter the code</a></p>`));
+}
+
 export async function emailSubmitted(to: string, app: Application) {
   const job = app.job!;
   await send(to, `Submitted: ${job.company}, ${job.title}`, wrap("Application submitted", `<p><b>${esc(job.company)}</b>, ${esc(job.title)} was submitted.</p>`));

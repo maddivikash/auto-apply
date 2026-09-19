@@ -79,6 +79,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                         {a.job && <span className="capitalize">{a.job.board}</span>}
                         <span>{date}</span>
                         {open > 0 && a.status === "ready" && <span className="text-signal">{open} question{open > 1 ? "s need" : " needs"} you</span>}
+                        {a.status === "code_required" && !a.verificationCode && <span className="text-signal">Enter the code Greenhouse emailed you</span>}
                         {a.error && ["failed", "unsupported"].includes(a.status) && <span className="truncate text-danger">{a.error.slice(0, 80)}</span>}
                       </div>
                     </div>

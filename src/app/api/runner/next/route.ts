@@ -8,6 +8,6 @@ export async function GET() {
   const uid = await runnerUserId();
   if (!uid) return new Response("Unauthorized", { status: 401 });
   const [apps, settings, profile] = await Promise.all([listApplications(uid), getSettings(uid), getProfile(uid)]);
-  const work = apps.filter((a) => a.status === "approved" || a.status === "submit_requested");
+  const work = apps.filter((a) => a.status === "approved" || a.status === "submit_requested" || (a.status === "code_required" && !!a.verificationCode));
   return Response.json({ work, settings: withProfileFallback(Settings.parse(settings ?? {}), profile) });
 }

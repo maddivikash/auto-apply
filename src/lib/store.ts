@@ -3,6 +3,7 @@
  * Falls back to the local filesystem when BLOB_READ_WRITE_TOKEN is absent.
  */
 import { put, list, del } from "@vercel/blob";
+import { nanoid } from "nanoid";
 import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, unlinkSync } from "node:fs";
 import { join, dirname } from "node:path";
 import type { JobPosting, JobQuestion } from "./jobs/fetch";
@@ -14,7 +15,7 @@ export type QuestionState = JobQuestion & { answer?: string; source?: "profile" 
 
 export type ApplicationStatus =
   | "queued" | "fetching" | "unsupported" | "tailoring" | "rendering" | "ready"
-  | "approved" | "filling" | "filled" | "submit_requested" | "submitted" | "failed";
+  | "approved" | "filling" | "filled" | "submit_requested" | "code_required" | "submitted" | "failed";
 
 export type Application = {
   id: string;
@@ -41,6 +42,12 @@ export type Application = {
   approvedAt?: string;
   filledScreenshotUrl?: string;
   runnerNotes?: string[];
+  /** When the "form is filled" alert and email last went out, so re-fills do not repeat them. */
+  filledNotifiedAt?: string;
+  /** Greenhouse emailed the applicant a code at submit time; the runner waits for it. */
+  codeRequestedAt?: string;
+  /** The code the user typed in the app. The runner enters it, then clears it. */
+  verificationCode?: string;
   submittedAt?: string;
 };
 
@@ -48,7 +55,7 @@ export type Notification = {
   id: string;
   userId: string;
   createdAt: string;
-  kind: "ready" | "needs_details" | "filled" | "submitted" | "failed" | "unsupported" | "info";
+  kind: "ready" | "needs_details" | "filled" | "code_required" | "submitted" | "failed" | "unsupported" | "info";
   title: string;
   body?: string;
   applicationId?: string;
@@ -117,9 +124,13 @@ export const deleteRunnerToken = (token: string) => delJson(`runner-tokens/${tok
 
 // ---- notifications ----------------------------------------------------------
 export async function addNotification(n: Omit<Notification, "id" | "createdAt" | "read">) {
-  const full: Notification = { ...n, id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, createdAt: new Date().toISOString(), read: false };
+  // One live alert per kind and application: a repeat replaces the unread one instead of stacking.
+  if (n.applicationId) {
+    const dup = (await listNotifications(n.userId)).find((x) => !x.read && x.kind === n.kind && x.applicationId === n.applicationId);
+    if (dup) { await putJson(`users/${n.userId}/notifications/${dup.id}.json`, { ...dup, ...n, createdAt: new Date().toISOString() }); return; }
+  }
+  const full: Notification = { ...n, id: nanoid(10), createdAt: new Date().toISOString(), read: false };
   await putJson(`users/${n.userId}/notifications/${full.id}.json`, full);
-  return full;
 }
 export async function listNotifications(userId: string) { return (await listJson<Notification>(`users/${userId}/notifications/`)).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
 export async function markNotificationsRead(userId: string, ids?: string[]) {

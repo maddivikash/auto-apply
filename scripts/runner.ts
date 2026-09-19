@@ -182,15 +182,39 @@ function countryFromPhone(phone: string): string {
   return map[m[1]] || map[m[1].slice(0, 2)] || map[m[1].slice(0, 1)] || "";
 }
 
-async function submitGreenhouse(page: Page) {
+const CODE_INPUTS = 'input[autocomplete="one-time-code"], input[maxlength="1"], input[name*="code" i], input[id*="code" i], input[aria-label*="code" i]';
+
+/** After Submit, Greenhouse may ask for an emailed code before it accepts the application. */
+async function codeScreenShown(root: Page) {
+  const text = (await root.locator("body").innerText().catch(() => "")).toLowerCase();
+  return /verification code was sent|security code|enter the .{0,12}code/.test(text) && (await root.locator(CODE_INPUTS).count()) > 0;
+}
+
+async function submitGreenhouse(page: Page): Promise<"submitted" | "code_required"> {
   const root = await greenhouseRoot(page);
   await root.getByRole("button", { name: /submit application/i }).click();
   await page.waitForTimeout(4000);
+  if (await codeScreenShown(root)) return "code_required";
   const text = (await root.locator("body").innerText()).toLowerCase();
-  if (/thank you|application (has been )?submitted|we have received/i.test(text)) return true;
+  if (/thank you|application (has been )?submitted|we have received/i.test(text)) return "submitted";
   if (/captcha|verify you are human/i.test(text)) throw new Error("reCAPTCHA challenge shown; complete it in the window and press Submit there.");
   const errors = await root.locator(".field-error, [role=alert], .error").allInnerTexts();
   throw new Error(`No confirmation after submit. ${errors.filter(Boolean).slice(0, 3).join(" | ")}`);
+}
+
+/** Type the emailed code into Greenhouse's boxes and confirm. Returns true on the thank-you page. */
+async function enterGreenhouseCode(page: Page, code: string): Promise<boolean> {
+  const inputs = page.locator(CODE_INPUTS);
+  const n = await inputs.count();
+  if (n === 0) throw new Error("The code boxes are no longer on the page");
+  if (n >= code.length) { for (let i = 0; i < code.length; i++) { await inputs.nth(i).click(); await inputs.nth(i).fill(code[i]); } }
+  else { await inputs.first().click(); await inputs.first().fill(""); await inputs.first().pressSequentially(code, { delay: 40 }); }
+  await page.waitForTimeout(600);
+  const btn = page.getByRole("button", { name: /submit|verify|confirm|continue/i }).last();
+  if (await btn.count()) await btn.click();
+  await page.waitForTimeout(5000);
+  const text = (await page.locator("body").innerText()).toLowerCase();
+  return /thank you|application (has been )?submitted|we have received/i.test(text);
 }
 
 // ---- Lever / Ashby: generic label-driven fill ------------------------------
@@ -281,14 +305,48 @@ async function submit(app: Application) {
     if (!entry) return;
   }
   try {
-    const ok = app.job!.board === "greenhouse" ? await submitGreenhouse(entry.page) : await submitGeneric(entry.page);
+    const outcome = app.job!.board === "greenhouse" ? await submitGreenhouse(entry.page) : (await submitGeneric(entry.page)) ? "submitted" : "failed";
     const shot = await entry.page.screenshot({ fullPage: true });
-    await report(app.id, { status: ok ? "submitted" : "failed", notes: ["Submitted by runner after your approval"], screenshotBase64: shot.toString("base64") });
+    if (outcome === "code_required") {
+      await report(app.id, { status: "code_required", notes: ["Greenhouse asked for the emailed verification code"], screenshotBase64: shot.toString("base64") });
+      log(`code required for ${app.id}, waiting for the user to type it in the app`);
+      return;
+    }
+    await report(app.id, { status: outcome, notes: ["Submitted by runner after your approval"], screenshotBase64: shot.toString("base64") });
     log(`submitted ${app.id}`);
     await entry.page.close(); live.delete(app.id);
   } catch (e) {
-    await report(app.id, { status: "filled", notes: [`Submit attempt: ${(e as Error).message}`] });
-    log(`submit needs attention ${app.id}:`, (e as Error).message);
+    const msg = (e as Error).message;
+    if (/has been closed/i.test(msg)) {
+      live.delete(app.id);
+      await report(app.id, { status: "filled", error: "The form tab was closed. If you submitted it yourself, use Mark as submitted; otherwise press Submit again and the runner refills the form.", notes: ["Submit attempt: the browser tab was closed"] });
+      log(`tab closed for ${app.id}`);
+      return;
+    }
+    await report(app.id, { status: "filled", notes: [`Submit attempt: ${msg.slice(0, 160)}`] });
+    log(`submit needs attention ${app.id}:`, msg);
+  }
+}
+
+async function enterCode(app: Application) {
+  const entry = live.get(app.id);
+  if (!entry) {
+    await report(app.id, { status: "filled", notes: ["The form tab was lost before the code arrived. Press Submit again; a new code will be sent."], error: "Runner restarted; press Submit again." });
+    return;
+  }
+  try {
+    const ok = await enterGreenhouseCode(entry.page, app.verificationCode!);
+    const shot = await entry.page.screenshot({ fullPage: true });
+    if (ok) {
+      await report(app.id, { status: "submitted", notes: ["Verification code accepted, application submitted"], screenshotBase64: shot.toString("base64") });
+      log(`submitted ${app.id} after code`);
+      await entry.page.close(); live.delete(app.id);
+    } else {
+      await report(app.id, { status: "code_required", error: "Greenhouse did not accept that code. Check the newest email and try again.", notes: ["Code rejected"], screenshotBase64: shot.toString("base64") });
+      log(`code rejected for ${app.id}`);
+    }
+  } catch (e) {
+    await report(app.id, { status: "code_required", error: `Could not enter the code: ${(e as Error).message.slice(0, 120)}`, notes: [`Code entry: ${(e as Error).message}`] });
   }
 }
 
@@ -304,6 +362,7 @@ async function loop() {
         try {
           if (app.status === "approved" && !live.has(app.id)) await fill(app);
           else if (app.status === "submit_requested") await submit(app);
+          else if (app.status === "code_required" && app.verificationCode) await enterCode(app);
         } finally { inFlight.delete(app.id); }
       }
     } catch (e) { log("poll error:", (e as Error).message); }

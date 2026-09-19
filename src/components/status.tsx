@@ -3,7 +3,7 @@ import type { ApplicationStatus } from "@/lib/store";
 export const LABEL: Record<ApplicationStatus, string> = {
   queued: "Queued", fetching: "Reading job", tailoring: "Writing resume", rendering: "Rendering PDF",
   unsupported: "Not supported", ready: "Ready for review", approved: "Waiting for runner", filling: "Filling form",
-  filled: "Awaiting your Submit", submit_requested: "Submitting", submitted: "Submitted", failed: "Failed"
+  filled: "Awaiting your Submit", submit_requested: "Submitting", code_required: "Enter the email code", submitted: "Submitted", failed: "Failed"
 };
 export const IN_PROGRESS: ApplicationStatus[] = ["queued", "fetching", "tailoring", "rendering", "approved", "filling", "submit_requested"];
 
@@ -11,7 +11,7 @@ type Tone = "neutral" | "accent" | "go" | "signal" | "danger" | "done";
 const TONE: Record<ApplicationStatus, Tone> = {
   queued: "neutral", fetching: "accent", tailoring: "accent", rendering: "accent",
   unsupported: "signal", ready: "go", approved: "accent", filling: "accent",
-  filled: "signal", submit_requested: "accent", submitted: "done", failed: "danger"
+  filled: "signal", submit_requested: "accent", code_required: "signal", submitted: "done", failed: "danger"
 };
 const TONE_CLASS: Record<Tone, string> = {
   neutral: "bg-surface-2 text-muted",
@@ -33,7 +33,7 @@ export function StatusBadge({ status }: { status: ApplicationStatus }) {
 const STAGES = ["Read", "Resume", "Answers", "Filled", "Submitted"] as const;
 export function stageIndex(status: ApplicationStatus, needsDetails: boolean): number {
   if (status === "submitted") return 5;
-  if (["filled", "submit_requested"].includes(status)) return 4;
+  if (["filled", "submit_requested", "code_required"].includes(status)) return 4;
   if (["approved", "filling"].includes(status)) return 3;
   if (status === "ready") return needsDetails ? 2 : 3;
   if (["tailoring", "rendering"].includes(status)) return 1;

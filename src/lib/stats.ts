@@ -5,10 +5,10 @@ export function summarize(apps: Application[]) {
   return {
     total: apps.length,
     submitted: by((a) => a.status === "submitted"),
-    awaitingSubmit: by((a) => a.status === "filled"),
+    awaitingSubmit: by((a) => a.status === "filled" || (a.status === "code_required" && !a.verificationCode)),
     needsDetails: by((a) => a.status === "ready" && a.questions.some((q) => q.needsHuman && !q.answer)),
     readyToApprove: by((a) => a.status === "ready" && !a.questions.some((q) => q.needsHuman && !q.answer)),
-    inProgress: by((a) => ["queued", "fetching", "tailoring", "rendering", "approved", "filling", "submit_requested"].includes(a.status)),
+    inProgress: by((a) => ["queued", "fetching", "tailoring", "rendering", "approved", "filling", "submit_requested"].includes(a.status) || (a.status === "code_required" && !!a.verificationCode)),
     failed: by((a) => a.status === "failed"),
     unsupported: by((a) => a.status === "unsupported")
   };

@@ -2,9 +2,9 @@ import { runnerUserId } from "@/lib/auth";
 import { getApplication, saveApplication, saveFile, getSettings, getProfile, addNotification, type ApplicationStatus, type QuestionState } from "@/lib/store";
 import { Settings } from "@/lib/profile/types";
 import { refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
-import { emailFormFilled, emailSubmitted } from "@/lib/email";
+import { emailCodeRequired, emailFormFilled, emailSubmitted } from "@/lib/email";
 
-const ALLOWED: ApplicationStatus[] = ["filling", "filled", "submitted", "failed", "approved"];
+const ALLOWED: ApplicationStatus[] = ["filling", "filled", "submitted", "failed", "approved", "code_required"];
 
 /** Runner reports progress: status changes, notes, discovered questions, and the screenshot. */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -28,7 +28,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (body.status && ALLOWED.includes(body.status)) {
     app.status = body.status;
     if (body.status === "submitted") { app.submittedAt = new Date().toISOString(); await saveApplication(app); await addNotification({ userId: uid, kind: "submitted", applicationId: id, title: `Submitted to ${app.job?.company}` }); await emailSubmitted(to, app); }
-    else if (body.status === "filled") { await saveApplication(app); await addNotification({ userId: uid, kind: "filled", applicationId: id, title: `${app.job?.company} form is filled`, body: "Check the screenshot, then press Submit." }); await emailFormFilled(to, app); }
+    else if (body.status === "filled") {
+      // Alert and email once per approval; a re-fill of the same approval only refreshes the screenshot.
+      const fresh = !app.filledNotifiedAt || (app.approvedAt && app.approvedAt > app.filledNotifiedAt);
+      await saveApplication(app);
+      if (fresh) { app.filledNotifiedAt = new Date().toISOString(); await addNotification({ userId: uid, kind: "filled", applicationId: id, title: `${app.job?.company} form is filled`, body: "Check the screenshot, then press Submit." }); await emailFormFilled(to, app); }
+    }
+    else if (body.status === "code_required") {
+      app.codeRequestedAt = new Date().toISOString(); app.verificationCode = undefined;
+      await saveApplication(app);
+      await addNotification({ userId: uid, kind: "code_required", applicationId: id, title: `Enter the verification code for ${app.job?.company}`, body: body.error || "Greenhouse emailed you an 8-character code. Type it on the application page." });
+      await emailCodeRequired(to, app);
+    }
     else if (body.status === "failed") await addNotification({ userId: uid, kind: "failed", applicationId: id, title: `Filling failed for ${app.job?.company}`, body: body.error });
   }
   await saveApplication(app);
