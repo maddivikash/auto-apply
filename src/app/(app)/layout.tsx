@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
-import { Bell, Bot, LayoutList, ListChecks, UserRound } from "lucide-react";
+import { Bell, Bot, LayoutList, ListChecks, Plug, UserRound } from "lucide-react";
 import { userId } from "@/lib/auth";
 import { getProfile, listNotifications } from "@/lib/store";
 import { NavLink } from "@/components/nav-link";
@@ -25,6 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <NavLink href="/profile" icon={<UserRound size={16} />} warn={!profile}>Profile</NavLink>
           <NavLink href="/answers" icon={<ListChecks size={16} />}>Answers</NavLink>
           <NavLink href="/runner" icon={<Bot size={16} />}>Runner</NavLink>
+          <NavLink href="/connect" icon={<Plug size={16} />}>Connect</NavLink>
         </nav>
         <div className="mt-auto flex items-center gap-3 rounded-[var(--radius-ctl)] px-2 py-2 text-[13px] text-muted">{account}<span>Account</span></div>
       </aside>

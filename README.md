@@ -26,6 +26,14 @@ Generate a resume from the terminal without the app:
 npx tsx scripts/generate.ts <job-url> --out samples
 ```
 
+## Connect an agent (Muse, Claude, ChatGPT)
+
+Any MCP client can drive the whole flow on a user's account: `https://<app>/mcp`, secured with
+Clerk OAuth 2.1. A REST mirror lives at `/api/v1` (`/openapi.json`) for connectors that want plain
+HTTP with a personal API key from the app's Connect page. The agent brings the browser; the API
+returns the tailored PDF and every form answer, and the agent reports back with `mark_submitted`.
+Setup and the Muse submission text: [docs/muse-connector.md](docs/muse-connector.md).
+
 ## Layout
 
 ```
@@ -36,6 +44,7 @@ src/lib/defaults.ts         known answers and label rules for form questions
 src/lib/apply/pipeline.ts   link -> job -> resume -> PDF -> email
 src/lib/store.ts            JSON documents and files on Vercel Blob (local .data/ fallback)
 src/app/                    login, list, review page, runner API
+src/app/mcp/                MCP server (Clerk OAuth); src/app/api/v1/ REST mirror; src/lib/api/ shared connector logic
 scripts/runner.ts           local Playwright runner
 ```
 

@@ -6,7 +6,7 @@ import { after } from "next/server";
 import { nanoid } from "nanoid";
 import { randomBytes } from "node:crypto";
 import { requireUserId, userEmail } from "@/lib/auth";
-import { getApplication, saveApplication, deleteApplication, saveProfile, getProfile, getSettings, saveSettings, saveRunnerToken, deleteRunnerToken, markNotificationsRead, listApplications, type Application } from "@/lib/store";
+import { getApplication, saveApplication, deleteApplication, saveProfile, getProfile, getSettings, saveSettings, saveRunnerToken, deleteRunnerToken, saveApiKey, deleteApiKey, markNotificationsRead, listApplications, type Application } from "@/lib/store";
 import { Profile, Settings } from "@/lib/profile/types";
 import { processApplication } from "@/lib/apply/pipeline";
 import { pdfToText, textToProfile } from "@/lib/profile/import";
@@ -216,6 +216,35 @@ export async function rotateRunnerTokenAction(): Promise<ActionResult> {
     return { ok: true, message: current.runnerToken ? "New token generated. The old one no longer works; update .env.local on the runner machine." : "Token generated. Copy it into .env.local on the runner machine." };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not generate a token." };
+  }
+}
+
+/** Personal API key for the connector API (custom connectors, scripts). MCP clients sign in with OAuth instead. */
+export async function rotateApiKeyAction(): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const current = Settings.parse((await getSettings(userId)) ?? {});
+    if (current.apiKey) await deleteApiKey(current.apiKey);
+    const key = randomBytes(24).toString("base64url");
+    await saveApiKey(key, userId);
+    await saveSettings(userId, { ...current, apiKey: key });
+    revalidatePath("/connect");
+    return { ok: true, message: current.apiKey ? "New API key generated. The old one no longer works." : "API key generated." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not generate a key." };
+  }
+}
+
+export async function revokeApiKeyAction(): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const current = Settings.parse((await getSettings(userId)) ?? {});
+    if (current.apiKey) await deleteApiKey(current.apiKey);
+    await saveSettings(userId, { ...current, apiKey: "" });
+    revalidatePath("/connect");
+    return { ok: true, message: "API key revoked." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not revoke the key." };
   }
 }
 

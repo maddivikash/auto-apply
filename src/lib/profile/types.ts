@@ -72,6 +72,8 @@ export const Settings = z.object({
   salaryExpectation: z.string().default(""),
   /** Runner bearer token for this user's machine. */
   runnerToken: z.string().default(""),
+  /** Personal API key for the connector API (MCP clients use OAuth instead). */
+  apiKey: z.string().default(""),
   notifyEmail: z.string().default("")
 });
 export type Settings = z.infer<typeof Settings>;

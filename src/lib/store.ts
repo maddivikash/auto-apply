@@ -86,6 +86,11 @@ export const saveRunnerToken = (token: string, userId: string) => putJson(`runne
 export const userForRunnerToken = async (token: string) => (await getJson<{ userId: string }>(`runner-tokens/${token}.json`))?.userId ?? null;
 export const deleteRunnerToken = (token: string) => delJson(`runner-tokens/${token}.json`);
 
+// ---- connector API keys (Connect page; used by custom connectors and scripts) --------------
+export const saveApiKey = (key: string, userId: string) => putJson(`api-keys/${key}.json`, { userId, createdAt: new Date().toISOString() });
+export const userForApiKey = async (key: string) => (await getJson<{ userId: string }>(`api-keys/${key}.json`))?.userId ?? null;
+export const deleteApiKey = (key: string) => delJson(`api-keys/${key}.json`);
+
 // ---- notifications ----------------------------------------------------------
 export async function addNotification(n: Omit<Notification, "id" | "createdAt" | "read">) {
   // One live alert per kind and application: a repeat replaces the unread one instead of stacking.
