@@ -17,6 +17,7 @@ import { textToProfile } from "../profile/import";
 import { mergeProfiles } from "../profile/merge";
 import { signedPdfUrl } from "./sign";
 import { draftAnswers } from "../apply/draft";
+import { searchJobs, allCompanies, addUserCompany, companyFromUrl, type SearchOptions } from "../jobs/boards";
 import { fetchJob } from "../jobs/fetch";
 import { resumeFileName } from "../resume/filename";
 import { ApiError } from "./auth";
@@ -284,3 +285,22 @@ export async function updateKnownAnswers(userId: string, patch: Record<string, u
 }
 
 export const STATUSES: ApplicationStatus[] = ["queued", "fetching", "unsupported", "tailoring", "rendering", "ready", "approved", "filling", "filled", "submit_requested", "code_required", "submitted", "failed"];
+
+// ---- discovery: which companies use a supported board, and what they have open ------------------
+
+export async function listCompanies(userId: string, board?: string) {
+  const all = await allCompanies(userId);
+  return all.filter((c) => !board || c.board === board).map((c) => ({ ...c, careersUrl: c.board === "greenhouse" ? `https://job-boards.greenhouse.io/${c.token}` : c.board === "ashby" ? `https://jobs.ashbyhq.com/${c.token}` : `https://jobs.lever.co/${c.token}` }));
+}
+
+export async function addCompany(userId: string, careersUrl: string) {
+  const c = companyFromUrl(careersUrl);
+  if (!c) throw new ApiError(400, "Paste a Greenhouse, Lever or Ashby careers URL, such as https://jobs.ashbyhq.com/acme or https://boards.greenhouse.io/acme.");
+  await addUserCompany(userId, c);
+  return { added: c, companies: (await allCompanies(userId)).length };
+}
+
+export async function findJobs(userId: string, opts: SearchOptions) {
+  const r = await searchJobs(userId, { ...opts, limit: Math.min(opts.limit ?? 30, 100) });
+  return { openRoles: r.total, companies: r.companies, results: r.results.map(({ score: _s, token: _t, ...l }) => l) };
+}

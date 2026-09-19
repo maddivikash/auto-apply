@@ -98,6 +98,26 @@ const handler = createMcpHandler((server) => {
     annotations: { destructiveHint: true }
   }, async ({ id }, extra) => run(() => c.removeApplication(uid(extra), id)));
 
+  server.registerTool("search_jobs", {
+    title: "Search open roles",
+    description: "Search open roles across the companies known to hire through Greenhouse, Lever or Ashby (127 verified boards plus any the user added). Query words match the job title; location accepts city, country, 'India' or 'Remote'. Results carry the posting URL that prepare_application accepts.",
+    inputSchema: z.object({ query: z.string().describe("Title words, e.g. 'AI agents full stack platform'"), location: z.string().optional().describe("e.g. 'Bengaluru', 'India, Remote'"), limit: z.number().int().min(1).max(100).optional(), boards: z.array(z.enum(["greenhouse", "lever", "ashby"])).optional() }),
+    annotations: { readOnlyHint: true }
+  }, async ({ query, location, limit, boards }, extra) => run(() => c.findJobs(uid(extra), { query, location, limit, boards })));
+
+  server.registerTool("list_companies", {
+    title: "Companies with a supported job board",
+    description: "Every company the user can apply to through this service, with its board (greenhouse, lever, ashby) and careers URL. Optionally filter by board.",
+    inputSchema: z.object({ board: z.enum(["greenhouse", "lever", "ashby"]).optional() }),
+    annotations: { readOnlyHint: true }
+  }, async ({ board }, extra) => run(() => c.listCompanies(uid(extra), board)));
+
+  server.registerTool("add_company", {
+    title: "Add a company by careers URL",
+    description: "Add a company to the user's searchable list from its Greenhouse, Lever or Ashby careers URL (e.g. https://jobs.ashbyhq.com/acme). Use when the user names a company that is not in list_companies.",
+    inputSchema: z.object({ careersUrl: z.string() })
+  }, async ({ careersUrl }, extra) => run(() => c.addCompany(uid(extra), careersUrl)));
+
   server.registerTool("get_profile", {
     title: "Get the master profile",
     description: "The user's master profile: the only facts the resume writer may use (roles with bullet banks, projects, education, skills, achievements).",

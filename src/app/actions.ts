@@ -11,6 +11,7 @@ import { Profile, Settings } from "@/lib/profile/types";
 import { processApplication } from "@/lib/apply/pipeline";
 import { draftAnswers } from "@/lib/apply/draft";
 import { fetchJob } from "@/lib/jobs/fetch";
+import { companyFromUrl, addUserCompany } from "@/lib/jobs/boards";
 import { pdfToText, textToProfile } from "@/lib/profile/import";
 import { mergeProfiles } from "@/lib/profile/merge";
 import { ANSWERS_MATTER, refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
@@ -191,6 +192,17 @@ export async function redraftAction(id: string, questionId: string, notes?: stri
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not rewrite the answer." };
   }
+}
+
+/** Add a company's Greenhouse, Lever or Ashby board to the user's Discover list. */
+export async function addCompanyAction(formData: FormData) {
+  const userId = await requireUserId();
+  const url = String(formData.get("careersUrl") || "").trim();
+  const c = companyFromUrl(url);
+  if (!c) redirect(`/discover?error=${encodeURIComponent("That is not a Greenhouse, Lever or Ashby careers URL. Examples: jobs.ashbyhq.com/acme, boards.greenhouse.io/acme, jobs.lever.co/acme.")}`);
+  await addUserCompany(userId, c);
+  revalidatePath("/discover");
+  redirect(`/discover?added=${encodeURIComponent(c.name)}`);
 }
 
 /** Accept every AI draft on an application as-is. */

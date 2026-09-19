@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
-import { Bell, Bot, LayoutList, ListChecks, Plug, UserRound } from "lucide-react";
+import { Bell, Bot, CheckCircle2, LayoutList, ListChecks, Plug, Search, UserRound } from "lucide-react";
 import { userId } from "@/lib/auth";
 import { getProfile, listNotifications } from "@/lib/store";
 import { NavLink } from "@/components/nav-link";
@@ -21,6 +21,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Link href="/dashboard" className="w-fit px-1.5 py-1"><Brand /></Link>
         <nav className="mt-7 flex flex-col gap-0.5">
           <NavLink href="/dashboard" icon={<LayoutList size={16} />}>Applications</NavLink>
+          <NavLink href="/discover" icon={<Search size={16} />}>Discover</NavLink>
+          <NavLink href="/applied" icon={<CheckCircle2 size={16} />}>Applied</NavLink>
           <NavLink href="/notifications" icon={<Bell size={16} />} badge={unread || undefined}>Notifications</NavLink>
           <div className="mt-5 px-2.5 pb-1.5 text-[11.5px] font-medium text-faint">About you</div>
           <NavLink href="/profile" icon={<UserRound size={16} />} warn={!profile}>Profile</NavLink>
@@ -36,7 +38,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Link href="/dashboard"><Brand /></Link>
           <nav className="flex items-center gap-4 text-[13px]"><Link href="/notifications" className="text-muted">Alerts{unread ? ` (${unread})` : ""}</Link><Link href="/profile" className="text-muted">Profile</Link><Link href="/answers" className="text-muted">Answers</Link>{account}</nav>
         </header>
-        {!profile && <div className="border-b border-line bg-signal-soft px-6 py-2.5 text-[13.5px] text-signal">Your profile is empty. <Link href="/profile#import" className="font-medium underline underline-offset-2">Upload your resume</Link> to start applying.</div>}
+        {!profile && (
+          <div className="relative mx-auto mt-6 max-w-[1080px] px-5 md:px-8">
+            <div className="flex flex-col gap-3 border border-line-strong bg-surface p-4 md:flex-row md:items-center md:justify-between md:px-5">
+              <div className="flex items-start gap-3">
+                <span className="mt-[3px] h-2 w-2 shrink-0 bg-accent" aria-hidden />
+                <div><div className="text-[14px] font-medium">Start with your resume</div><p className="mt-0.5 text-[13px] text-muted">Upload the PDF you already have. It becomes your profile, and every tailored resume after that is written only from what it contains.</p></div>
+              </div>
+              <Link href="/profile#import" className="btn-primary h-9 shrink-0">Upload resume</Link>
+            </div>
+          </div>
+        )}
         <main className="relative mx-auto max-w-[1080px] px-5 py-8 md:px-8 md:py-10">{children}</main>
       </div>
     </div>
