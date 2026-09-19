@@ -1,0 +1,24 @@
+import { chromium } from "playwright";
+import { writeFileSync } from "node:fs";
+import { DETECT } from "./detect.mjs";
+const GH = "airbnb coinbase figma robinhood discord reddit gusto brex plaid instacart doordash lyft pinterest dropbox asana twilio okta cloudflare databricks gleanwork scaleai duolingo affirm flexport samsara benchling carta chime faire nuro waymo mongodb elastic hashicorp datadog snowflake confluent gitlab grammarly canva squarespace webflow airtable calendly zapier intercom hubspot amplitude mixpanel segment braze sprinklr toast pubmatic truveta zenoti togetherai roku particle41llc bloomreach sezzle opswat smartsheet gomotive 6sense neo4j lts highmetric dscout empowerpharmacy coherehealth zetaglobal agoda globalhealthcareexchangeinc anduril spacex nianticlabs epicgames unity roblox rivian lucidmotors tesla nvidia amd qualcomm arm intel micron cruise aurora zoox".split(" ");
+const ASHBY = "openai ramp linear vercel replit supabase posthog perplexity cohere mistral runwayml Sierra harvey writer livekit cartesia spector-ai Wisdom-AI deel quora notion anysphere elevenlabs modal-labs baseten together-ai lambda-labs glean character warp fal weights-biases fireworks-ai crusoe sourcegraph browserbase exa mintlify resend clerk neon planetscale turso fly-io render railway tempo infisical tolken runpod outmarket netic blaxel hatch intentlab vooma prosper-ai reflectionai monaco titan-ai broccoli applied aiprise genera granica opengov nanonets protege reacher friendliai artian liveflow traba sema4.ai".split(" ");
+const LEVER = "cyara meesho neuron7 brillio-2 smart-working-solutions levelai binance netflix spotify palantir plaid grab gojek razorpay zepto swiggy cred groww phonepe freshworks postman browserstack chargebee innovaccer druva".split(" ");
+const get = async (u) => { try { const r = await fetch(u, { headers: { "user-agent": "curl/8" } }); if (!r.ok) return null; return await r.json(); } catch { return null; } };
+const targets = [];
+await Promise.all(GH.map(async (t) => { const d = await get(`https://boards-api.greenhouse.io/v1/boards/${t}/jobs`); const j = d?.jobs?.slice(0, 2) || []; for (const x of j) targets.push({ board: "greenhouse", company: t, url: `https://job-boards.greenhouse.io/embed/job_app?for=${t}&token=${x.id}` }); }));
+await Promise.all(ASHBY.map(async (t) => { const d = await get(`https://api.ashbyhq.com/posting-api/job-board/${t}`); const j = d?.jobs?.slice(0, 2) || []; for (const x of j) targets.push({ board: "ashby", company: t, url: (x.applyUrl || x.jobUrl + "/application") }); }));
+await Promise.all(LEVER.map(async (t) => { const d = await get(`https://api.lever.co/v0/postings/${t}?limit=2`); for (const x of (Array.isArray(d) ? d : [])) targets.push({ board: "lever", company: t, url: x.applyUrl }); }));
+console.log("targets:", targets.length, { greenhouse: targets.filter(t => t.board === "greenhouse").length, ashby: targets.filter(t => t.board === "ashby").length, lever: targets.filter(t => t.board === "lever").length });
+const b = await chromium.launch(); const results = [];
+const worker = async () => { while (targets.length) { const t = targets.shift(); const p = await b.newPage({ viewport: { width: 1380, height: 940 } }); try { await p.goto(t.url, { waitUntil: "domcontentloaded", timeout: 40000 }); await p.waitForTimeout(3500); for (let i = 0; i < 5; i++) { await p.mouse.wheel(0, 1500); await p.waitForTimeout(150); } const r = await p.evaluate(DETECT); results.push({ ...t, ...r }); } catch (e) { results.push({ ...t, error: e.message.split("\n")[0] }); } await p.close(); } };
+await Promise.all(Array.from({ length: 6 }, worker));
+await b.close();
+writeFileSync("/private/tmp/claude-501/-Users-vikashmaddi-Projects/212ce788-2c64-4a25-aaa4-ab172acd164d/scratchpad/survey.json", JSON.stringify(results, null, 1));
+const withEdu = results.filter(r => r.fields?.length);
+console.log(`forms loaded: ${results.filter(r => !r.error).length}/${results.length}; with education fields: ${withEdu.length}`);
+for (const board of ["greenhouse", "ashby", "lever"]) { const rs = results.filter(r => r.board === board && !r.error); console.log(`${board}: ${rs.filter(r => r.fields.length).length}/${rs.length} have education`); }
+const labelCounts = {}; for (const r of withEdu) for (const f of r.fields) { const k = `${r.board} | ${f.label} | ${f.tag}${f.role ? "[" + f.role + "]" : ""}${f.type ? ":" + f.type : ""} | req=${f.required}`; labelCounts[k] = (labelCounts[k] || 0) + 1; }
+console.log("\nDistinct education field shapes (count):"); for (const [k, v] of Object.entries(labelCounts).sort((a, b) => b[1] - a[1])) console.log(`${String(v).padStart(3)}  ${k}`);
+console.log("\nAdd-another controls:", JSON.stringify([...new Set(withEdu.flatMap(r => r.addAnother))]));
+console.log("Sample id patterns:", JSON.stringify([...new Set(withEdu.flatMap(r => r.fields.map(f => f.id)))].slice(0, 30)));

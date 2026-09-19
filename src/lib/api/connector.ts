@@ -230,12 +230,12 @@ async function refreshOpen(userId: string, settings: Settings) {
 
 function stripSecrets(s: Settings): KnownAnswers {
   const out: Record<string, string> = {};
-  for (const k of Object.keys(KnownAnswers.shape)) out[k] = s[k as keyof Settings];
+  for (const k of Object.keys(KnownAnswers.shape)) out[k] = String(s[k as keyof Settings] ?? "");
   return out as KnownAnswers;
 }
 
 /** The Settings schema minus secrets: what the form filler already knows about this user. */
-export const KnownAnswers = Settings.omit({ runnerToken: true, apiKey: true });
+export const KnownAnswers = Settings.omit({ runnerToken: true, apiKey: true, education: true });
 export type KnownAnswers = z.infer<typeof KnownAnswers>;
 
 export async function readKnownAnswers(userId: string): Promise<KnownAnswers> {
@@ -245,7 +245,7 @@ export async function readKnownAnswers(userId: string): Promise<KnownAnswers> {
 
 export async function updateKnownAnswers(userId: string, patch: Record<string, unknown>) {
   const current = Settings.parse((await getSettings(userId)) ?? {});
-  const clean = Object.fromEntries(Object.entries(patch).filter(([k]) => k in KnownAnswers.shape && k !== "runnerToken" && k !== "apiKey").map(([k, v]) => [k, String(v ?? "").trim()]));
+  const clean = Object.fromEntries(Object.entries(patch).filter(([k]) => k in KnownAnswers.shape).map(([k, v]) => [k, String(v ?? "").trim()]));
   const parsed = Settings.safeParse({ ...current, ...clean });
   if (!parsed.success) throw new ApiError(400, `Invalid answers: ${z.prettifyError(parsed.error).slice(0, 400)}`);
   await saveSettings(userId, parsed.data);

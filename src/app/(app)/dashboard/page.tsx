@@ -6,7 +6,7 @@ import { Settings } from "@/lib/profile/types";
 import { refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
 import { markStale } from "@/lib/apply/stale";
 import { summarize, openQuestions } from "@/lib/stats";
-import { createApplicationAction, approveAllAction, submitAllAction, chooseResumeAction } from "../../actions";
+import { createApplicationAction, approveAllAction, submitAllAction, chooseResumeAction, retryFailedAction } from "../../actions";
 import { ActionButton } from "@/components/action-button";
 import { ResumeToggle } from "@/components/resume-toggle";
 import { StatusBadge, StageTrack } from "@/components/status";
@@ -60,8 +60,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               <li key={c.label} className={`flex items-center gap-2 ${c.n ? "text-fg" : "text-faint"}`}><span className={`h-1.5 w-1.5 rounded-full ${c.n ? c.tone : "bg-line-strong"}`} /><span className="font-semibold tabular-nums">{c.n}</span> {c.label}</li>
             ))}
           </ul>
-          {(s.readyToApprove > 0 || s.awaitingSubmit > 0) && (
+          {(s.readyToApprove > 0 || s.awaitingSubmit > 0 || s.failed > 0) && (
             <div className="flex shrink-0 gap-2">
+              {s.failed > 0 && <ActionButton action={retryFailedAction} id="all" pending="Retrying" className="btn-ghost h-9">Retry failed ({s.failed})</ActionButton>}
               {s.readyToApprove > 0 && <ActionButton action={approveAllAction} id="all" pending="Approving" className="btn-ghost h-9">Approve all ready ({s.readyToApprove})</ActionButton>}
               {s.awaitingSubmit > 0 && <ActionButton action={submitAllAction} id="all" pending="Requesting" className="btn-primary h-9">Submit all filled ({s.awaitingSubmit})</ActionButton>}
             </div>

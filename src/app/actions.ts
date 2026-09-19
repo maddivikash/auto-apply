@@ -300,6 +300,28 @@ export async function approveAllAction(): Promise<ActionResult> {
   }
 }
 
+/** Retry every failed application: refill when the resume exists, prepare again when it does not. */
+export async function retryFailedAction(): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const apps = (await listApplications(userId)).filter((a) => a.status === "failed");
+    if (!apps.length) return { ok: false, error: "Nothing has failed." };
+    let refill = 0, redo = 0;
+    for (const a of apps) {
+      a.error = undefined;
+      if (a.resumePdfUrl && a.job) {
+        const open = a.questions.some((q) => q.needsHuman && !q.answer);
+        a.status = open ? "ready" : "approved"; a.approvedAt = open ? undefined : new Date().toISOString(); refill++;
+      } else { a.status = "queued"; redo++; after(() => processApplication(userId, a.id)); }
+      await saveApplication(a);
+    }
+    revalidatePath("/", "layout");
+    return { ok: true, message: [refill ? `${refill} sent back to the runner to fill again` : "", redo ? `${redo} being prepared again` : ""].filter(Boolean).join("; ") + "." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not retry." };
+  }
+}
+
 /** Request Submit on every filled application. Check the screenshots first; this presses the real Submit button. */
 export async function submitAllAction(): Promise<ActionResult> {
   try {

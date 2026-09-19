@@ -3,9 +3,18 @@
  * Anything a form asks that is not covered becomes an open question in the email.
  */
 import type { Settings } from "./profile/types";
+import { parsedEducation, highestEducation, degreeOptionPatterns, type ParsedEducation } from "./apply/education";
 
 export type Answer = { value: string; source: "profile" | "rule" };
 export type AnswerContext = { jobLocation?: string };
+const edu = (s: Settings): ParsedEducation[] => parsedEducation(s.education);
+const latest = (s: Settings) => edu(s)[0];
+/** Pick the option that names the candidate's degree level, or the closest "no degree/other" option. */
+function degreeOption(level: ParsedEducation["level"] | undefined, o?: string[]): string | undefined {
+  if (!o?.length) return undefined;
+  for (const re of degreeOptionPatterns(level || "other")) { const hit = o.find((x) => re.test(x)); if (hit) return hit; }
+  return o.find((x) => /other/i.test(x));
+}
 type Rule = { test: RegExp; answer: (s: Settings, opts?: string[], ctx?: AnswerContext, label?: string) => string | undefined };
 
 const COUNTRY_HINTS: [RegExp, string][] = [
@@ -66,6 +75,13 @@ const RULES: Rule[] = [
   { test: /(how|where) did you (hear|find|learn)|referral source|^source$/i, answer: (s, o) => o?.length ? pick(o, new RegExp(s.heardFrom || "linkedin", "i")) : or(s.heardFrom, "LinkedIn") },
   { test: /privacy (policy|notice)|acknowledge|consent|agree to|gdpr|i understand|i have read|i confirm/i, answer: (_s, o, _c, label) => (/contact me|marketing|newsletter|alerts|stay up to date|future (job )?opportunit/i.test(label || "") ? undefined : o?.[0]) },
   { test: /interviewed (at|with|for).*(before|last|previously)|previously (applied|interviewed|worked|been employed)|(worked|employed) (at|for|by|with) .*(before|in the past|previously|in any capacity)|former employee|previous .* employment/i, answer: (_s, o) => pick(o, /^no\b/i) },
+  // Education, from the profile. GPA only when the form asks for the level the candidate actually has.
+  { test: /\bgpa\b|grade point|cgpa|promedio/i, answer: (s, o, _c, label) => { const l = label || ""; const hs = highestEducation(edu(s)); if (/graduate|master|doctor|phd/i.test(l) && !/undergrad/i.test(l) && hs && !["master", "mba", "phd", "md", "jd"].includes(hs.level)) return undefined; const g = latest(s)?.gpa || edu(s).find((e) => e.gpa)?.gpa; if (!g) return undefined; return o?.length ? pick(o, new RegExp(`^${g.split("/")[0].replace(/\./g, "\\.")}`)) : g; } },
+  { test: /highest (level of )?(education|degree)|most advanced degree|level of education|education level|degree (completed|attained|earned)/i, answer: (s, o) => { const hs = highestEducation(edu(s)); if (!hs) return undefined; return o?.length ? degreeOption(hs.level, o) : hs.degreeText; } },
+  { test: /^(school|university|college|institution)\b|search schools|most recently attended school|last (university|school|college) attended|alma mater|where did you (study|graduate)/i, answer: (s, o) => { const l = latest(s); if (!l?.school) return undefined; return o?.length ? pick(o, new RegExp(l.school.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), /not listed|other/i) : l.school; } },
+  { test: /^degree\b|type of degree|degree type/i, answer: (s, o) => { const l = latest(s); if (!l) return undefined; return o?.length ? degreeOption(l.level, o) : l.degreeText; } },
+  { test: /discipline|field of study|^major\b|area of study|specializ/i, answer: (s) => or(latest(s)?.discipline) },
+  { test: /graduation (year|date)|year of graduation|(expected )?graduat/i, answer: (s, o) => { const l = latest(s); if (!l?.endYear) return undefined; return o?.length ? pick(o, new RegExp(`\\b${l.endYear}\\b`)) : l.endYear; } },
   { test: /notice period|earliest.*start|start date|availability|when (can|could|would) you (start|join)/i, answer: (s) => or(s.noticePeriod) },
   { test: /18 years|legal age|at least 18/i, answer: (_s, o) => pick(o, /^yes\b/i) },
   { test: /\b\d+\s*\+?\s*(or more\s*)?(years?|yrs)\b(?! of age)/i, answer: (s, o, _c, label) => { const n = Number((label || "").match(/(\d+)\s*\+?\s*(or more\s*)?(years?|yrs)/i)?.[1]); const mine = parseFloat(s.yearsExperience); if (!o?.length || !n || isNaN(mine)) return undefined; return pick(o, mine >= n ? /^yes\b/i : /^no\b/i); } },

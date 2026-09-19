@@ -11,6 +11,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { answerFor } from "../src/lib/defaults";
 import { resumeFileName } from "../src/lib/resume/filename";
+import { parsedEducation, degreeOptionPatterns, disciplineScore, schoolQueries, DISCIPLINE_MIN, type ParsedEducation } from "../src/lib/apply/education";
 import { discoverLiveFields } from "../src/lib/apply/discover";
 import type { Application, QuestionState } from "../src/lib/store";
 import type { Settings } from "../src/lib/profile/types";
@@ -98,13 +99,26 @@ async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
   };
   const pickOption = async (sel: string, typed: string, re: RegExp) => {
     const el = root.locator(sel).first(); if (!(await el.count())) return false;
-    await el.scrollIntoViewIfNeeded(); await el.click(); await page.waitForTimeout(250);
-    if (typed) await el.pressSequentially(typed, { delay: 30 });
-    await page.waitForTimeout(900);
+    try {
+      await el.scrollIntoViewIfNeeded(); await el.click(); await page.waitForTimeout(250);
+      if (typed) { await el.fill("").catch(() => {}); await el.pressSequentially(typed, { delay: 30 }); }
+      await page.waitForTimeout(typed ? 1400 : 900);
+      const opts = root.getByRole("option"); const texts = await opts.allInnerTexts();
+      const i = texts.findIndex((t) => re.test(t.replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, " ").trim()));
+      if (i < 0) { await page.keyboard.press("Escape"); return false; }
+      await opts.nth(i).click(); await page.waitForTimeout(300); return true;
+    } catch (e) { if (/not attached|detached/i.test((e as Error).message)) return false; throw e; }
+  };
+  /** Open a combobox, read every option, and choose with a scoring function. Returns the chosen text. */
+  const pickBest = async (sel: string, score: (option: string) => number, min: number, fallback?: RegExp) => {
+    const el = root.locator(sel).first(); if (!(await el.count())) return undefined;
+    await el.scrollIntoViewIfNeeded(); await el.click(); await page.waitForTimeout(900);
     const opts = root.getByRole("option"); const texts = await opts.allInnerTexts();
-    const i = texts.findIndex((t) => re.test(t.replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, " ").trim()));
-    if (i < 0) { await page.keyboard.press("Escape"); return false; }
-    await opts.nth(i).click(); await page.waitForTimeout(300); return true;
+    let best = -1, bestScore = min;
+    texts.forEach((t, i) => { const sc = score(t); if (sc > bestScore) { bestScore = sc; best = i; } });
+    if (best < 0 && fallback) best = texts.findIndex((t) => fallback.test(t));
+    if (best < 0) { await page.keyboard.press("Escape"); return undefined; }
+    await opts.nth(best).click(); await page.waitForTimeout(300); return texts[best];
   };
 
   await type("#first_name", SETTINGS.firstName);
@@ -139,7 +153,9 @@ async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
     const sel = `[id="${baseId.replace(/"/g, '\\"')}"]`;
     if (!value) { if (q.required) notes.push(`No answer for required: ${q.label}`); continue; }
     if (q.options?.length) {
-      const ok = await pickOption(sel, "", new RegExp(`^${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"));
+      const exact = new RegExp(`^${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+      // Long lists (schools, countries) only show matches for what is typed, so try typing the value when the bare list has no match.
+      const ok = (await pickOption(sel, "", exact)) || (await pickOption(sel, value.slice(0, 40), exact));
       if (!ok) {
         // Checkbox groups ("select all that apply", privacy acknowledgement) render as inputs named question_X[].
         // Tick the box whose label matches the answer, never simply the first one: a sanctions question ticked
@@ -150,9 +166,13 @@ async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
         const wanted = value.split(/\s*\|\s*/).map(norm);
         let hits = 0;
         for (let i = 0; i < n; i++) {
-          const cb = boxes.nth(i);
-          const match = wanted.includes(norm(await labelOf(cb)));
-          if (match !== (await cb.isChecked())) { await cb.scrollIntoViewIfNeeded(); await cb.click({ force: true }); }
+          // Greenhouse re-renders the whole group after a click, so resolve the box fresh for every step and retry once if it detached.
+          const cb = () => root.locator(`input[name="${baseId}[]"]`).nth(i);
+          const match = wanted.includes(norm(await labelOf(cb())));
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try { if (match !== (await cb().isChecked())) await cb().click({ force: true }); break; }
+            catch (e) { if (attempt === 1 || !/not attached|detached/i.test((e as Error).message)) throw e; await page.waitForTimeout(400); }
+          }
           if (match) hits++;
         }
         if (!hits && n === 1) { const cb = boxes.first(); if (!(await cb.isChecked())) await cb.click({ force: true }); hits = 1; }
@@ -163,6 +183,8 @@ async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
       (await type(sel, value)) || notes.push(`Field not found: ${q.label}`);
     }
   }
+
+  await fillGreenhouseEducation(root, page, notes, pickOption, pickBest);
 
   // Voluntary demographic survey: anything still unanswered gets the decline option, and the
   // consent box that Greenhouse requires alongside it is ticked. Both are noted so the user sees it.
@@ -191,6 +213,105 @@ async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
     const label = ((id && (await root.locator(`label[for="${id}"]`).innerText().catch(() => ""))) || (await cb.locator("xpath=ancestor::label[1]").innerText().catch(() => "")) || "").trim();
     if (!/consent|acknowledge|agree|i understand|i have read|i confirm/i.test(label) || /marketing|newsletter|alerts|stay up to date|contact me/i.test(label)) continue;
     if (!(await cb.isChecked())) { await cb.check({ force: true }); notes.push(`Ticked: ${label.slice(0, 70)}`); }
+  }
+}
+
+/**
+ * Greenhouse's Education block, found by labels, never by ids (they differ between forms: school--0,
+ * start-date-year-0, ...). One row per profile entry, most recent first, adding rows with "Add another".
+ * Every step is best-effort and noted; a wrong school is worse than an empty one.
+ */
+async function fillGreenhouseEducation(root: Page, page: Page, notes: string[], pickOption: (sel: string, typed: string, re: RegExp) => Promise<boolean>, pickBest: (sel: string, score: (o: string) => number, min: number, fallback?: RegExp) => Promise<string | undefined>) {
+  const entries = parsedEducation(SETTINGS.education);
+  if (!entries.length) return;
+  type Kind = "school" | "degree" | "discipline" | "startMonth" | "startYear" | "endMonth" | "endYear";
+  const rows = () => root.evaluate(() => {
+    const kinds: [RegExp, string][] = [[/^school\b/i, "school"], [/^degree\b/i, "degree"], [/^discipline\b|field of study|^major\b/i, "discipline"], [/start.*month/i, "startMonth"], [/start.*year/i, "startYear"], [/end.*month/i, "endMonth"], [/end.*year/i, "endYear"]];
+    const out: Record<string, Record<string, string>> = {};
+    document.querySelectorAll<HTMLInputElement>("input").forEach((el) => {
+      if (!el.id) return;
+      const label = (document.querySelector(`label[for="${el.id}"]`)?.textContent || "").replace(/\s+/g, " ").replace(/\*/g, "").trim();
+      const kind = kinds.find(([re]) => re.test(label))?.[1];
+      if (!kind) return;
+      const idx = /(\d+)\s*$/.exec(el.id)?.[1] ?? "0";
+      (out[idx] ||= {})[kind] = el.id;
+    });
+    return out;
+  });
+  let table = await rows();
+  if (!Object.keys(table).length) return;
+  const esc = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  for (let i = 0; i < Math.min(entries.length, 3); i++) {
+    const e = entries[i];
+    let row = table[String(i)];
+    if (!row) {
+      const add = root.getByText(/add another|add education/i).first();
+      if (!(await add.count())) break;
+      await add.click(); await page.waitForTimeout(700); table = await rows(); row = table[String(i)];
+      if (!row) break;
+    }
+    const id = (k: Kind) => (row[k] ? `[id="${row[k]}"]` : undefined);
+    try {
+      if (id("school") && e.school) {
+        const plain = e.school.replace(/\s*\([^)]*\)/g, "").trim();
+        const re = new RegExp(esc(plain), "i");
+        let ok = false;
+        for (const q of schoolQueries(e.school)) { if (await pickOption(id("school")!, q, re)) { ok = true; break; } }
+        if (!ok) { const alt = await pickOption(id("school")!, "", /not listed|other|not attend/i); notes.push(alt ? `School "${e.school}" is not in the form's list; chose the "not listed / other" option` : `Could not find school "${e.school}" in the list; left blank`); }
+      }
+      if (id("degree")) {
+        let ok = false;
+        for (const re of degreeOptionPatterns(e.level)) { if (await pickOption(id("degree")!, "", re)) { ok = true; break; } }
+        if (!ok && !(await pickOption(id("degree")!, "", /other/i))) notes.push(`Could not pick a degree for "${e.degreeText}"`);
+      }
+      if (id("discipline")) {
+        const chosen = e.discipline ? await pickBest(id("discipline")!, (o) => disciplineScore(o, e.discipline), DISCIPLINE_MIN, /other/i) : await pickBest(id("discipline")!, () => 0, 1, /other/i);
+        if (chosen && e.discipline && disciplineScore(chosen, e.discipline) < 1) notes.push(`Discipline "${e.discipline}" mapped to "${chosen}"`);
+        if (!chosen) notes.push(`Could not pick a discipline for "${e.discipline || e.degreeText}"`);
+      }
+      if (id("startMonth") && e.startMonth) await pickOption(id("startMonth")!, "", new RegExp(`^${e.startMonth}$`, "i"));
+      if (id("startYear") && e.startYear) await root.locator(id("startYear")!).fill(e.startYear);
+      if (id("endMonth") && e.endMonth) await pickOption(id("endMonth")!, "", new RegExp(`^${e.endMonth}$`, "i"));
+      if (id("endYear") && e.endYear) await root.locator(id("endYear")!).fill(e.endYear);
+      if ((id("endYear") || id("endMonth")) && !e.endYear) notes.push(`${e.school}: end date not in your profile, left for you`);
+      notes.push(`Education: ${e.school}, ${e.degreeText}${e.endYear ? `, ${e.endYear}` : ""}`);
+    } catch (err) { notes.push(`Education row ${i + 1} (${e.school}): ${(err as Error).message.split("\n")[0].slice(0, 100)}`); }
+  }
+}
+
+/**
+ * Ashby's education block: a "Search schools..." combobox, Degree and Field of Study text inputs,
+ * a Still Student box, and "+ Add Education" for more rows. Found by labels and placeholders only.
+ */
+async function fillAshbyEducation(page: Page, notes: string[]) {
+  const entries = parsedEducation(SETTINGS.education);
+  const search = page.getByPlaceholder(/search schools/i);
+  if (!entries.length || !(await search.count())) return;
+  for (let i = 0; i < Math.min(entries.length, 3); i++) {
+    const e = entries[i];
+    if ((await search.count()) <= i) {
+      const add = page.getByText(/add education/i).first();
+      if (!(await add.count())) break;
+      await add.click(); await page.waitForTimeout(600);
+      if ((await search.count()) <= i) break;
+    }
+    try {
+      const box = search.nth(i);
+      let ok = false;
+      for (const q of schoolQueries(e.school)) {
+        await box.click(); await box.fill(""); await box.pressSequentially(q, { delay: 30 }); await page.waitForTimeout(1500);
+        const opts = page.getByRole("option"); const texts = await opts.allInnerTexts();
+        const plain = e.school.replace(/\s*\([^)]*\)/g, "").trim().toLowerCase();
+        const j = texts.findIndex((t) => t.toLowerCase().includes(plain) || plain.includes(t.toLowerCase().trim()));
+        if (j >= 0) { await opts.nth(j).click(); ok = true; break; }
+        await page.keyboard.press("Escape");
+      }
+      if (!ok) notes.push(`Ashby: school "${e.school}" not found in the search; left blank`);
+      const degree = page.getByLabel(/^degree/i).nth(i); if (await degree.count()) { await degree.fill(e.degreeText); }
+      const field = page.getByLabel(/field of study|major|discipline/i).nth(i); if (await field.count()) { await field.fill(e.discipline || e.degreeText); }
+      const still = page.getByLabel(/still (a )?student/i).nth(i); if (await still.count() && e.current && !(await still.isChecked())) await still.check();
+      notes.push(`Education: ${e.school}, ${e.degreeText}`);
+    } catch (err) { notes.push(`Education row ${i + 1} (${e.school}): ${(err as Error).message.split("\n")[0].slice(0, 100)}`); }
   }
 }
 
@@ -281,9 +402,13 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
       else { const el = page.locator(f.selector).first(); await el.scrollIntoViewIfNeeded(); await el.fill(""); await el.pressSequentially(value, { delay: 12 }); }
     } catch (e) { notes.push(`Could not fill "${f.label}": ${(e as Error).message.slice(0, 80)}`); }
   }
-  if (unanswered.length) {
-    notes.push(`${unanswered.length} field(s) need your answer: ${unanswered.map((u) => u.label).join("; ")}`);
-    await report(app.id, { questions: unanswered });
+  await fillAshbyEducation(page, notes);
+  // Education rows are filled above; do not report their fields as unanswered.
+  const eduLabel = /search schools|^degree$|field of study|still (a )?student/i;
+  const stillOpen = unanswered.filter((u) => !eduLabel.test(u.label));
+  if (stillOpen.length) {
+    notes.push(`${stillOpen.length} field(s) need your answer: ${stillOpen.map((u) => u.label).join("; ")}`);
+    await report(app.id, { questions: stillOpen });
   }
 }
 

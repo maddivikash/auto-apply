@@ -44,6 +44,7 @@ export function withProfileFallback(s: Settings, p: Profile | null | undefined, 
     currentTitle: or(s.currentTitle, p.roles[0]?.title),
     workAuthorizedCountries: or(s.workAuthorizedCountries, countryOf(p.location)),
     yearsExperience: or(s.yearsExperience, yearsFrom(p.roles.map((r) => r.start))),
+    education: p.education?.length ? p.education : s.education || [],
     notifyEmail: or(s.notifyEmail, accountEmail || email)
   };
 }
