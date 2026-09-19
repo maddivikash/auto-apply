@@ -9,7 +9,7 @@ export function NavLink({ href, children, icon, badge, warn }: { href: string; c
       {active && <span className="absolute -left-2 top-2 h-5 w-[2px] rounded-full bg-accent" aria-hidden />}
       <span className={active ? "text-fg" : "text-faint group-hover:text-muted"}>{icon}</span>
       <span className="flex-1">{children}</span>
-      {badge ? <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10.5px] font-semibold leading-none text-white">{badge}</span> : warn ? <span className="h-1.5 w-1.5 rounded-full bg-signal" aria-label="Needs attention" /> : null}
+      {badge && !active ? <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10.5px] font-semibold leading-none text-white">{badge}</span> : warn ? <span className="h-1.5 w-1.5 rounded-full bg-signal" aria-label="Needs attention" /> : null}
     </Link>
   );
 }

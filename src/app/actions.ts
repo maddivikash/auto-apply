@@ -6,7 +6,7 @@ import { after } from "next/server";
 import { nanoid } from "nanoid";
 import { randomBytes } from "node:crypto";
 import { requireUserId, userEmail } from "@/lib/auth";
-import { getApplication, saveApplication, deleteApplication, saveProfile, getProfile, getSettings, saveSettings, saveRunnerToken, deleteRunnerToken, saveApiKey, deleteApiKey, markNotificationsRead, listApplications, type Application } from "@/lib/store";
+import { getApplication, saveApplication, deleteApplication, saveProfile, getProfile, getSettings, saveSettings, saveRunnerToken, deleteRunnerToken, saveApiKey, deleteApiKey, listApplications, type Application } from "@/lib/store";
 import { Profile, Settings } from "@/lib/profile/types";
 import { processApplication } from "@/lib/apply/pipeline";
 import { pdfToText, textToProfile } from "@/lib/profile/import";
@@ -277,10 +277,3 @@ export async function submitAllAction(): Promise<ActionResult> {
   }
 }
 
-export async function markAllReadAction() {
-  const userId = await requireUserId();
-  await markNotificationsRead(userId);
-  revalidatePath("/", "layout");
-  revalidatePath("/", "layout");
-  redirect("/notifications");
-}
