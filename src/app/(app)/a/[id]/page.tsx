@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight, Camera } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
-import { getApplication, getProfile, getSettings, saveApplication, type QuestionState } from "@/lib/store";
+import { getApplication, getProfile, getSettings, saveApplication, type Application, type QuestionState } from "@/lib/store";
 import { Settings } from "@/lib/profile/types";
 import { refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
 import { markStale } from "@/lib/apply/stale";
@@ -56,6 +56,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
 
       <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
         <div className="space-y-6">
+          {app.match && app.resume && <MatchCard match={app.match} />}
           {app.jdSummary && (
             <section className="panel-pad">
               <h2 className="text-[15px] font-semibold">What they want</h2>
@@ -128,6 +129,41 @@ export default async function ApplicationPage({ params, searchParams }: { params
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function MatchCard({ match }: { match: NonNullable<Application["match"]> }) {
+  const delta = match.tailored - match.profile;
+  const pct = (n: number) => `${Math.round(n * 100)}%`;
+  return (
+    <section className="panel-pad">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h2 className="text-[15px] font-semibold">Match with this job</h2>
+          <p className="mt-1 text-[12.5px] text-muted">Keyword match, the way an applicant tracking system reads it. Not a hiring prediction.</p>
+        </div>
+        <div className="flex items-baseline gap-3 tabular-nums">
+          <span className="text-[32px] font-semibold leading-none">{match.tailored}</span>
+          <span className="text-[13px] text-muted">was {match.profile} with your full profile</span>
+          {delta !== 0 && <span className={`rounded-full px-2 py-0.5 text-[12px] font-medium ${delta > 0 ? "bg-go-soft text-go" : "bg-signal-soft text-signal"}`}>{delta > 0 ? "+" : ""}{delta}</span>}
+        </div>
+      </div>
+      <div className="mt-4 grid gap-3 text-[13px] sm:grid-cols-2">
+        <Meter label="Job terms covered" value={match.coverage} hint={pct(match.coverage)} />
+        <Meter label="Resume lines that speak to this job" value={match.focus} hint={pct(match.focus)} />
+      </div>
+      {match.matched.length > 0 && <p className="mt-4 text-[12.5px] text-muted">Matched: {match.matched.join(", ")}.</p>}
+      {match.missing.length > 0 && <p className="mt-1.5 text-[12.5px] text-muted">Not found: <span className="text-fg">{match.missing.join(", ")}</span>. If any of these are true of you, add them on the Profile page and regenerate.</p>}
+    </section>
+  );
+}
+
+function Meter({ label, value, hint }: { label: string; value: number; hint: string }) {
+  return (
+    <div>
+      <div className="flex justify-between text-[12.5px]"><span className="text-muted">{label}</span><span className="tabular-nums">{hint}</span></div>
+      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-2" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value * 100)} aria-label={label}><div className="h-full rounded-full bg-fg" style={{ width: `${Math.round(value * 100)}%` }} /></div>
     </div>
   );
 }

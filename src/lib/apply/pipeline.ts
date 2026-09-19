@@ -1,6 +1,7 @@
 import { fetchJob, UnsupportedJobUrl } from "../jobs/fetch";
 import { tailorResume, sanitize, validate } from "../resume/tailor";
 import { renderPdf } from "../resume/render";
+import { matchResume } from "../resume/match";
 import { questionStates, withProfileFallback } from "./answers";
 import { getApplication, saveApplication, saveFile, getProfile, getSettings, addNotification, type Application } from "../store";
 import { Settings } from "../profile/types";
@@ -54,6 +55,7 @@ export async function processApplication(userId: string, id: string): Promise<vo
     await step("rendering");
     const rendered = await renderPdf(resume, profile, launchBrowser);
     app.resume = rendered.resume; app.trims = rendered.trims;
+    app.match = matchResume(description, rendered.resume, profile);
     const sparse = rendered.sparse ? ["Your profile is on the light side, so the type was enlarged to fill the page. Add a few more bullets or a project on the Profile page for a denser resume."] : [];
     app.resumeWarnings = [...result.warnings, ...validate(rendered.resume, profile), ...sparse].filter((w, i, a) => a.indexOf(w) === i);
     app.resumePdfUrl = await saveFile(`users/${userId}/resumes/${id}.pdf`, rendered.pdf, "application/pdf");

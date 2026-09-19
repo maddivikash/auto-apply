@@ -7,6 +7,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, unlink
 import { join, dirname } from "node:path";
 import type { JobPosting, JobQuestion } from "./jobs/fetch";
 import type { TailoredResume } from "./resume/schema";
+import type { Match } from "./resume/match";
 import type { Profile, Settings } from "./profile/types";
 
 export type QuestionState = JobQuestion & { answer?: string; source?: "profile" | "rule" | "user"; needsHuman: boolean };
@@ -31,6 +32,8 @@ export type Application = {
   resumePdfUrl?: string;
   resumeWarnings?: string[];
   trims?: string[];
+  /** Keyword match with the job: tailored resume vs the full profile. */
+  match?: Match;
   /** What the user asked to change on the last Regenerate. Fed to the tailoring step with the previous version. */
   revisionNotes?: string;
   questions: QuestionState[];

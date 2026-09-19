@@ -59,6 +59,7 @@ export async function saveAnswersAction(formData: FormData) {
     if (typeof v === "string" && v.trim() !== (q.answer || "")) { q.answer = v.trim() || undefined; q.source = v.trim() ? "user" : undefined; q.needsHuman = !v.trim() && q.required; }
   }
   await saveApplication(app);
+  revalidatePath(`/a/${id}`);
   redirect(`/a/${id}?saved=1`);
 }
 
@@ -152,6 +153,7 @@ export async function saveProfileAction(formData: FormData) {
   await saveProfile(userId, parsed);
   await seedAnswersFromProfile(userId, parsed, await userEmail());
   revalidatePath("/", "layout");
+  revalidatePath("/", "layout");
   redirect("/profile?saved=1");
 }
 
@@ -164,22 +166,29 @@ export async function saveSettingsAction(formData: FormData) {
   await saveSettings(userId, saved);
   await refreshOpenApplications(userId, withProfileFallback(saved, await getProfile(userId)));
   revalidatePath("/", "layout");
+  revalidatePath("/", "layout");
   redirect("/answers?saved=1");
 }
 
-export async function rotateRunnerTokenAction() {
-  const userId = await requireUserId();
-  const current = Settings.parse((await getSettings(userId)) ?? {});
-  if (current.runnerToken) await deleteRunnerToken(current.runnerToken);
-  const token = randomBytes(24).toString("base64url");
-  await saveRunnerToken(token, userId);
-  await saveSettings(userId, { ...current, runnerToken: token });
-  redirect("/runner");
+export async function rotateRunnerTokenAction(): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const current = Settings.parse((await getSettings(userId)) ?? {});
+    if (current.runnerToken) await deleteRunnerToken(current.runnerToken);
+    const token = randomBytes(24).toString("base64url");
+    await saveRunnerToken(token, userId);
+    await saveSettings(userId, { ...current, runnerToken: token });
+    revalidatePath("/runner");
+    return { ok: true, message: current.runnerToken ? "New token generated. The old one no longer works; update .env.local on the runner machine." : "Token generated. Copy it into .env.local on the runner machine." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not generate a token." };
+  }
 }
 
 export async function markAllReadAction() {
   const userId = await requireUserId();
   await markNotificationsRead(userId);
+  revalidatePath("/", "layout");
   revalidatePath("/", "layout");
   redirect("/notifications");
 }

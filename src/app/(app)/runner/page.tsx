@@ -2,7 +2,8 @@ import { requireUserId } from "@/lib/auth";
 import { getSettings } from "@/lib/store";
 import { rotateRunnerTokenAction } from "../../actions";
 import { PageHeader } from "@/components/page-header";
-import { SubmitButton } from "@/components/submit-button";
+import { ActionButton } from "@/components/action-button";
+import { CopyField } from "@/components/copy-field";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +17,8 @@ export default async function RunnerPage() {
       <section className="panel grid gap-6 p-5 md:grid-cols-[200px_1fr] md:p-6">
         <div><h2 className="text-[15px] font-semibold">Your runner token</h2><p className="mt-1 text-[12.5px] leading-relaxed text-muted">Identifies your account to the runner. Generating a new one disables the old one.</p></div>
         <div className="space-y-3">
-          {s?.runnerToken ? <code className="mono block break-all rounded-[var(--radius-ctl)] border border-line bg-surface-2/60 px-3 py-2.5 text-[13px]">{s.runnerToken}</code> : <p className="text-[13.5px] text-muted">No token yet.</p>}
-          <form action={rotateRunnerTokenAction}><SubmitButton pending="Generating" className="btn-ghost">{s?.runnerToken ? "Generate a new token" : "Generate token"}</SubmitButton></form>
+          {s?.runnerToken ? <CopyField value={s.runnerToken} label="Runner token" /> : <p className="text-[13.5px] text-muted">No token yet.</p>}
+          <ActionButton action={rotateRunnerTokenAction} id="token" pending="Generating" className="btn-ghost">{s?.runnerToken ? "Generate a new token" : "Generate token"}</ActionButton>
         </div>
       </section>
       <section className="panel grid gap-6 p-5 md:grid-cols-[200px_1fr] md:p-6">
