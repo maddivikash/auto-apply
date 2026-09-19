@@ -17,7 +17,7 @@ export function ActionButton({ action, id, children, pending, className = "btn-g
   const run = () => start(async () => {
     try {
       const r = await action(id);
-      if (r.ok) { if (r.message) toast(r.message, "success"); router.refresh(); }
+      if (r.ok) { if (r.message) toast(r.message, "success"); router.refresh(); setTimeout(() => router.refresh(), 1500); setTimeout(() => router.refresh(), 4000); // storage can lag a moment behind the write }
       else toast(r.error, "error");
     } catch {
       toast("Something went wrong. Please try again.", "error");

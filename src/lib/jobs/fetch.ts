@@ -95,6 +95,10 @@ export async function fetchJob(rawUrl: string): Promise<JobPosting> {
         options: f.values?.map((v: any) => v.label)
       };
     });
+    // Voluntary demographic survey (gender, ethnicity, ...). Rendered with the numeric question id as the field id.
+    for (const q of d.demographic_questions?.questions || []) {
+      questions.push({ id: String(q.id), label: q.label, required: !!q.required, type: ghType(q.type), options: (q.answer_options || []).map((o: any) => o.name) });
+    }
     return {
       board, company: prettyCompany(company), jobId,
       title: d.title,

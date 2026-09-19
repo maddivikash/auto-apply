@@ -95,7 +95,7 @@ async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
     if (typed) await el.pressSequentially(typed, { delay: 30 });
     await page.waitForTimeout(900);
     const opts = root.getByRole("option"); const texts = await opts.allInnerTexts();
-    const i = texts.findIndex((t) => re.test(t.replace(/\s+/g, " ").trim()));
+    const i = texts.findIndex((t) => re.test(t.replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, " ").trim()));
     if (i < 0) { await page.keyboard.press("Escape"); return false; }
     await opts.nth(i).click(); await page.waitForTimeout(300); return true;
   };
@@ -104,7 +104,11 @@ async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
   await type("#last_name", SETTINGS.lastName);
   await type("#email", SETTINGS.email);
   const phoneDigits = SETTINGS.phone.replace(/[^\d+]/g, "");
-  if (await root.locator("#country").count() && SETTINGS.phoneCountry) { (await pickOption("#country", SETTINGS.phoneCountry, new RegExp(`^${SETTINGS.phoneCountry}\\b`, "i"))) || notes.push("Could not pick phone country"); }
+  const phoneCountry = SETTINGS.phoneCountry || (SETTINGS.workAuthorizedCountries || "").split(",")[0].trim() || countryFromPhone(SETTINGS.phone);
+  if (await root.locator("#country").count()) {
+    if (!phoneCountry) notes.push("Phone country unknown: set it on the Answers page");
+    else (await pickOption("#country", phoneCountry, new RegExp(`^${phoneCountry}\\b`, "i"))) || notes.push(`Could not pick phone country ${phoneCountry}`);
+  }
   await type("#phone", phoneDigits.replace(/^\+\d{1,3}/, ""));
   if (await root.locator("#candidate-location").count() && SETTINGS.location) {
     const city = SETTINGS.location.split(",")[0].trim();
@@ -125,7 +129,7 @@ async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
     if (/^(location|longitude|latitude)$/i.test(q.id) || /^location( \(city\))?$/i.test(q.label)) continue;
     const value = answerOf(app, q);
     const baseId = q.id.replace(/\[\]$/, "");
-    const sel = `#${baseId.replace(/[^\w-]/g, (c) => `\\${c}`)}`;
+    const sel = `[id="${baseId.replace(/"/g, '\\"')}"]`;
     if (!value) { if (q.required) notes.push(`No answer for required: ${q.label}`); continue; }
     if (q.options?.length) {
       const ok = await pickOption(sel, "", new RegExp(`^${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"));
@@ -139,6 +143,30 @@ async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
       (await type(sel, value)) || notes.push(`Field not found: ${q.label}`);
     }
   }
+
+  // Voluntary demographic survey: anything still unanswered gets the decline option, and the
+  // consent box that Greenhouse requires alongside it is ticked. Both are noted so the user sees it.
+  const demo = root.locator("#demographic-section");
+  if (await demo.count()) {
+    const selects = demo.locator('input[id][role="combobox"], input[id][aria-autocomplete]');
+    for (let i = 0; i < await selects.count(); i++) {
+      const el = selects.nth(i); const id = await el.getAttribute("id"); if (!id) continue;
+      const shell = el.locator("xpath=ancestor::*[contains(@class,'select-shell')][1]");
+      const chosen = (await shell.innerText().catch(() => "")).trim();
+      if (chosen && !/^select/i.test(chosen)) continue;
+      if (await pickOption(`[id="${id}"]`, "", /decline|prefer not|do not wish|don.t wish/i)) notes.push("Demographic question answered with the decline option");
+    }
+    const boxes = demo.locator('input[type="checkbox"]');
+    for (let i = 0; i < await boxes.count(); i++) { const cb = boxes.nth(i); if (!(await cb.isChecked())) { await cb.check({ force: true }); notes.push("Ticked the demographic-survey consent box"); } }
+  }
+}
+
+/** Country from an international dialling prefix, for the phone country picker. */
+function countryFromPhone(phone: string): string {
+  const m = /^\+(\d{1,3})/.exec((phone || "").replace(/[\s()-]/g, ""));
+  const map: Record<string, string> = { "1": "United States", "44": "United Kingdom", "91": "India", "49": "Germany", "33": "France", "61": "Australia", "65": "Singapore", "971": "United Arab Emirates", "81": "Japan", "31": "Netherlands", "353": "Ireland", "34": "Spain", "39": "Italy", "46": "Sweden", "41": "Switzerland", "55": "Brazil", "52": "Mexico", "27": "South Africa", "86": "China", "82": "South Korea" };
+  if (!m) return "";
+  return map[m[1]] || map[m[1].slice(0, 2)] || map[m[1].slice(0, 1)] || "";
 }
 
 async function submitGreenhouse(page: Page) {
