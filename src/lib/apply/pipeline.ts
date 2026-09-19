@@ -2,6 +2,8 @@ import { fetchJob, UnsupportedJobUrl } from "../jobs/fetch";
 import { tailorResume, sanitize, validate } from "../resume/tailor";
 import { renderPdf } from "../resume/render";
 import { profileAsResume } from "../resume/default";
+import { discoverFormQuestions } from "./form-questions";
+import { draftAnswers } from "./draft";
 import { matchResume } from "../resume/match";
 import { questionStates, withProfileFallback } from "./answers";
 import { getApplication, saveApplication, saveFile, getProfile, getSettings, addNotification, applyResumeChoice, type Application } from "../store";
@@ -42,12 +44,24 @@ export async function processApplication(userId: string, id: string): Promise<vo
     }
     const { description, ...rest } = job;
     app.job = { ...rest, descriptionPreview: description.slice(0, 1500) };
-    // Keep answers the user typed on an earlier run; everything else is re-derived.
-    const typed = new Map(app.questions.filter((q) => q.source === "user" && q.answer).map((q) => [q.label.toLowerCase(), q]));
+    // Lever and Ashby forms only reveal their questions in the browser: open the form now so the user sees them before approving.
+    if (job.board !== "greenhouse") {
+      try {
+        const found = await discoverFormQuestions(job.applyUrl);
+        const known = new Set(job.questions.map((q) => q.label.toLowerCase()));
+        for (const q of found) if (!known.has(q.label.toLowerCase())) job.questions.push(q);
+        console.log(`application ${id}: ${found.length} form questions discovered on ${job.board}`);
+      } catch (e) { console.warn(`application ${id}: could not read the form's questions:`, (e as Error).message); }
+    }
+    // Keep answers the user typed or accepted on an earlier run; everything else is re-derived.
+    const kept = new Map(app.questions.filter((q) => (q.source === "user" || q.source === "ai") && q.answer).map((q) => [q.label.toLowerCase(), q]));
     app.questions = questionStates(job.questions, settings, job.location).map((q) => {
-      const t = typed.get(q.label.toLowerCase());
-      return t ? { ...q, answer: t.answer, source: "user", needsHuman: false } : q;
+      const t = kept.get(q.label.toLowerCase());
+      return t ? { ...q, answer: t.answer, source: t.source, needsHuman: false } : q;
     });
+    // Free-text questions nobody's settings can answer get a first draft from the profile and the posting, marked as such.
+    try { const n = await draftAnswers(job, profile, app.questions); if (n) console.log(`application ${id}: drafted ${n} free-text answer(s)`); }
+    catch (e) { console.warn(`application ${id}: drafting failed:`, (e as Error).message); }
 
     // Tailor, render, measure. A tailored resume that matches the posting worse than the raw profile is
     // a regression, so retry with the dropped terms called out and keep whichever attempt scores best.

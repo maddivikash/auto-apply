@@ -201,9 +201,9 @@ function Step({ n, title, state, body, children }: { n: number; title: string; s
 
 function QuestionField({ q }: { q: QuestionState }) {
   const name = `q:${q.id}`;
-  const label = <label htmlFor={name} className="flex flex-wrap items-baseline gap-x-2 text-[13px] font-medium">{q.label}{q.required && !q.answer && <span className="text-danger">required</span>}{q.source === "user" && q.answer && <span className="text-[11.5px] font-normal text-faint">you answered</span>}{q.source && q.source !== "user" && <span className="text-[11.5px] font-normal text-faint">from your answers</span>}</label>;
+  const label = <label htmlFor={name} className="flex flex-wrap items-baseline gap-x-2 text-[13px] font-medium">{q.label}{q.required && !q.answer && <span className="text-danger">required</span>}{q.source === "user" && q.answer && <span className="text-[11.5px] font-normal text-faint">you answered</span>}{q.source === "ai" && q.answer && <span className="rounded-full bg-accent-soft px-1.5 py-[1px] text-[11px] font-medium text-accent">AI draft, edit if you like</span>}{q.source && q.source !== "user" && q.source !== "ai" && <span className="text-[11.5px] font-normal text-faint">from your answers</span>}</label>;
   if (q.type === "file") return null;
   if (q.options?.length) return <div>{label}<select id={name} name={name} defaultValue={q.answer || ""} className="field mt-1.5"><option value="">Choose</option>{q.options.map((o) => <option key={o} value={o}>{o}</option>)}</select></div>;
-  if (q.type === "textarea" || q.needsHuman) return <div>{label}<textarea id={name} name={name} defaultValue={q.answer || ""} rows={3} className="field mt-1.5" /></div>;
+  if (q.type === "textarea" || q.needsHuman || q.source === "ai") return <div>{label}<textarea id={name} name={name} defaultValue={q.answer || ""} rows={q.source === "ai" ? 5 : 3} className="field mt-1.5" /></div>;
   return <div>{label}<input id={name} name={name} defaultValue={q.answer || ""} className="field mono mt-1.5 text-[13px]" /></div>;
 }

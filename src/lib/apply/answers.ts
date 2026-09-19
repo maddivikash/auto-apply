@@ -67,7 +67,7 @@ export function questionStates(questions: JobQuestion[], settings: Settings, job
 export function refreshAnswers(app: Application, settings: Settings): boolean {
   let changed = false;
   for (const q of app.questions) {
-    if (q.source === "user" && q.answer) continue;
+    if ((q.source === "user" || q.source === "ai") && q.answer) continue;
     const a = answerFor(settings, q.label, q.options, q.type, { jobLocation: app.job?.location });
     const human = q.type !== "file" && !a && (needsHuman(q.label, q.type) || q.required);
     if (q.answer !== a?.value || q.source !== a?.source || q.needsHuman !== human) {

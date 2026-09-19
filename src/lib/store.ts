@@ -13,7 +13,7 @@ import type { Profile, Settings } from "./profile/types";
 
 export type ResumeVariant = { resume: TailoredResume; pdfUrl: string; match: Match; headline?: string; trims: string[] };
 
-export type QuestionState = JobQuestion & { answer?: string; source?: "profile" | "rule" | "user"; needsHuman: boolean };
+export type QuestionState = JobQuestion & { answer?: string; source?: "profile" | "rule" | "user" | "ai"; needsHuman: boolean };
 
 export type ApplicationStatus =
   | "queued" | "fetching" | "unsupported" | "tailoring" | "rendering" | "ready"
