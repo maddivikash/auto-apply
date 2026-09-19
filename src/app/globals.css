@@ -5,71 +5,51 @@
   or when a page opts in with data-theme="dark" (landing, sign-in). Everything below is
   expressed through these variables so both themes stay in step.
 */
+/* Dark is the product's native theme: true black, hairlines, one cyan accent. Light is available with data-theme="light". */
 :root {
-  color-scheme: light;
-  --bg: #f5f6f8;
-  --surface: #ffffff;
-  --surface-2: #eef0f4;
-  --line: rgba(15, 18, 25, 0.09);
-  --line-strong: rgba(15, 18, 25, 0.18);
-  --fg: #0e1118;
-  --muted: #676d7e;
-  --faint: #a2a7b6;
-  --accent: #4f5ae6;
-  --accent-soft: rgba(79, 90, 230, 0.1);
-  --go: #158a4a;
-  --go-soft: rgba(21, 138, 74, 0.12);
-  --signal: #b8680a;
-  --signal-soft: rgba(184, 104, 10, 0.12);
-  --danger: #c93a3a;
-  --danger-soft: rgba(201, 58, 58, 0.1);
-  --glow: rgba(79, 90, 230, 0.18);
-  --shadow: 0 1px 2px rgba(14, 17, 24, 0.04), 0 12px 40px -20px rgba(14, 17, 24, 0.25);
-}
-[data-theme="dark"], .dark-tokens {
   color-scheme: dark;
-  --bg: #0c1017;
-  --surface: #121722;
-  --surface-2: #1a2030;
-  --line: rgba(255, 255, 255, 0.08);
-  --line-strong: rgba(255, 255, 255, 0.16);
-  --fg: #eceef3;
-  --muted: #8b91a3;
-  --faint: #5b6172;
-  --accent: #8f97ff;
-  --accent-soft: rgba(143, 151, 255, 0.14);
-  --go: #4ade80;
-  --go-soft: rgba(74, 222, 128, 0.14);
-  --signal: #f7b955;
-  --signal-soft: rgba(247, 185, 85, 0.14);
-  --danger: #f87171;
-  --danger-soft: rgba(248, 113, 113, 0.14);
-  --glow: rgba(143, 151, 255, 0.25);
-  --shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 24px 60px -30px rgba(0, 0, 0, 0.8);
+  --bg: #000000;
+  --surface: #0a0b0b;
+  --surface-2: #141616;
+  --line: rgba(236, 240, 239, 0.10);
+  --line-strong: rgba(236, 240, 239, 0.22);
+  --fg: #ecf0ef;
+  --muted: rgba(236, 240, 239, 0.64);
+  --faint: rgba(236, 240, 239, 0.38);
+  --accent: #7fe8f2;
+  --accent-soft: rgba(127, 232, 242, 0.12);
+  --go: #5fd38a;
+  --go-soft: rgba(95, 211, 138, 0.14);
+  --signal: #f2c572;
+  --signal-soft: rgba(242, 197, 114, 0.14);
+  --danger: #f0757a;
+  --danger-soft: rgba(240, 117, 122, 0.14);
+  --glow: rgba(127, 232, 242, 0.16);
+  --shadow: none;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #0c1017;
-    --surface: #121722;
-    --surface-2: #1a2030;
-    --line: rgba(255, 255, 255, 0.08);
-    --line-strong: rgba(255, 255, 255, 0.16);
-    --fg: #eceef3;
-    --muted: #8b91a3;
-    --faint: #5b6172;
-    --accent: #8f97ff;
-    --accent-soft: rgba(143, 151, 255, 0.14);
-    --go: #4ade80;
-    --go-soft: rgba(74, 222, 128, 0.14);
-    --signal: #f7b955;
-    --signal-soft: rgba(247, 185, 85, 0.14);
-    --danger: #f87171;
-    --danger-soft: rgba(248, 113, 113, 0.14);
-    --glow: rgba(143, 151, 255, 0.25);
-    --shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 24px 60px -30px rgba(0, 0, 0, 0.8);
-  }
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f7f6;
+  --surface: #ffffff;
+  --surface-2: #eceeed;
+  --line: rgba(11, 12, 12, 0.10);
+  --line-strong: rgba(11, 12, 12, 0.22);
+  --fg: #0b0c0c;
+  --muted: rgba(11, 12, 12, 0.64);
+  --faint: rgba(11, 12, 12, 0.40);
+  --accent: #0e8a96;
+  --accent-soft: rgba(14, 138, 150, 0.10);
+  --go: #1f8a4c;
+  --go-soft: rgba(31, 138, 76, 0.12);
+  --signal: #a8690b;
+  --signal-soft: rgba(168, 105, 11, 0.12);
+  --danger: #c93a3a;
+  --danger-soft: rgba(201, 58, 58, 0.10);
+  --glow: rgba(14, 138, 150, 0.14);
+  --shadow: none;
 }
+/* Kept for pages that opt into dark explicitly; identical to the default. */
+[data-theme="dark"], .dark-tokens { color-scheme: dark; }
 
 @theme inline {
   --color-bg: var(--bg);
@@ -88,29 +68,33 @@
   --color-signal-soft: var(--signal-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
-  --radius-ctl: 8px;
-  --radius-panel: 14px;
+  --font-sans: var(--font-plex-sans), "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-serif: var(--font-instrument-serif), "Instrument Serif", Georgia, serif;
+  --radius-ctl: 2px;
+  --radius-panel: 0px;
 }
 
 html { -webkit-text-size-adjust: 100%; }
-body { background: var(--bg); color: var(--fg); font-family: var(--font-sans); font-size: 14.5px; line-height: 1.5; font-feature-settings: "cv11", "ss01"; }
-h1, h2, h3 { letter-spacing: -0.02em; }
-::selection { background: var(--accent-soft); }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
-.display { letter-spacing: -0.035em; line-height: 1; font-weight: 600; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-sans); font-size: 14px; line-height: 1.5; }
+h1, h2, h3 { letter-spacing: -0.03em; }
+::selection { background: var(--accent); color: #000; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+.display { letter-spacing: -0.045em; line-height: 1.02; font-weight: 600; }
+.serif-i { font-family: var(--font-serif); font-style: italic; font-weight: 400; letter-spacing: -0.01em; }
 .mono { font-family: var(--font-mono); font-feature-settings: "liga" 0; }
+/* Small data labels (dates, boards, ids) read as instrument readouts, not prose. */
+.meta { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.01em; color: var(--muted); }
 
 @layer components {
 /* Controls */
 .field { @apply w-full rounded-[var(--radius-ctl)] border border-line bg-surface px-3 py-2 text-[14px] text-fg placeholder:text-faint transition-[border-color,box-shadow] focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15; }
 select.field { @apply pr-8 appearance-none bg-no-repeat; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b91a3' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-position: right 0.75rem center; }
 .btn-primary, .btn-go, .btn-ghost, .btn-accent, .btn-quiet { @apply inline-flex h-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-ctl)] px-3.5 text-[13.5px] font-medium transition-[background-color,border-color,color,transform] active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100; }
-.btn-primary { @apply bg-fg text-bg hover:opacity-90; }
-.btn-accent { @apply bg-accent text-white hover:brightness-110; }
-.btn-go { @apply bg-go text-white hover:brightness-110; }
-.btn-ghost { @apply border border-line bg-surface text-fg hover:border-line-strong hover:bg-surface-2; }
+.btn-primary { @apply bg-accent text-black hover:brightness-105; }
+.btn-accent { @apply bg-accent text-black hover:brightness-105; }
+.btn-go { @apply bg-go text-black hover:brightness-105; }
+.btn-ghost { @apply border border-line-strong bg-transparent text-fg hover:border-fg hover:bg-surface-2; }
 .btn-quiet { @apply text-muted hover:bg-surface-2 hover:text-fg; }
 .btn-lg { @apply h-11 px-5 text-[15px]; }
 
@@ -118,9 +102,9 @@ select.field { @apply pr-8 appearance-none bg-no-repeat; background-image: url("
 .panel { @apply rounded-[var(--radius-panel)] border border-line bg-surface; }
 .panel-pad { @apply rounded-[var(--radius-panel)] border border-line bg-surface p-5 md:p-6; }
 .panel-head { @apply flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3.5; }
-.lift { box-shadow: var(--shadow); }
-.kbd { @apply font-mono rounded-md border border-line bg-surface-2 px-1.5 py-0.5 text-[11.5px] text-muted; }
-.pill { @apply inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium leading-none; }
+.lift { box-shadow: 0 0 0 1px var(--line), 0 0 60px -20px var(--glow); }
+.kbd { @apply font-mono rounded-[2px] border border-line bg-surface-2 px-1.5 py-0.5 text-[11.5px] text-muted; }
+.pill { @apply font-mono inline-flex shrink-0 items-center gap-1.5 rounded-[2px] px-2 py-1 text-[11.5px] font-medium leading-none; }
 .divide-rows > * + * { border-top: 1px solid var(--line); }
 .hairline { border-color: var(--line); }
 }
@@ -128,11 +112,13 @@ select.field { @apply pr-8 appearance-none bg-no-repeat; background-image: url("
 /* Landing backdrop: a faint grid that fades out toward the fold. */
 .grid-fade {
   background-image: linear-gradient(color-mix(in srgb, var(--line) 55%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--line) 55%, transparent) 1px, transparent 1px);
-  background-size: 56px 56px;
+  background-size: 64px 64px;
   mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 100%);
   -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 100%);
 }
 .glow { background: radial-gradient(closest-side, var(--glow), transparent); }
+/* Reference-style top line: a thin cyan hairline across the very top of the viewport. */
+.topline { background: linear-gradient(90deg, transparent, var(--accent), transparent); height: 1px; opacity: 0.7; }
 
 /* The one orchestrated moment: the hero product frame rises once on load. */
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }

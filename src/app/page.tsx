@@ -9,7 +9,8 @@ import { StageTrack } from "@/components/status";
 export default async function Landing() {
   if (await userId()) redirect("/dashboard");
   return (
-    <main data-theme="dark" className="relative min-h-screen overflow-x-clip bg-bg text-fg">
+    <main className="relative min-h-screen overflow-x-clip bg-bg text-fg">
+      <div className="topline absolute inset-x-0 top-0" aria-hidden />
       <div className="grid-fade pointer-events-none absolute inset-x-0 top-0 h-[90vh]" aria-hidden />
       <div className="glow pointer-events-none absolute left-1/2 top-[-10vh] h-[70vh] w-[90vw] -translate-x-1/2 opacity-70" aria-hidden />
 
@@ -19,11 +20,11 @@ export default async function Landing() {
           <nav className="flex items-center gap-2"><Link href="/sign-in" className="btn-quiet">Sign in</Link><Link href="/sign-up" className="btn-primary">Create account</Link></nav>
         </header>
 
-        <section className="grid items-center gap-14 pb-20 pt-14 lg:grid-cols-[0.95fr_1.05fr] lg:pb-28 lg:pt-20">
-          <div className="rise max-w-xl">
-            <h1 className="display text-[44px] sm:text-[56px] lg:text-[64px]">Paste a job link.<br />Review the application.<br />Press Submit.</h1>
-            <p className="mt-7 max-w-md text-[17px] leading-relaxed text-muted">Auto Apply writes a one-page resume for the role from your own profile, answers the form with what it already knows about you, and fills it in a browser window on your machine. Nothing is sent until you say so.</p>
-            <div className="mt-9 flex flex-wrap items-center gap-3">
+        <section className="flex flex-col items-center gap-14 pb-20 pt-16 text-center lg:pb-28 lg:pt-24">
+          <div className="rise flex max-w-3xl flex-col items-center">
+            <h1 className="display text-[46px] sm:text-[62px] lg:text-[76px]">Paste a job link.<br />Review it. Press <span className="serif-i">Submit.</span></h1>
+            <p className="mx-auto mt-7 max-w-xl text-[18px] leading-relaxed text-muted">Auto Apply writes a one-page resume for the role from your own profile, answers the form with what it already knows about you, and fills it in a browser window on your machine. Nothing is sent until you say so.</p>
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <Link href="/sign-up" className="btn-primary btn-lg">Start with your resume</Link>
               <Link href="/sign-in" className="btn-ghost btn-lg">I have an account</Link>
             </div>
@@ -75,7 +76,7 @@ export default async function Landing() {
           </ul>
         </section>
 
-        <section className="my-8 rounded-[20px] border border-line bg-surface p-8 text-center lift md:p-14">
+        <section className="my-8 border border-line bg-surface p-8 text-center md:p-14">
           <h2 className="display text-[32px] sm:text-[40px]">Your next application, ready for review in about a minute.</h2>
           <p className="mx-auto mt-4 max-w-md text-[15px] text-muted">Upload the resume you already have. It becomes your profile, and every tailored resume after that is written only from it.</p>
           <div className="mt-8 flex flex-wrap justify-center gap-3"><Link href="/sign-up" className="btn-primary btn-lg">Create your account</Link><Link href="/sign-in" className="btn-ghost btn-lg">Sign in</Link></div>

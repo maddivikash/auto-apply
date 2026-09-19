@@ -24,9 +24,9 @@ export function ResumeToggle({ id, choice, tailored, full, locked, action, size 
       catch { toast("Something went wrong. Please try again.", "error"); }
     });
   };
-  const cls = (c: Choice) => `${size === "sm" ? "px-1.5 py-[1px] text-[11.5px]" : "px-2.5 py-1 text-[12.5px]"} rounded-full tabular-nums transition-colors ${c === choice ? "bg-fg text-bg font-medium" : locked ? "text-faint" : "text-muted hover:bg-surface-2 hover:text-fg"}`;
+  const cls = (c: Choice) => `mono ${size === "sm" ? "px-1.5 py-[2px] text-[11px]" : "px-2.5 py-1 text-[12px]"} rounded-[2px] tabular-nums transition-colors ${c === choice ? "bg-fg text-bg font-medium" : locked ? "text-faint" : "text-muted hover:bg-surface-2 hover:text-fg"}`;
   return (
-    <span className={`inline-flex items-center gap-0.5 rounded-full border border-line p-[2px] ${busy ? "opacity-60" : ""}`} role="radiogroup" aria-label="Resume version" title={locked ? "Locked once the form is filled" : "Which resume is attached to this application"}>
+    <span className={`inline-flex items-center gap-0.5 rounded-[3px] border border-line p-[2px] ${busy ? "opacity-60" : ""}`} role="radiogroup" aria-label="Resume version" title={locked ? "Locked once the form is filled" : "Which resume is attached to this application"}>
       <button type="button" role="radio" aria-checked={choice === "tailored"} onClick={pick("tailored")} className={cls("tailored")} disabled={busy}>Tailored {tailored}%</button>
       <button type="button" role="radio" aria-checked={choice === "full"} onClick={pick("full")} className={cls("full")} disabled={busy}>Original {full}%</button>
     </span>

@@ -55,7 +55,7 @@ export function StageTrack({ status, needsDetails, compact = false, labels = !co
         const color = failed && active ? "bg-danger" : filled ? "bg-go" : active ? (status === "ready" && !needsDetails ? "bg-go" : "bg-signal") : "bg-line-strong";
         return (
           <li key={s} className="flex flex-1 flex-col gap-1.5">
-            <span className={`block rounded-full ${compact ? "h-1" : "h-[5px]"} ${color} ${active && live ? "pulse-soft" : ""} ${active && !failed ? "shadow-[0_0_12px_var(--glow)]" : ""}`} />
+            <span className={`block rounded-[1px] ${compact ? "h-1" : "h-[4px]"} ${color} ${active && live ? "pulse-soft" : ""} ${active && !failed ? "shadow-[0_0_12px_var(--glow)]" : ""}`} />
             {labels && <span className={`text-[11px] leading-none ${filled || active ? "text-fg" : "text-faint"}`}>{s}</span>}
           </li>
         );

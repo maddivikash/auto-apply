@@ -87,7 +87,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                   <Link href={`/a/${a.id}`} className="grid gap-3 px-5 py-4 transition-colors hover:bg-surface-2/50 md:grid-cols-[1fr_auto_auto] md:items-center md:gap-6">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2"><span className="truncate text-[14.5px] font-medium">{a.job ? `${a.job.company}, ${a.job.title}` : a.url}</span></div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[12.5px] text-muted">
+                      <div className="meta mt-1 flex flex-wrap items-center gap-x-3">
                         {a.job?.location && <span className="truncate">{a.job.location}</span>}
                         {a.job && <span className="capitalize">{a.job.board}</span>}
                         <span>{date}</span>
