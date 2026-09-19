@@ -54,13 +54,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
       {apps.length > 0 && (
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <ul className="flex flex-wrap gap-x-5 gap-y-2 text-[13px]">
+          <ul className="flex min-w-0 flex-wrap gap-x-5 gap-y-2 text-[13px]">
             {counts.map((c) => (
               <li key={c.label} className={`flex items-center gap-2 ${c.n ? "text-fg" : "text-faint"}`}><span className={`h-1.5 w-1.5 rounded-full ${c.n ? c.tone : "bg-line-strong"}`} /><span className="font-semibold tabular-nums">{c.n}</span> {c.label}</li>
             ))}
           </ul>
           {(s.readyToApprove > 0 || s.awaitingSubmit > 0) && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex shrink-0 gap-2">
               {s.readyToApprove > 0 && <ActionButton action={approveAllAction} id="all" pending="Approving" className="btn-ghost h-9">Approve all ready ({s.readyToApprove})</ActionButton>}
               {s.awaitingSubmit > 0 && <ActionButton action={submitAllAction} id="all" pending="Requesting" className="btn-primary h-9">Submit all filled ({s.awaitingSubmit})</ActionButton>}
             </div>

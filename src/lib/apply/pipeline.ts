@@ -1,6 +1,7 @@
 import { fetchJob, UnsupportedJobUrl } from "../jobs/fetch";
 import { tailorResume, sanitize, validate } from "../resume/tailor";
 import { renderPdf } from "../resume/render";
+import { profileAsResume } from "../resume/default";
 import { matchResume } from "../resume/match";
 import { questionStates, withProfileFallback } from "./answers";
 import { getApplication, saveApplication, saveFile, getProfile, getSettings, addNotification, type Application } from "../store";
@@ -48,17 +49,49 @@ export async function processApplication(userId: string, id: string): Promise<vo
       return t ? { ...q, answer: t.answer, source: "user", needsHuman: false } : q;
     });
 
-    await step("tailoring");
-    const result = await tailorResume(job, profile, { notes: app.revisionNotes, previous: app.resume });
-    const resume = sanitize(result.resume);
-    app.jdSummary = result.jdSummary; app.fitNotes = result.fitNotes; app.headline = result.resume.headline;
-
-    await step("rendering");
-    const rendered = await renderPdf(resume, profile, launchBrowser);
+    // Tailor, render, measure. A tailored resume that matches the posting worse than the raw profile is
+    // a regression, so retry with the dropped terms called out and keep whichever attempt scores best.
+    const attempt = async (notes?: string, previous?: typeof app.resume) => {
+      await step("tailoring");
+      const result = await tailorResume(job, profile, { notes, previous });
+      await step("rendering");
+      const rendered = await renderPdf(sanitize(result.resume), profile, launchBrowser);
+      return { result, rendered, match: matchResume(description, rendered.resume, profile) };
+    };
+    let best = await attempt(app.revisionNotes, app.resume);
+    const MAX_RETRIES = 2;
+    let retries = 0;
+    while (best.match.tailored < best.match.profile && retries < MAX_RETRIES) {
+      retries++;
+      console.log(`application ${id}: tailored match ${best.match.tailored} < profile ${best.match.profile}, retry ${retries}`);
+      const notes = [
+        app.revisionNotes?.trim(),
+        `Keyword check failed: this version matches ${best.match.tailored}% of the job's terms while the untailored full profile matches ${best.match.profile}%. Keep the one-page length, keep every term already matched, and work these job terms in wherever the master profile genuinely supports them (bullets, skills groups, headline): ${best.match.missing.slice(0, 15).join(", ")}. Prefer the job's own vocabulary over synonyms. Do not invent anything.`
+      ].filter(Boolean).join("\n\n");
+      const next = await attempt(notes, best.rendered.resume);
+      if (next.match.tailored > best.match.tailored) best = next;
+    }
+    const { result } = best;
+    let { rendered } = best;
+    let fitNotes = result.fitNotes, headline = result.resume.headline, notice: string[] = [];
+    app.match = best.match;
+    if (best.match.tailored < best.match.profile) {
+      // Tailoring lost to the raw profile even after retries: render the profile as-is and use it if it really scores higher.
+      await step("rendering");
+      const plain = await renderPdf(profileAsResume(profile), profile, launchBrowser);
+      const plainMatch = matchResume(description, plain.resume, profile);
+      if (plainMatch.tailored >= best.match.tailored) {
+        rendered = plain; app.match = plainMatch; headline = profile.roles[0]?.title;
+        fitNotes = [`Tailoring did not improve the keyword match for this posting (best attempt ${best.match.tailored}%, full resume ${plainMatch.tailored}%), so your full resume is used as-is.`];
+        notice = [`We could not find a tailored version that matches this posting better than your full resume (${best.match.tailored}% vs ${plainMatch.tailored}% after ${retries + 1} attempts), so the full resume was kept. Add the missing terms to your profile if they apply to you, then regenerate.`];
+      } else {
+        notice = [`Keyword match ${best.match.tailored}% is below your full profile's ${best.match.profile}% after ${retries + 1} attempts; the best tailored attempt was kept because the full resume scored lower once fitted to one page.`];
+      }
+    }
+    app.jdSummary = result.jdSummary; app.fitNotes = fitNotes; app.headline = headline;
     app.resume = rendered.resume; app.trims = rendered.trims;
-    app.match = matchResume(description, rendered.resume, profile);
     const sparse = rendered.sparse ? ["Your profile is on the light side, so the type was enlarged to fill the page. Add a few more bullets or a project on the Profile page for a denser resume."] : [];
-    app.resumeWarnings = [...result.warnings, ...validate(rendered.resume, profile), ...sparse].filter((w, i, a) => a.indexOf(w) === i);
+    app.resumeWarnings = [...result.warnings, ...validate(rendered.resume, profile), ...sparse, ...notice].filter((w, i, a) => a.indexOf(w) === i);
     app.resumePdfUrl = await saveFile(`users/${userId}/resumes/${id}.pdf`, rendered.pdf, "application/pdf");
     app.error = undefined;
     await step("ready");

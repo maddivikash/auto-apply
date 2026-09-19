@@ -5,7 +5,7 @@ import { toast } from "./toaster";
 import type { ActionResult } from "./action-button";
 
 /** Eight-character code from Greenhouse's verification email. */
-export function CodeForm({ id, action }: { id: string; action: (id: string, code: string) => Promise<ActionResult> }) {
+export function CodeForm({ id, action, renew }: { id: string; action: (id: string, code: string) => Promise<ActionResult>; renew?: (id: string) => Promise<ActionResult> }) {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [busy, start] = useTransition();
@@ -16,6 +16,11 @@ export function CodeForm({ id, action }: { id: string; action: (id: string, code
       else toast(r.error, "error");
     } catch { toast("Something went wrong. Please try again.", "error"); }
   });
+  const askNew = () => start(async () => {
+    if (!renew) return;
+    try { const r = await renew(id); if (r.ok) { toast(r.message ?? "New code requested.", "success"); router.refresh(); setTimeout(() => router.refresh(), 2000); } else toast(r.error, "error"); }
+    catch { toast("Something went wrong. Please try again.", "error"); }
+  });
   return (
     <form className="mt-3 flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); submit(); }}>
       <label className="text-[13px]"><span className="block font-medium">Security code</span>
@@ -25,6 +30,7 @@ export function CodeForm({ id, action }: { id: string; action: (id: string, code
         {busy && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current/30 border-t-current" aria-hidden />}
         {busy ? "Saving" : "Send code to the form"}
       </button>
+      {renew && <button type="button" onClick={askNew} disabled={busy} className="btn-ghost h-9">Code expired? Get a new one</button>}
     </form>
   );
 }

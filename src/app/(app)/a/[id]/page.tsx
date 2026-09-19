@@ -7,7 +7,7 @@ import { Settings } from "@/lib/profile/types";
 import { refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
 import { markStale } from "@/lib/apply/stale";
 import { openQuestions } from "@/lib/stats";
-import { approveAction, deleteAction, reprocessAction, requestSubmitAction, saveAnswersAction, submitCodeAction, markSubmittedAction } from "../../../actions";
+import { approveAction, deleteAction, reprocessAction, requestSubmitAction, saveAnswersAction, submitCodeAction, markSubmittedAction, requestNewCodeAction } from "../../../actions";
 import { IN_PROGRESS, LABEL, StatusBadge, StageTrack } from "@/components/status";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { SubmitButton } from "@/components/submit-button";
@@ -56,7 +56,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
       {waitingForCode && (
         <Notice tone="signal">
           <span className="font-medium">Greenhouse emailed you a verification code.</span> Check {settings?.email || profile?.email || "your inbox"} for a message from Greenhouse with an 8-character security code, type it here, and the runner finishes the submit. {app.error && <span className="text-danger">{app.error}</span>}
-          <CodeForm id={app.id} action={submitCodeAction} />
+          <CodeForm id={app.id} action={submitCodeAction} renew={requestNewCodeAction} />
         </Notice>
       )}
       {app.status === "failed" && <Notice tone="danger">{app.error} <div className="mt-2"><ActionButton action={reprocessAction} id={app.id} pending="Starting">Try again</ActionButton></div></Notice>}

@@ -128,6 +128,23 @@ export async function submitCodeAction(id: string, code: string): Promise<Action
   }
 }
 
+/** The code expired or the tab was closed: ask the runner to refill and submit again so Greenhouse sends a new code. */
+export async function requestNewCodeAction(id: string): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const app = await getApplication(userId, id);
+    if (!app) return { ok: false, error: "This application no longer exists." };
+    if (app.status !== "code_required") return { ok: false, error: "This application is not waiting for a code." };
+    app.status = "submit_requested"; app.verificationCode = undefined; app.error = undefined; app.codeRequestedAt = undefined;
+    app.runnerNotes = [...(app.runnerNotes || []), "New code requested: the runner refills the form and submits again"].slice(-30);
+    await saveApplication(app);
+    revalidatePath("/", "layout");
+    return { ok: true, message: "The runner refills the form and submits again. Greenhouse emails a fresh code in about a minute." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not request a new code." };
+  }
+}
+
 export async function deleteAction(formData: FormData) {
   const userId = await requireUserId();
   await deleteApplication(userId, String(formData.get("id")));
