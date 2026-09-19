@@ -76,8 +76,10 @@ export function discoverFields(): LiveField[] {
       return;
     }
 
-    const selector = el.id ? `#${CSS.escape(el.id)}` : el.getAttribute("name") ? `[name="${el.getAttribute("name")}"]` : "";
-    if (!selector || seen.has(selector)) return;
+    // Inputs with neither id nor name (Ashby's location combobox) get a tag so they can still be addressed.
+    let selector = el.id ? `#${CSS.escape(el.id)}` : el.getAttribute("name") ? `[name="${el.getAttribute("name")}"]` : "";
+    if (!selector) { const key = el.getAttribute("data-aa-field") || `aa-field-${seen.size}`; el.setAttribute("data-aa-field", key); selector = `[data-aa-field="${key}"]`; }
+    if (seen.has(selector)) return;
     seen.add(selector);
     // The question text wins over the input's own placeholder: Lever's custom questions carry the question in
     // an .application-label above an input whose placeholder is just "Type your response".
