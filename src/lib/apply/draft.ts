@@ -7,6 +7,27 @@ import { chatJson } from "../llm/workersai";
 import type { JobPosting } from "../jobs/fetch";
 import type { Profile } from "../profile/types";
 import type { QuestionState } from "../store";
+import { profileNumbers } from "../profile/types";
+
+const WORDS: Record<string, string> = { one: "1", two: "2", three: "3", four: "4", five: "5", six: "6", seven: "7", eight: "8", nine: "9", ten: "10", eleven: "11", twelve: "12", fifteen: "15", twenty: "20", thirty: "30", fifty: "50", hundred: "100", thousand: "1000" };
+
+/**
+ * A draft may only state numbers the profile states. Years, percentages, counts and money written as
+ * digits or as words are all checked; a single unsupported figure rejects the whole draft, because a
+ * recruiter cannot tell which sentence to distrust.
+ */
+export function draftSupported(text: string, profile: Profile, extraNumbers: string[] = []): { ok: boolean; offending?: string } {
+  const known = new Set([...profileNumbers(profile)].map((n) => n.replace(/[^\d.]/g, "")));
+  for (const e of extraNumbers) known.add(e.replace(/[^\d.]/g, ""));
+  const found = [...text.matchAll(/\b(\d[\d,]*(?:\.\d+)?)\s*(%|k\b|x\b|\+)?|\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|fifty|hundred|thousand)\b(?=\s+(?:years?|months?|percent|%|people|users?|engineers?|teams?|services?|projects?|x\b|times))/gi)];
+  for (const m of found) {
+    const raw = m[1] ? m[1].replace(/,/g, "") : WORDS[m[3].toLowerCase()];
+    if (!raw) continue;
+    if (/^(19|20)\d{2}$/.test(raw)) continue; // years as dates are fine
+    if (!known.has(raw) && !known.has(raw.replace(/\.0+$/, ""))) return { ok: false, offending: m[0] };
+  }
+  return { ok: true };
+}
 
 /** Questions about the person's own data, money or logistics are never drafted; those come from settings or the person. */
 const NOT_DRAFTABLE = /salary|compensation|ctc|pay\b|notice|gpa|url|link|profile|website|portfolio|phone|email|name\b|location|city|country|date|when can|pronoun|twitter|github|linkedin|referr|hear about|visa|sponsor|authori|relocat|years? of|how many|start date|availability|office/i;
@@ -35,8 +56,10 @@ Return {"answers": [{"n": 1, "answer": "..."}, ...]} with one entry per question
   let n = 0;
   for (const a of out.answers || []) {
     const q = targets[a.n - 1];
-    const text = (a.answer || "").replace(/[–—]/g, ",").trim();
+    const text = (a.answer || "").replace(/[\u2013\u2014]/g, ",").trim();
     if (!q || text.length < 20) continue;
+    const check = draftSupported(text, profile);
+    if (!check.ok) { console.warn(`draft for "${q.label.slice(0, 50)}" dropped: "${check.offending}" is not in the profile`); continue; }
     q.answer = text; q.source = "ai"; q.needsHuman = false; n++;
   }
   return n;
