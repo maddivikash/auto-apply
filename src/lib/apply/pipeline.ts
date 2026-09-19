@@ -66,7 +66,7 @@ export async function processApplication(userId: string, id: string): Promise<vo
       console.log(`application ${id}: tailored match ${best.match.tailored} < profile ${best.match.profile}, retry ${retries}`);
       const notes = [
         app.revisionNotes?.trim(),
-        `Keyword check failed: this version matches ${best.match.tailored}% of the job's terms while the untailored full profile matches ${best.match.profile}%. Keep the one-page length, keep every term already matched, and work these job terms in wherever the master profile genuinely supports them (bullets, skills groups, headline): ${best.match.missing.slice(0, 15).join(", ")}. Prefer the job's own vocabulary over synonyms. Do not invent anything.`
+        `Keyword check: this version matches ${best.match.tailored}% of the job's terms while the untailored full profile matches ${best.match.profile}%, so the selection dropped material that was relevant. Fix it by selection, not rewriting: bring back the master bullets, projects and skill items that already contain these terms, and keep everything already matched: ${best.match.missing.slice(0, 15).join(", ")}. Do not rephrase bullets into the job's words, do not add terms that are not in the master, and keep the overfitting limits from the writing rules.`
       ].filter(Boolean).join("\n\n");
       const next = await attempt(notes, best.rendered.resume);
       if (next.match.tailored > best.match.tailored) best = next;
