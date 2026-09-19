@@ -4,6 +4,7 @@ import type { Profile, Role, Project } from "@/lib/profile/types";
 import { saveProfileAction } from "@/app/actions";
 import { SubmitButton } from "@/components/submit-button";
 
+const GENDERS = ["Male", "Female", "Non-binary", "Prefer not to say"];
 const lines = (a: string[]) => a.join("\n");
 const unlines = (s: string) => s.split("\n").map((x) => x.trim()).filter(Boolean);
 
@@ -44,6 +45,13 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
           {(["name", "email", "phone", "location", "linkedin", "github", "website"] as const).map((k) => (
             <label key={k} className="text-[13px]"><span className="text-muted">{k[0].toUpperCase() + k.slice(1)}</span><input className="field mt-1.5" value={p[k]} onChange={(e) => set(k, e.target.value)} /></label>
           ))}
+          <label className="text-[13px]"><span className="text-muted">Gender <span className="text-danger">required</span></span>
+            <select className="field mt-1.5" required value={p.gender} onChange={(e) => set("gender", e.target.value)}>
+              <option value="">Choose</option>
+              {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
+            </select>
+            <span className="mt-1 block text-[12px] text-faint">Only used for the voluntary demographic question on forms. "Prefer not to say" picks the decline option.</span>
+          </label>
         </div>
       </Section>
       <Section title="Education" className={show("education")}>

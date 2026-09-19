@@ -32,6 +32,6 @@ export function normalizeProfile(raw: any) {
   if (Array.isArray(raw.skills)) out.skills = Object.fromEntries(raw.skills.map((g: any) => [str(g.label || g.group || g.name), (g.items || g.skills || []).map(str)]));
   else out.skills = Object.fromEntries(Object.entries(raw.skills || {}).map(([k, v]) => [k, Array.isArray(v) ? v.map(str) : String(v).split(",").map((x) => x.trim()).filter(Boolean)]));
   out.coursework = (raw.coursework || []).map(str); out.achievements = (raw.achievements || []).map(str);
-  for (const k of ["name", "phone", "email", "linkedin", "github", "website", "location"]) out[k] = str(raw[k]);
+  for (const k of ["name", "phone", "email", "linkedin", "github", "website", "location", "gender"]) out[k] = str(raw[k]);
   return out;
 }

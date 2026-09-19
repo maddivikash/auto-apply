@@ -73,7 +73,13 @@ const RULES: Rule[] = [
   { test: /current (employer|company)/i, answer: (s) => or(s.currentCompany) },
   { test: /current (title|role|position)/i, answer: (s) => or(s.currentTitle) },
   { test: /salary|compensation expect/i, answer: (s) => or(s.salaryExpectation) },
-  { test: /gender|race|ethnicity|veteran|disability|hispanic|pronoun/i, answer: (_s, o) => pick(o, /decline|prefer not|do not wish|don't wish/i) }
+  { test: /gender/i, answer: (s, o) => {
+    const decline = /decline|prefer not|do not wish|don't wish|self.?describe/i;
+    if (!s.gender || decline.test(s.gender)) return pick(o, decline) ?? or(s.gender);
+    const mine = new RegExp(`^${s.gender.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+    return o?.length ? pick(o, mine, decline) : s.gender;
+  } },
+  { test: /race|ethnicity|veteran|disability|hispanic|pronoun/i, answer: (_s, o) => pick(o, /decline|prefer not|do not wish|don't wish/i) }
 ];
 
 export function answerFor(settings: Settings, label: string, options?: string[], type?: string, ctx?: AnswerContext): Answer | undefined {

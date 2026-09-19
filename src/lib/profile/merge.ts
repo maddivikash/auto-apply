@@ -46,7 +46,7 @@ export function mergeProfiles(base: Profile, add: Profile): Profile {
   const pick = (a: string, b: string) => a || b;
   return {
     name: pick(base.name, add.name), phone: pick(base.phone, add.phone), email: pick(base.email, add.email), linkedin: pick(base.linkedin, add.linkedin),
-    github: pick(base.github, add.github), website: pick(base.website, add.website), location: pick(base.location, add.location),
+    github: pick(base.github, add.github), website: pick(base.website, add.website), location: pick(base.location, add.location), gender: pick(base.gender, add.gender),
     education, roles, projects, skills, coursework: union(base.coursework, add.coursework), achievements: union(base.achievements, add.achievements)
   };
 }

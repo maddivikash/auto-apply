@@ -8,7 +8,7 @@ import { SubmitButton } from "@/components/submit-button";
 export const dynamic = "force-dynamic";
 
 const GROUPS: { title: string; hint: string; fields: [keyof Settings, string, string?][] }[] = [
-  { title: "Contact", hint: "Typed into the top of every form.", fields: [["firstName", "First name"], ["lastName", "Last name"], ["email", "Email on applications"], ["phone", "Phone", "+91 98765 43210"], ["phoneCountry", "Phone country", "India"], ["location", "Current city", "Gurugram, India"]] },
+  { title: "Contact", hint: "Typed into the top of every form.", fields: [["firstName", "First name"], ["lastName", "Last name"], ["email", "Email on applications"], ["phone", "Phone", "+91 98765 43210"], ["phoneCountry", "Phone country", "India"], ["location", "Current city", "Gurugram, India"], ["gender", "Gender for demographic questions", "Male, Female, Non-binary or Prefer not to say"]] },
   { title: "Links", hint: "Used whenever a form asks for a profile or portfolio.", fields: [["linkedin", "LinkedIn URL"], ["github", "GitHub URL"], ["website", "Website"]] },
   { title: "Work", hint: "Answers for the usual screening questions.", fields: [["currentCompany", "Current company"], ["currentTitle", "Current title"], ["yearsExperience", "Years of experience", "5"], ["noticePeriod", "Notice period or earliest start", "30 days"], ["salaryExpectation", "Salary expectation, if you want it filled"], ["heardFrom", "How you heard about jobs", "LinkedIn"]] }
 ];

@@ -154,10 +154,23 @@ async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
       const shell = el.locator("xpath=ancestor::*[contains(@class,'select-shell')][1]");
       const chosen = (await shell.innerText().catch(() => "")).trim();
       if (chosen && !/^select/i.test(chosen)) continue;
-      if (await pickOption(`[id="${id}"]`, "", /decline|prefer not|do not wish|don.t wish/i)) notes.push("Demographic question answered with the decline option");
+      const label = (await root.locator(`label[for="${id}"]`).innerText().catch(() => "")).trim();
+      const decline = /decline|prefer not|do not wish|don.t wish/i;
+      if (/gender/i.test(label) && SETTINGS.gender && !decline.test(SETTINGS.gender)) {
+        const mine = new RegExp(`^${SETTINGS.gender.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+        if (await pickOption(`[id="${id}"]`, "", mine)) { notes.push(`Gender answered as ${SETTINGS.gender}`); continue; }
+      }
+      if (await pickOption(`[id="${id}"]`, "", decline)) notes.push(`${label || "Demographic question"}: answered with the decline option`);
     }
-    const boxes = demo.locator('input[type="checkbox"]');
-    for (let i = 0; i < await boxes.count(); i++) { const cb = boxes.nth(i); if (!(await cb.isChecked())) { await cb.check({ force: true }); notes.push("Ticked the demographic-survey consent box"); } }
+  }
+  // The survey's consent checkbox sits after the section. Tick required consent boxes; leave marketing opt-ins alone.
+  const boxes = root.locator('input[type="checkbox"]');
+  for (let i = 0; i < await boxes.count(); i++) {
+    const cb = boxes.nth(i);
+    const id = await cb.getAttribute("id");
+    const label = ((id && (await root.locator(`label[for="${id}"]`).innerText().catch(() => ""))) || (await cb.locator("xpath=ancestor::label[1]").innerText().catch(() => "")) || "").trim();
+    if (!/consent|acknowledge|agree|i understand|i have read|i confirm/i.test(label) || /marketing|newsletter|alerts|stay up to date|contact me/i.test(label)) continue;
+    if (!(await cb.isChecked())) { await cb.check({ force: true }); notes.push(`Ticked: ${label.slice(0, 70)}`); }
   }
 }
 

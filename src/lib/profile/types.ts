@@ -32,6 +32,8 @@ export const Profile = z.object({
   github: z.string().default(""),
   website: z.string().default(""),
   location: z.string().default(""),
+  /** Used only for voluntary demographic questions on application forms. Empty means decline to answer. */
+  gender: z.string().default(""),
   education: z.array(Education).min(1),
   roles: z.array(Role).min(1),
   projects: z.array(Project).default([]),
@@ -51,6 +53,7 @@ export const Settings = z.object({
   phone: z.string().default(""),
   phoneCountry: z.string().default(""),
   location: z.string().default(""),
+  gender: z.string().default(""),
   linkedin: z.string().default(""),
   github: z.string().default(""),
   website: z.string().default(""),

@@ -13,6 +13,7 @@ export const MASTER: Profile = {
   github: "github.com/maddivikash",
   website: "vikashmaddi.vercel.app",
   location: "Gurugram, India",
+  gender: "Male",
 
   education: [{
     school: "Indian Institute of Technology Madras",

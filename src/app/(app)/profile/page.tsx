@@ -39,6 +39,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         {imported && <p className="mt-2 text-[13px] text-go">{Number(imported) > 1 ? `${imported} resumes combined` : "Profile built"}{mode === "merge" && profile ? " and added to your profile" : ""}. Check every section below, then save.</p>}
         {saved && <p className="mt-2 text-[13px] text-go">Saved.</p>}
       </section>
+      {profile && !profile.gender && <p className="rounded-[var(--radius-ctl)] bg-signal-soft px-4 py-3 text-[13.5px] text-signal">Gender is missing. Forms ask it as a voluntary question; pick a value or "Prefer not to say" under Contact, then save.</p>}
       {profile ? <ProfileEditor initial={profile} /> : <section className="panel px-6 py-16 text-center text-[13.5px] text-muted">No profile yet. Upload a resume above and every section appears here for editing.</section>}
     </div>
   );
