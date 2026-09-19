@@ -56,7 +56,7 @@ export async function processApplication(userId: string, id: string): Promise<vo
       const result = await tailorResume(job, profile, { notes, previous });
       await step("rendering");
       const rendered = await renderPdf(sanitize(result.resume), profile, launchBrowser);
-      return { result, rendered, match: matchResume(description, rendered.resume, profile) };
+      return { result, rendered, match: matchResume(description, rendered.resume, profile, job.company) };
     };
     let best = await attempt(app.revisionNotes, app.resume);
     const MAX_RETRIES = 2;
@@ -76,7 +76,7 @@ export async function processApplication(userId: string, id: string): Promise<vo
     // version that scores lower than the plain resume is never the default.
     await step("rendering");
     const plain = await renderPdf(profileAsResume(profile), profile, launchBrowser);
-    const plainMatch = matchResume(description, plain.resume, profile);
+    const plainMatch = matchResume(description, plain.resume, profile, job.company);
     const [tailoredUrl, fullUrl] = await Promise.all([
       saveFile(`users/${userId}/resumes/${id}.pdf`, rendered.pdf, "application/pdf"),
       saveFile(`users/${userId}/resumes/${id}-full.pdf`, plain.pdf, "application/pdf")
