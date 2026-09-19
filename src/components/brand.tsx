@@ -1,24 +1,24 @@
 /**
- * The mark is the stage rail itself: five bars, three done, one live, one waiting. Solid square so it
- * holds up at 24px in a sidebar and at 40px on the landing page; the live bar carries the accent.
+ * The mark: five bars rising left to right, the way an application climbs its five stages; the
+ * tallest carries the accent. No container, so it sits on black like type does. Geometry scales
+ * from a 16px favicon to a 40px landing mark without thinning out.
  */
 export function BrandMark({ className = "", size = 28 }: { className?: string; size?: number }) {
-  const bar = Math.max(2, Math.round(size * 0.11)), gap = Math.max(1, Math.round(size * 0.06)), h = Math.round(size * 0.5);
+  const bar = Math.max(2, Math.round(size * 0.16)), gap = Math.max(1, Math.round(size * 0.05));
+  const heights = [0.32, 0.48, 0.64, 0.82, 1];
   return (
-    <span className={`inline-flex shrink-0 items-center justify-center bg-fg ${className}`} style={{ width: size, height: size, borderRadius: Math.max(2, Math.round(size * 0.1)) }} aria-hidden>
-      <span className="flex items-center" style={{ gap }}>
-        {[0, 1, 2, 3, 4].map((i) => (
-          <span key={i} style={{ width: bar, height: i === 3 ? h * 1.15 : h, borderRadius: 1, background: i < 3 ? "var(--bg)" : i === 3 ? "var(--accent)" : "color-mix(in srgb, var(--bg) 35%, var(--fg))" }} />
-        ))}
-      </span>
+    <span className={`inline-flex shrink-0 items-end ${className}`} style={{ height: size, gap }} aria-hidden>
+      {heights.map((h, i) => (
+        <span key={i} style={{ width: bar, height: Math.round(size * h), borderRadius: 1, background: i === 4 ? "var(--accent)" : "var(--fg)" }} />
+      ))}
     </span>
   );
 }
 export function Brand({ size = "md" }: { size?: "md" | "lg" }) {
   return (
-    <span className={`inline-flex items-center font-semibold tracking-[-0.035em] ${size === "lg" ? "gap-3 text-[22px]" : "gap-2.5 text-[17px]"}`}>
-      <BrandMark size={size === "lg" ? 36 : 28} />
-      <span className="whitespace-nowrap">Auto Apply</span>
+    <span className={`inline-flex items-center font-semibold tracking-[-0.04em] ${size === "lg" ? "gap-3 text-[23px]" : "gap-2.5 text-[18px]"}`}>
+      <BrandMark size={size === "lg" ? 30 : 24} />
+      <span className="whitespace-nowrap leading-none">Auto Apply</span>
     </span>
   );
 }
