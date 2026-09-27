@@ -29,6 +29,7 @@ export default async function Landing() {
               <Link href="/sign-in" className="btn-ghost btn-lg">I have an account</Link>
             </div>
             <p className="mt-5 text-[13px] text-muted">Works with Greenhouse, Lever and Ashby job pages. Free while in beta.</p>
+            <Link href="/sprint" className="mt-3 text-[13px] text-accent underline-offset-4 hover:underline">No time? We apply for you. First 3 applications free →</Link>
           </div>
           <ProductFrame />
         </section>

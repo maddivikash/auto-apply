@@ -58,3 +58,9 @@ export async function emailSubmitted(to: string, app: Application) {
   const job = app.job!;
   await send(to, `Submitted: ${job.company}, ${job.title}`, wrap("Application submitted", `<p><b>${esc(job.company)}</b>, ${esc(job.title)} was submitted.</p>`));
 }
+
+/** A sprint request from the public /sprint page, sent to the owner so nobody waits on a dashboard check. */
+export async function emailSprintRequest(to: string, r: Record<string, string>) {
+  const rows = Object.entries(r).map(([k, v]) => `<tr><td style="color:#6B7280;padding:4px 12px 4px 0;vertical-align:top">${esc(k)}</td><td style="padding:4px 0">${esc(v)}</td></tr>`).join("");
+  await send(to, `Free trial request (3 applications): ${r.name || r.email}`, wrap("New free trial: 3 applications", `<table style="border-collapse:collapse">${rows}</table><p>Reply to them at <a href="mailto:${esc(r.email)}">${esc(r.email)}</a>.</p>`));
+}
