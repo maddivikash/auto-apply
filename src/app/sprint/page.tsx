@@ -9,9 +9,6 @@ export const metadata: Metadata = {
   description: "We find the roles, tailor a one-page resume for each, draft the answers and submit. You approve every answer before anything goes out.",
 };
 
-// Stripe Payment Links, set in Vercel. Without them the page still sells through the request form.
-const PAY_USD = process.env.SPRINT_PAY_USD_URL;
-const PAY_INR = process.env.SPRINT_PAY_INR_URL;
 const FOUNDING_SPOTS_LEFT = Number(process.env.SPRINT_SPOTS_LEFT ?? 5);
 
 const STEPS: [string, string][] = [
@@ -52,7 +49,7 @@ export default function SprintPage() {
       <div className="relative mx-auto max-w-[1160px] px-6">
         <header className="flex items-center justify-between py-5">
           <Link href="/"><Brand /></Link>
-          <nav className="flex items-center gap-2"><a href="#pricing" className="btn-quiet">Pricing</a><a href="#request" className="btn-primary">Get 3 free</a></nav>
+          <nav className="flex items-center gap-2"><a href="#request" className="btn-primary">Get 3 free</a></nav>
         </header>
 
         <section className="flex flex-col items-center pb-20 pt-16 text-center lg:pt-24">
@@ -61,7 +58,7 @@ export default function SprintPage() {
           <p className="rise-2 mx-auto mt-7 max-w-xl text-[18px] leading-relaxed text-muted">We find the roles, write a one-page resume for each from your real experience, draft the answers and submit. You check every answer before anything goes out.</p>
           <div className="rise-2 mt-9 flex flex-wrap items-center justify-center gap-3">
             <a href="#request" className="btn-primary btn-lg">Get 3 applications free</a>
-            <a href="#pricing" className="btn-ghost btn-lg">See pricing</a>
+            <a href="#how" className="btn-ghost btn-lg">How it works</a>
           </div>
           <p className="mt-5 text-[13px] text-muted">Your first 3 applications are free, no card needed. Pay only if you like them.</p>
         </section>
@@ -94,16 +91,6 @@ export default function SprintPage() {
           </div>
         </section>
 
-        <section id="pricing" className="border-t border-line py-20">
-          <h2 className="text-[30px] font-semibold leading-tight tracking-[-0.025em]">One price. No subscription.</h2>
-          <p className="mt-3 max-w-xl text-[15.5px] text-muted">You are job hunting for weeks, not years, so you pay once for the sprint. Your first 3 applications are free. If you like them, the founding price covers the rest of the sprint, for the first {FOUNDING_SPOTS_LEFT} people.</p>
-          <div className="mt-10 grid gap-5 md:grid-cols-2">
-            <PriceCard region="India" price="₹2,499" regular="₹4,999" href={PAY_INR} />
-            <PriceCard region="Everywhere else" price="$75" regular="$149" href={PAY_USD} />
-          </div>
-          <p className="mt-5 text-[13px] text-muted">Full refund if we submit fewer than 50 applications. Payments by Stripe.</p>
-        </section>
-
         <section id="request" className="grid gap-10 border-t border-line py-20 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
             <h2 className="text-[30px] font-semibold leading-tight tracking-[-0.025em]">Try it first: 3 applications, free.</h2>
@@ -125,18 +112,5 @@ export default function SprintPage() {
         </footer>
       </div>
     </main>
-  );
-}
-
-function PriceCard({ region, price, regular, href }: { region: string; price: string; regular: string; href?: string }) {
-  return (
-    <div className="panel flex flex-col p-7">
-      <span className="text-[13px] text-muted">{region}</span>
-      <div className="mt-2 flex items-baseline gap-3"><span className="display text-[44px]">{price}</span><s className="text-[16px] text-faint">{regular}</s></div>
-      <span className="text-[13px] text-muted">one-time, 50 applications, 14 days</span>
-      {href
-        ? <a href={href} className="btn-primary btn-lg mt-7">Start my sprint</a>
-        : <a href="#request" className="btn-primary btn-lg mt-7">Start with 3 free</a>}
-    </div>
   );
 }

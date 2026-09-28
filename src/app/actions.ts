@@ -404,3 +404,10 @@ export async function submitAllAction(): Promise<ActionResult> {
   }
 }
 
+
+/** The user closed the paid-plan offer; it is not shown again. */
+export async function dismissPlanOfferAction() {
+  const userId = await requireUserId();
+  const s = Settings.parse((await getSettings(userId)) ?? {});
+  await saveSettings(userId, { ...s, planOfferSeenAt: new Date().toISOString() });
+}

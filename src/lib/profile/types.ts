@@ -78,7 +78,9 @@ export const Settings = z.object({
   resumeDefault: z.enum(["best", "original", "tailored"]).default("best"),
   /** Copied from the profile by withProfileFallback so the form filler and answer rules can use it. Not edited here. */
   education: z.array(Education).default([]),
-  notifyEmail: z.string().default("")
+  notifyEmail: z.string().default(""),
+  /** When the user closed the paid-plan offer shown after their free applications. Empty until then. */
+  planOfferSeenAt: z.string().default("")
 });
 export type Settings = z.infer<typeof Settings>;
 

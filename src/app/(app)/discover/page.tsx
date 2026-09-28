@@ -41,7 +41,7 @@ export default async function Discover({ searchParams }: { searchParams: Promise
   const toggleBoard = (b: Board) => { const set = new Set(boards); if (set.has(b)) set.delete(b); else set.add(b); const p = new URLSearchParams({ q, location }); if (set.size) p.set("board", [...set].join(",")); return `/discover?${p}`; };
   return (
     <div className="space-y-8">
-      <PageHeader title="Discover" description={`${listings.length.toLocaleString()} open roles across ${companies.length} companies that hire through Greenhouse, Ashby or Lever. Anything here can be prepared with one click.`} />
+      <PageHeader title="Discover" description={`${listings.length.toLocaleString()} open roles across ${companies.length} companies that hire through Greenhouse, Ashby or Lever. Refreshed every six hours and completely free. Anything here can be prepared with one click.`} />
 
       {needsCountry && (
         <form action={setSearchCountryAction} className="flex flex-col gap-3 border border-line-strong bg-surface p-4 md:flex-row md:items-center md:px-5">

@@ -3,19 +3,25 @@ import { redirect } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import { Bell, Bot, CheckCircle2, LayoutList, ListChecks, Plug, Search, UserRound } from "lucide-react";
 import { userId } from "@/lib/auth";
-import { getProfile, listNotifications } from "@/lib/store";
+import { getProfile, getSettings, listApplications, listNotifications } from "@/lib/store";
+import { FREE_APPLICATIONS, PLANS } from "@/lib/plans";
+import { PlanOffer } from "@/components/plan-offer";
+import { dismissPlanOfferAction } from "../actions";
 import { NavLink } from "@/components/nav-link";
 import { Brand } from "@/components/brand";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const uid = await userId();
   if (!uid) redirect("/sign-in");
-  const [profile, notifications] = await Promise.all([getProfile(uid), listNotifications(uid)]);
+  const [profile, notifications, settings, apps] = await Promise.all([getProfile(uid), listNotifications(uid), getSettings(uid), listApplications(uid)]);
+  // The paid plan is offered only after the free applications have actually gone out.
+  const offerPlan = !settings?.planOfferSeenAt && apps.filter((a) => a.status === "submitted").length >= FREE_APPLICATIONS;
   const unread = notifications.filter((n) => !n.read).length;
   const preview = process.env.NODE_ENV !== "production" && !!process.env.DEV_FAKE_USER;
   const account = preview ? <span className="h-7 w-7 rounded-full bg-surface-2" /> : <UserButton appearance={{ elements: { avatarBox: "h-7 w-7" } }} />;
   return (
     <div className="relative flex min-h-screen bg-bg">
+      {offerPlan && <PlanOffer plans={PLANS} dismiss={dismissPlanOfferAction} />}
       <div className="topline pointer-events-none absolute inset-x-0 top-0 z-20" aria-hidden />
       <aside className="sticky top-0 hidden h-screen w-[232px] shrink-0 flex-col border-r border-line bg-surface px-4 py-5 md:flex">
         <Link href="/dashboard" className="w-fit px-1.5 py-1"><Brand /></Link>

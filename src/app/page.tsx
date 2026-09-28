@@ -28,7 +28,7 @@ export default async function Landing() {
               <Link href="/sign-up" className="btn-primary btn-lg">Start with your resume</Link>
               <Link href="/sign-in" className="btn-ghost btn-lg">I have an account</Link>
             </div>
-            <p className="mt-5 text-[13px] text-muted">Works with Greenhouse, Lever and Ashby job pages. Free while in beta.</p>
+            <p className="mt-5 text-[13px] text-muted">Works with Greenhouse, Lever and Ashby job pages. Your first 3 applications are free.</p>
             <Link href="/sprint" className="mt-3 text-[13px] text-accent underline-offset-4 hover:underline">No time? We apply for you. First 3 applications free →</Link>
           </div>
           <ProductFrame />
@@ -54,6 +54,20 @@ export default async function Landing() {
               </li>
             ))}
           </ol>
+        </section>
+
+        <section className="grid gap-10 border-t border-line py-20 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+          <div>
+            <span className="pill bg-go-soft text-go">Completely free</span>
+            <h2 className="mt-4 text-[30px] font-semibold leading-tight tracking-[-0.025em]">Fresh roles, curated for you, every few hours.</h2>
+            <p className="mt-3 text-[15.5px] leading-relaxed text-muted">We keep a list of more than 130 product companies that hire through Greenhouse, Ashby and Lever, and pull their open roles straight from each board every six hours. Browse, filter by country and remote, and prepare any of them with one click. Browsing is free for good: no fee, no card, no job-board markup. Your first 3 applications are free too.</p>
+            <Link href="/sign-up" className="btn-primary mt-7">Browse open roles</Link>
+          </div>
+          <ul className="grid gap-3 sm:grid-cols-3">
+            {[["130+", "company boards we watch"], ["6 h", "between refreshes"], ["₹0", "to browse, always"]].map(([n, label]) => (
+              <li key={label} className="panel p-5"><div className="display text-[34px]">{n}</div><div className="mt-1 text-[13px] text-muted">{label}</div></li>
+            ))}
+          </ul>
         </section>
 
         <section className="grid gap-10 border-t border-line py-20 lg:grid-cols-[0.8fr_1.2fr]">
