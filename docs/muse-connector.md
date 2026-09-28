@@ -10,10 +10,10 @@ surfaces below are usable today without waiting for the directory.
 
 | Surface | URL | Auth |
 | --- | --- | --- |
-| MCP server (Streamable HTTP) | `https://auto-apply-app.vercel.app/mcp` | OAuth 2.1 + PKCE via Clerk, discovered from `/.well-known/oauth-protected-resource/mcp` |
-| REST API | `https://auto-apply-app.vercel.app/api/v1` | `Authorization: Bearer <personal API key>` (Connect page) or a Clerk OAuth access token |
-| OpenAPI 3.1 | `https://auto-apply-app.vercel.app/openapi.json` | public |
-| Human docs | `https://auto-apply-app.vercel.app/connect/docs` | public |
+| MCP server (Streamable HTTP) | `https://lazyapply.online/mcp` | OAuth 2.1 + PKCE via Clerk, discovered from `/.well-known/oauth-protected-resource/mcp` |
+| REST API | `https://lazyapply.online/api/v1` | `Authorization: Bearer <personal API key>` (Connect page) or a Clerk OAuth access token |
+| OpenAPI 3.1 | `https://lazyapply.online/openapi.json` | public |
+| Human docs | `https://lazyapply.online/connect/docs` | public |
 
 The split: **we bring the API, the agent brings the browser.** The connector returns a tailored
 resume PDF and every form answer; Muse fills and submits the form itself, then calls
@@ -26,7 +26,7 @@ resume PDF and every form answer; Muse fills and submits the form itself, then c
    Set *Default scopes for dynamic clients* to `openid profile email`. Do this on the **production**
    Clerk instance (the one whose keys are on Vercel).
 2. **Vercel env**: `APP_SECRET` (already set) signs the 24-hour PDF links. `APP_URL` must be the
-   public origin (already `https://auto-apply-app.vercel.app`).
+   public origin (already `https://lazyapply.online`).
 3. Test from Claude (Settings → Connectors → Add custom connector → paste the MCP URL) or with the
    MCP Inspector: `npx @modelcontextprotocol/inspector` and enter the URL. The first call opens the
    Clerk sign-in page.

@@ -3,7 +3,7 @@
  * visible Chromium window, screenshots it, and reports "filled". It keeps that
  * tab open and submits only when the app says submit_requested.
  *
- *   APP_URL=https://auto-apply-vikash.vercel.app RUNNER_TOKEN=... npx tsx scripts/runner.ts
+ *   APP_URL=https://lazyapply.online RUNNER_TOKEN=... npx tsx scripts/runner.ts
  */
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from "playwright";
 import { writeFileSync, mkdirSync } from "node:fs";

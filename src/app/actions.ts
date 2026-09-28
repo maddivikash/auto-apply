@@ -79,7 +79,7 @@ export async function approveAction(id: string): Promise<ActionResult> {
     app.status = "approved"; app.approvedAt = new Date().toISOString();
     await saveApplication(app);
     revalidatePath("/", "layout");
-    return { ok: true, message: "Approved. The runner on your machine will fill the form next." };
+    return { ok: true, message: "Approved. The runner on your machine fills the form next; make sure it is running (npm run runner, set-up steps on the Runner page)." };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not approve." };
   }
