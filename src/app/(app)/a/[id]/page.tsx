@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowUpRight, Camera } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Camera, Upload } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
 import { fileHref, getApplication, getProfile, getSettings, saveApplication, type Application, type QuestionState } from "@/lib/store";
 import { Settings } from "@/lib/profile/types";
@@ -48,7 +48,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
         <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-fg"><ArrowLeft size={14} /> Applications</Link>
         <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.025em]">{app.job ? `${app.job.company}, ${app.job.title}` : "Reading the job post"}</h1>
+            <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.025em]">{app.job ? `${app.job.company}, ${app.job.title}` : busy ? "Reading the job post" : "Could not prepare this one"}</h1>
             <p className="mt-1.5 flex flex-wrap items-center gap-x-3 text-[13.5px] text-muted">{app.job?.location && <span>{app.job.location}</span>}<a className="inline-flex items-center gap-1 hover:text-fg" href={app.url} target="_blank" rel="noreferrer">Open posting <ArrowUpRight size={13} /></a></p>
           </div>
           <StatusBadge status={app.status} />
@@ -65,9 +65,15 @@ export default async function ApplicationPage({ params, searchParams }: { params
           <CodeForm id={app.id} action={submitCodeAction} renew={requestNewCodeAction} />
         </Notice>
       )}
-      {app.status === "failed" && <Notice tone="danger">{app.error} <div className="mt-2"><ActionButton action={reprocessAction} id={app.id} pending="Starting">Try again</ActionButton></div></Notice>}
+      {app.status === "failed" && <Notice tone="danger">{app.error} <div className="mt-3 flex flex-wrap gap-2">{!profile && <Link href="/profile?welcome=1" className="btn-primary h-9"><Upload size={15} /> Upload resume</Link>}<ActionButton action={reprocessAction} id={app.id} pending="Starting" className={profile ? "btn-ghost h-8" : "btn-ghost h-9"}>Try again</ActionButton></div></Notice>}
       {app.status === "unsupported" && <Notice tone="signal">{app.error} Supported boards: Greenhouse, Lever and Ashby.</Notice>}
 
+      {!app.job ? (
+        <section className="panel flex flex-col items-center gap-3 px-6 py-12 text-center">
+          <p className="max-w-sm text-[13.5px] leading-relaxed text-muted">{busy ? "Reading the posting. The resume, the form answers and the preview appear here as each step finishes." : "Nothing was prepared for this link yet. Fix what the message above says, then try again, or remove it."}</p>
+          {!busy && <form action={deleteAction}><input type="hidden" name="id" value={app.id} /><button className="text-[12.5px] text-faint hover:text-danger">Delete this application</button></form>}
+        </section>
+      ) : (
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-6">
           {app.match && app.resume && <MatchCard match={app.match} />}
@@ -154,6 +160,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

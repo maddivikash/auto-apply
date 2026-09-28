@@ -1,5 +1,6 @@
-import { requireUserId } from "@/lib/auth";
-import { getSettings } from "@/lib/store";
+import { requireUserId, userEmail } from "@/lib/auth";
+import { getProfile, getSettings } from "@/lib/store";
+import { withProfileFallback } from "@/lib/apply/answers";
 import { Settings } from "@/lib/profile/types";
 import { saveSettingsAction } from "../../actions";
 import { PageHeader } from "@/components/page-header";
@@ -16,10 +17,13 @@ const GROUPS: { title: string; hint: string; fields: [keyof Settings, string, st
 export default async function AnswersPage({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
   const uid = await requireUserId();
   const { saved } = await searchParams;
-  const s = Settings.parse((await getSettings(uid)) ?? {});
+  const [settings, profile, email] = await Promise.all([getSettings(uid), getProfile(uid), userEmail()]);
+  // Anything the resume already says (name, phone, links, current role) shows here filled in, exactly as the
+  // form filler will use it; typing over a value and saving makes that the answer instead.
+  const s = withProfileFallback(Settings.parse(settings ?? {}), profile, email);
   return (
     <div className="space-y-8">
-      <PageHeader title="Answers" description="What the form filler already knows about you. Anything a form asks that is not covered here comes back to you as an open question." />
+      <PageHeader title="Answers" description="What the form filler already knows about you, filled in from your resume where it says. Anything a form asks that is not covered here comes back to you as an open question." />
       <form action={saveSettingsAction} className="space-y-5">
         {GROUPS.map((g) => (
           <section key={g.title} className="panel grid gap-6 p-5 md:grid-cols-[200px_1fr] md:p-6">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Upload } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
 import { listApplications, getProfile, getSettings, saveApplication } from "@/lib/store";
@@ -22,6 +23,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const uid = await requireUserId();
   const { error } = await searchParams;
   const [apps, profile, settings] = await Promise.all([listApplications(uid), getProfile(uid), getSettings(uid)]);
+  // A new account starts on the upload step: nothing else works until the profile exists.
+  if (!profile && apps.length === 0) redirect("/profile?welcome=1");
   const known = withProfileFallback(Settings.parse(settings ?? {}), profile);
   await Promise.all(apps.filter((a) => markStale(a)).map((a) => saveApplication(a)));
   for (const a of apps) refreshAnswers(a, known);

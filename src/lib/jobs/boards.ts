@@ -3,6 +3,7 @@
  * started from 134 boards verified live on 19 Sep 2026; users add their own by pasting a careers URL.
  * Listings come from each board's public JSON API and are cached for six hours per board.
  */
+import { after } from "next/server";
 import { getDoc, putDoc } from "../docs";
 import type { Board } from "./fetch";
 
@@ -85,12 +86,60 @@ export async function boardListings(c: Company, force = false): Promise<Listing[
   } catch { return cached?.listings ?? []; }
 }
 
-/** Fan out over every board with bounded concurrency. */
-export async function allListings(companies: Company[], force = false): Promise<Listing[]> {
+/** Fan out over boards with bounded concurrency. */
+async function fanOut(companies: Company[], force: boolean): Promise<Listing[]> {
   const out: Listing[] = []; let i = 0;
   const worker = async () => { while (i < companies.length) { const c = companies[i++]; out.push(...(await boardListings(c, force))); } };
   await Promise.all(Array.from({ length: 12 }, worker));
   return out;
+}
+
+// The shared catalog is read on every Discover visit, so its listings are kept as a few chunked
+// documents (and in memory on a warm instance) instead of 130+ reads. A stale copy is served at once
+// and refreshed in the background; only the very first visit waits for the boards.
+const ALL_KEY = "cache/boards/_catalog";
+const CHUNK = 3000;
+let memo: Cached | null = null;
+let refreshing: Promise<Cached> | null = null;
+
+async function readCatalog(): Promise<Cached | null> {
+  const meta = await getDoc<{ at: number; parts: number }>(`${ALL_KEY}/meta.json`);
+  if (!meta) return null;
+  const parts = await Promise.all(Array.from({ length: meta.parts }, (_, i) => getDoc<Listing[]>(`${ALL_KEY}/${i}.json`)));
+  return parts.every(Boolean) ? { at: meta.at, listings: parts.flat() as Listing[] } : null;
+}
+
+async function writeCatalog(c: Cached): Promise<void> {
+  const parts = Math.max(1, Math.ceil(c.listings.length / CHUNK));
+  await Promise.all(Array.from({ length: parts }, (_, i) => putDoc(`${ALL_KEY}/${i}.json`, c.listings.slice(i * CHUNK, (i + 1) * CHUNK))));
+  await putDoc(`${ALL_KEY}/meta.json`, { at: c.at, parts });
+}
+
+function refreshCatalog(force = false): Promise<Cached> {
+  refreshing ??= fanOut(CATALOG, force)
+    .then(async (listings) => {
+      const c = { at: Date.now(), listings }; memo = c;
+      // Saving is an optimisation: if it fails, the per-board caches and this instance's memory still work.
+      await writeCatalog(c).catch((e) => console.error("catalog cache write failed", e));
+      return c;
+    })
+    .finally(() => { refreshing = null; });
+  return refreshing;
+}
+
+async function catalogListings(force: boolean): Promise<Listing[]> {
+  if (force) return (await refreshCatalog(true)).listings;
+  memo ??= await readCatalog();
+  if (!memo) return (await refreshCatalog()).listings;
+  if (Date.now() - memo.at >= TTL_MS) after(() => refreshCatalog().then(() => undefined));
+  return memo.listings;
+}
+
+/** Every open role across the catalog plus the companies this user added. */
+export async function allListings(companies: Company[], force = false): Promise<Listing[]> {
+  const extra = companies.filter((m) => !CATALOG.some((c) => c.board === m.board && c.token.toLowerCase() === m.token.toLowerCase()));
+  const [catalog, mine] = await Promise.all([catalogListings(force), fanOut(extra, force)]);
+  return [...catalog, ...mine];
 }
 
 // ---- search -------------------------------------------------------------------------

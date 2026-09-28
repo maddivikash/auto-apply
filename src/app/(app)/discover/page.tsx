@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const BOARDS: Board[] = ["greenhouse", "ashby", "lever"];
+const PAGE_SIZE = 20;
 const BOARD_NAME: Record<Board, string> = { greenhouse: "Greenhouse", ashby: "Ashby", lever: "Lever" };
 
 /** A starting query from the profile: the current title plus the skill groups that name a specialty. */
@@ -24,7 +25,7 @@ function defaultQuery(title: string, skills: Record<string, string[]>): string {
   return [...words].slice(0, 7).join(" ") || "software engineer";
 }
 
-export default async function Discover({ searchParams }: { searchParams: Promise<{ q?: string; location?: string; board?: string; added?: string; error?: string }> }) {
+export default async function Discover({ searchParams }: { searchParams: Promise<{ q?: string; location?: string; board?: string; added?: string; error?: string; page?: string }> }) {
   const uid = await requireUserId();
   const sp = await searchParams;
   const [profile, settings, companies] = await Promise.all([getProfile(uid), getSettings(uid), allCompanies(uid)]);
@@ -35,7 +36,11 @@ export default async function Discover({ searchParams }: { searchParams: Promise
   const location = sp.location ?? (country ? `${country}, Remote` : "");
   const boards = (sp.board || "").split(",").filter((b): b is Board => BOARDS.includes(b as Board));
   const listings = await allListings(companies);
-  const results = rankListings(listings, { query: q, location, limit: 60, boards: boards.length ? boards : undefined });
+  const ranked = rankListings(listings, { query: q, location, limit: 200, boards: boards.length ? boards : undefined });
+  const pages = Math.max(1, Math.ceil(ranked.length / PAGE_SIZE));
+  const page = Math.min(pages, Math.max(1, Number(sp.page) || 1));
+  const results = ranked.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageHref = (n: number) => { const p = new URLSearchParams({ q, location }); if (boards.length) p.set("board", boards.join(",")); if (n > 1) p.set("page", String(n)); return `/discover?${p}`; };
   const openByToken = new Map<string, number>();
   for (const l of listings) openByToken.set(`${l.board}/${l.token.toLowerCase()}`, (openByToken.get(`${l.board}/${l.token.toLowerCase()}`) || 0) + 1);
   const toggleBoard = (b: Board) => { const set = new Set(boards); if (set.has(b)) set.delete(b); else set.add(b); const p = new URLSearchParams({ q, location }); if (set.size) p.set("board", [...set].join(",")); return `/discover?${p}`; };
@@ -66,7 +71,7 @@ export default async function Discover({ searchParams }: { searchParams: Promise
       </div>
 
       <section className="panel overflow-hidden">
-        <div className="panel-head"><h2 className="text-[15px] font-semibold">{needsCountry ? "Matches everywhere" : "Best matches"}</h2><span className="meta">{results.length} shown{needsCountry ? ", set a country above to rank by place" : ""}</span></div>
+        <div className="panel-head"><h2 className="text-[15px] font-semibold">{needsCountry ? "Matches everywhere" : "Best matches"}</h2><span className="meta">{ranked.length ? `${(page - 1) * PAGE_SIZE + 1}–${(page - 1) * PAGE_SIZE + results.length} of ${ranked.length}` : "0"}{needsCountry ? ", set a country above to rank by place" : ""}</span></div>
         {results.length === 0 ? <p className="px-5 py-10 text-center text-[13.5px] text-muted">Nothing matched those words in that location. Try fewer words, or widen the location to a country or Remote.</p> : (
           <ul className="divide-rows">
             {results.map((l) => (
@@ -76,10 +81,19 @@ export default async function Discover({ searchParams }: { searchParams: Promise
                   <div className="meta mt-1 flex flex-wrap items-center gap-x-3"><span className="truncate">{l.location || (l.remote ? "Remote" : "Location not listed")}</span><span>{BOARD_NAME[l.board]}</span>{l.postedAt && <span>{new Date(l.postedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}</div>
                 </div>
                 <a href={l.url} target="_blank" rel="noreferrer" className="btn-quiet h-8 text-[12.5px]"><ExternalLink size={13} /> Posting</a>
-                <form action={createApplicationAction}><input type="hidden" name="url" value={l.url} /><SubmitButton pending="Preparing" className="btn-ghost h-8 text-[12.5px]">Prepare</SubmitButton></form>
+                {profile
+                  ? <form action={createApplicationAction}><input type="hidden" name="url" value={l.url} /><SubmitButton pending="Preparing" className="btn-ghost h-8 text-[12.5px]">Prepare</SubmitButton></form>
+                  : <button type="button" disabled title="Upload your resume first: every application is written from it" className="btn-ghost h-8 cursor-not-allowed text-[12.5px] opacity-40">Prepare</button>}
               </li>
             ))}
           </ul>
+        )}
+        {pages > 1 && (
+          <nav className="flex items-center justify-between border-t border-line px-5 py-3 text-[13px]" aria-label="Pages">
+            {page > 1 ? <Link href={pageHref(page - 1)} className="btn-ghost h-8">Previous</Link> : <span />}
+            <span className="meta">Page {page} of {pages}</span>
+            {page < pages ? <Link href={pageHref(page + 1)} className="btn-ghost h-8">Next</Link> : <span />}
+          </nav>
         )}
       </section>
 

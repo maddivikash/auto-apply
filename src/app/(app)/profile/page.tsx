@@ -9,14 +9,15 @@ import { PageHeader } from "@/components/page-header";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ error?: string; saved?: string; imported?: string; mode?: string; welcome?: string }> }) {
+export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ error?: string; saved?: string; imported?: string; mode?: string; welcome?: string; need?: string }> }) {
   const uid = await requireUserId();
-  const { error, saved, imported, mode, welcome } = await searchParams;
+  const { error, saved, imported, mode, welcome, need } = await searchParams;
   const profile = await getProfile(uid);
   const errorText = error === "file" ? "Choose a file first." : error === "empty" ? "That file had no readable text. Try a text-based PDF." : error ? decodeURIComponent(error) : null;
   return (
     <div className="space-y-8">
-      <PageHeader title={welcome && !profile ? "Welcome. Start with your resume." : "Profile"} description="The only source of facts for every tailored resume. Nothing that is not here can appear in an application. Upload one or several resumes to build it, then edit anything." />
+      <PageHeader title={!profile ? (welcome ? "Welcome. Start with your resume." : "Start with your resume.") : "Profile"} description="The only source of facts for every tailored resume. Nothing that is not here can appear in an application. Upload one or several resumes to build it, then edit anything." />
+      {need === "resume" && !profile && <p className="rounded-[var(--radius-ctl)] bg-accent-soft px-4 py-3 text-[13.5px]">Upload your resume first. Every application is written from it, so there is nothing to prepare until your profile exists.</p>}
       <section id="import" className={`panel-pad ${!profile ? "border-dashed" : ""}`}>
         <form action={importResumeAction} className="flex flex-col gap-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-center">

@@ -18,6 +18,8 @@ import { LABEL } from "@/components/status";
 
 export async function createApplicationAction(formData: FormData) {
   const userId = await requireUserId();
+  // Every resume is written from the profile, so there is nothing to prepare without one.
+  if (!(await getProfile(userId))) redirect("/profile?welcome=1&need=resume");
   const url = String(formData.get("url") || "").trim();
   if (!/^https?:\/\//.test(url)) redirect("/dashboard?error=url");
   const id = nanoid(10);
