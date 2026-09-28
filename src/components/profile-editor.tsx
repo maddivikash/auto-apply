@@ -45,7 +45,7 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
           {(["name", "email", "phone", "location", "linkedin", "github", "website"] as const).map((k) => (
             <label key={k} className="text-[13px]"><span className="text-muted">{k[0].toUpperCase() + k.slice(1)}</span><input className="field mt-1.5" value={p[k]} onChange={(e) => set(k, e.target.value)} /></label>
           ))}
-          <label className="text-[13px]"><span className="text-muted">Gender <span className="text-danger">required</span></span>
+          <label className="text-[13px]"><span className="text-muted">Gender {!p.gender && <span className="text-danger">required</span>}</span>
             <select className="field mt-1.5" required value={p.gender} onChange={(e) => set("gender", e.target.value)}>
               <option value="">Choose</option>
               {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
