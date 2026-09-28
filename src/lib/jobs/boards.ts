@@ -55,7 +55,7 @@ const TTL_MS = 6 * 60 * 60 * 1000;
 type Cached = { at: number; listings: Listing[] };
 
 async function fetchJson(url: string): Promise<unknown> {
-  const r = await fetch(url, { headers: { Accept: "application/json", "User-Agent": "auto-apply/1.0" }, signal: AbortSignal.timeout(12000) });
+  const r = await fetch(url, { headers: { Accept: "application/json", "User-Agent": "lazy-apply/1.0" }, signal: AbortSignal.timeout(12000) });
   if (!r.ok) throw new Error(`${r.status}`);
   return r.json();
 }

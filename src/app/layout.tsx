@@ -8,7 +8,7 @@ const sans = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], 
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-plex-mono" });
 const serif = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["italic"], variable: "--font-instrument-serif" });
 
-export const metadata: Metadata = { title: "Auto Apply", description: "Paste a job link. Get a tailored resume, a filled form, and the final say." };
+export const metadata: Metadata = { title: "Lazy Apply", description: "Paste a job link. Get a tailored resume, a filled form, and the final say." };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

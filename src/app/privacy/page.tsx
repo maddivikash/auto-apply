@@ -5,7 +5,7 @@ export const dynamic = "force-static";
 export default function Privacy() {
   return (
     <LegalPage title="Privacy policy" updated="19 September 2026">
-      <p>Auto Apply (&quot;the service&quot;) is built and operated by Vikash Maddi. It prepares job applications for you: a resume tailored from your own profile and the answers to an application form&apos;s questions. This page explains what the service stores, why, and how to remove it.</p>
+      <p>Lazy Apply (&quot;the service&quot;) is built and operated by Vikash Maddi. It prepares job applications for you: a resume tailored from your own profile and the answers to an application form&apos;s questions. This page explains what the service stores, why, and how to remove it.</p>
 
       <h2>What we collect</h2>
       <ul>

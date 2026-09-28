@@ -39,7 +39,7 @@ const FAQ: [string, string][] = [
   ["Which companies?", "Product companies that hire through Greenhouse, Lever or Ashby: Cloudflare, Databricks, Figma, OpenAI, CRED, Meesho and more than a hundred others. Tell us any you want added or avoided."],
   ["Who is it for?", "Software engineers with 0 to 5 years of experience applying in India or to remote roles. Other roles: ask first."],
   ["What if you don't submit 50?", "You get a full refund, no questions. If there are fewer than 50 good matches for what you want, we tell you in the first two days and refund the difference."],
-  ["Is my data safe?", "Your profile, answers and resumes live in your own Auto Apply account. You can delete any of it at any time. See the privacy page."],
+  ["Is my data safe?", "Your profile, answers and resumes live in your own Lazy Apply account. You can delete any of it at any time. See the privacy page."],
 ];
 
 export default function SprintPage() {

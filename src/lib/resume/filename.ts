@@ -1,5 +1,5 @@
 /**
- * The PDF is named after the person, never the company: "Vikash_Maddi.pdf". A file called
+ * The PDF is named after the person, never the company: "John_Doe.pdf". A file called
  * Resume_Databricks.pdf tells the recruiter the resume was generated for their posting.
  */
 export function resumeFileName(...nameParts: (string | undefined | null)[]): string {

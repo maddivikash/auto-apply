@@ -23,8 +23,8 @@ export default function ConnectorDocs() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-12 text-[14px] leading-relaxed">
       <Link href="/"><Brand /></Link>
-      <h1 className="mt-8 text-2xl font-semibold">Auto Apply connector</h1>
-      <p className="mt-3 text-muted">Auto Apply turns a job posting link into a one-page resume tailored from the user&apos;s own profile, plus the answers to the application form&apos;s questions. The agent brings the browser; this service brings the resume and the answers. Nothing is invented: every number and claim is checked against the user&apos;s profile before the PDF is rendered.</p>
+      <h1 className="mt-8 text-2xl font-semibold">Lazy Apply connector</h1>
+      <p className="mt-3 text-muted">Lazy Apply turns a job posting link into a one-page resume tailored from the user&apos;s own profile, plus the answers to the application form&apos;s questions. The agent brings the browser; this service brings the resume and the answers. Nothing is invented: every number and claim is checked against the user&apos;s profile before the PDF is rendered.</p>
 
       <h2 className="mt-10 text-lg font-semibold">Endpoints</h2>
       <table className="mt-3 w-full text-left text-[13.5px]"><tbody className="divide-rows">
@@ -35,7 +35,7 @@ export default function ConnectorDocs() {
       </tbody></table>
 
       <h2 className="mt-10 text-lg font-semibold">Authentication</h2>
-      <p className="mt-2 text-muted">MCP clients use OAuth 2.1 with PKCE; the authorization server is discovered from the metadata URL above and the user signs in with their Auto Apply account. The REST API also accepts a personal API key as a bearer token, generated on the Connect page inside the app. Tokens and keys are scoped to one account. Users can revoke a key or disconnect an OAuth client at any time.</p>
+      <p className="mt-2 text-muted">MCP clients use OAuth 2.1 with PKCE; the authorization server is discovered from the metadata URL above and the user signs in with their Lazy Apply account. The REST API also accepts a personal API key as a bearer token, generated on the Connect page inside the app. Tokens and keys are scoped to one account. Users can revoke a key or disconnect an OAuth client at any time.</p>
 
       <h2 className="mt-10 text-lg font-semibold">The flow an agent follows</h2>
       <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-muted">

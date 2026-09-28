@@ -5,10 +5,10 @@ export const dynamic = "force-static";
 export default function Terms() {
   return (
     <LegalPage title="Terms of service" updated="19 September 2026">
-      <p>These terms cover your use of Auto Apply, operated by Vikash Maddi (&quot;we&quot;). By creating an account or connecting an agent to it, you agree to them.</p>
+      <p>These terms cover your use of Lazy Apply, operated by Vikash Maddi (&quot;we&quot;). By creating an account or connecting an agent to it, you agree to them.</p>
 
       <h2>What the service does</h2>
-      <p>Auto Apply reads a job posting you link, writes a one-page resume from facts in your profile, renders it as a PDF, and works out answers to the application form from your standing answers. It can hand those to your desktop runner or to an AI agent you connect. The service itself never submits an application.</p>
+      <p>Lazy Apply reads a job posting you link, writes a one-page resume from facts in your profile, renders it as a PDF, and works out answers to the application form from your standing answers. It can hand those to your desktop runner or to an AI agent you connect. The service itself never submits an application.</p>
 
       <h2>Your responsibilities</h2>
       <ul>

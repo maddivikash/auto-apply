@@ -1,4 +1,4 @@
-# Auto Apply as a Muse connector
+# Lazy Apply as a Muse connector
 
 Meta opened the Muse Connector Platform to developers on 18 Sep 2026 (muse.ai/platform). The
 page asks for a product description and promises a review for functional, security and legal
@@ -33,13 +33,13 @@ resume PDF and every form answer; Muse fills and submits the form itself, then c
 
 ## Submission text for muse.ai/platform
 
-**Connector name:** Auto Apply
+**Connector name:** Lazy Apply
 
 **One line:** Turn a job link into a tailored one-page resume and a fully answered application form, ready for Muse to submit.
 
 **What it does (description field):**
 
-> Auto Apply prepares job applications from a Greenhouse, Lever or Ashby posting link. When a
+> Lazy Apply prepares job applications from a Greenhouse, Lever or Ashby posting link. When a
 > user shares a link, the connector reads the posting through the board's public API, writes a
 > one-page resume tailored to that role from the user's own master profile (every number and claim
 > is checked against the profile before the PDF is rendered, so nothing is invented), and works out
@@ -52,7 +52,7 @@ resume PDF and every form answer; Muse fills and submits the form itself, then c
 > application?"; "Rewrite the resume to lead with my payments work"; "Set my notice period to 30
 > days for every application." Users can also build their profile by pasting their resume text.
 
-**Auth:** OAuth 2.1 with PKCE (Clerk). Users sign in with their Auto Apply account; tokens are
+**Auth:** OAuth 2.1 with PKCE (Clerk). Users sign in with their Lazy Apply account; tokens are
 scoped to one account and can be revoked from the app.
 
 **Data handled:** the user's own profile (work history, education, skills), their standing

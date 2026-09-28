@@ -8,7 +8,7 @@ export function openapi(origin: string) {
   return {
     openapi: "3.1.0",
     info: {
-      title: "Auto Apply connector API",
+      title: "Lazy Apply connector API",
       version: "1.0.0",
       description: [
         "Prepare job applications for a signed-in user: paste a Greenhouse, Lever or Ashby posting link, get a one-page resume tailored from the user's own profile (nothing invented), the PDF, and the answers to the form's questions.",

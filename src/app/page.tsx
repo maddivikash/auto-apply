@@ -23,7 +23,7 @@ export default async function Landing() {
         <section className="flex flex-col items-center gap-14 pb-20 pt-16 text-center lg:pb-28 lg:pt-24">
           <div className="rise flex max-w-3xl flex-col items-center">
             <h1 className="display text-[46px] sm:text-[62px] lg:text-[76px]">Paste a job link.<br />Review it. Press <span className="serif-i">Submit.</span></h1>
-            <p className="mx-auto mt-7 max-w-xl text-[18px] leading-relaxed text-muted">Auto Apply writes a one-page resume for the role from your own profile, answers the form with what it already knows about you, and fills it in a browser window on your machine. Nothing is sent until you say so.</p>
+            <p className="mx-auto mt-7 max-w-xl text-[18px] leading-relaxed text-muted">Lazy Apply writes a one-page resume for the role from your own profile, answers the form with what it already knows about you, and fills it in a browser window on your machine. Nothing is sent until you say so.</p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <Link href="/sign-up" className="btn-primary btn-lg">Start with your resume</Link>
               <Link href="/sign-in" className="btn-ghost btn-lg">I have an account</Link>
@@ -93,7 +93,7 @@ export default async function Landing() {
 /** A still of the review page with real-looking content, so the first thing you see is the product. */
 function ProductFrame() {
   const answers: [string, string, boolean][] = [
-    ["First name", "Vikash", true], ["Email", "vikash@example.com", true], ["LinkedIn", "linkedin.com/in/vikash", true],
+    ["First name", "John", true], ["Email", "john.doe@example.com", true], ["LinkedIn", "linkedin.com/in/john-doe", true],
     ["Need sponsorship for this location?", "No", true], ["Willing to relocate?", "Yes, willing to relocate", true], ["Why Cloudflare?", "", false]
   ];
   return (
@@ -116,7 +116,7 @@ function ProductFrame() {
           </ul>
           <div className="relative min-h-[240px] overflow-hidden bg-surface-2/60 p-4">
             <div className="flex items-center justify-between"><span className="font-medium">Tailored resume</span><span className="text-muted">1 page</span></div>
-            <Image src="/sample-resume.png" alt="A one-page resume tailored by Auto Apply" width={1200} height={1553} className="absolute left-4 right-4 top-11 w-[calc(100%-2rem)] rounded-[4px] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)]" priority />
+            <Image src="/sample-resume.png" alt="A one-page resume tailored by Lazy Apply" width={1200} height={1553} className="absolute left-4 right-4 top-11 w-[calc(100%-2rem)] rounded-[4px] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)]" priority />
           </div>
         </div>
         <div className="flex items-center justify-between border-t border-line px-4 py-3">

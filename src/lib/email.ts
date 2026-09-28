@@ -1,14 +1,14 @@
 import { Resend } from "resend";
 import type { Application } from "./store";
 
-const FROM = process.env.RESEND_FROM || "Auto Apply <onboarding@resend.dev>";
+const FROM = process.env.RESEND_FROM || "Lazy Apply <onboarding@resend.dev>";
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 function wrap(title: string, body: string) {
   return `<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#171A21;max-width:640px">
   <h2 style="margin:0 0 12px;font-weight:600">${esc(title)}</h2>${body}
-  <p style="color:#6B7280;font-size:13px;margin-top:28px">Sent by Auto Apply. Nothing is submitted until you press Submit in the app.</p></div>`;
+  <p style="color:#6B7280;font-size:13px;margin-top:28px">Sent by Lazy Apply. Nothing is submitted until you press Submit in the app.</p></div>`;
 }
 
 /** Set by callers that know the user, so a failed send can be shown in the app instead of vanishing into a log. */
@@ -43,7 +43,7 @@ export async function emailResumeReady(to: string, app: Application, pdf: Buffer
   await send(to, `Resume ready: ${job.company}, ${job.title}`, wrap("Resume ready", body), [{ filename: fileName, content: pdf }]);
 }
 export async function emailNotPossible(to: string, app: Application, reason: string) {
-  await send(to, `Can't auto-apply: ${app.url}`, wrap("This link is not supported", `<p>${esc(reason)}</p><p>Supported today: Greenhouse, Lever and Ashby job pages.</p>`));
+  await send(to, `Lazy Apply can't apply to: ${app.url}`, wrap("This link is not supported", `<p>${esc(reason)}</p><p>Supported today: Greenhouse, Lever and Ashby job pages.</p>`));
 }
 export async function emailFormFilled(to: string, app: Application) {
   const job = app.job!; const link = `${APP_URL}/a/${app.id}`;

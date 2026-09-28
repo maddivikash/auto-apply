@@ -149,7 +149,7 @@ const handler = createMcpHandler((server) => {
     description: "Change one or more standing answers. Keys as returned by get_known_answers; values are strings (Yes/No for the yes-no fields; resumeDefault is 'best', 'original' or 'tailored').",
     inputSchema: z.object({ answers: z.record(z.string(), z.string()) })
   }, async ({ answers }, extra) => run(() => c.updateKnownAnswers(uid(extra), answers)));
-}, { serverInfo: { name: "auto-apply", version: "1.0.0" } });
+}, { serverInfo: { name: "lazy-apply", version: "1.0.0" } });
 
 // Local design previews only: never set on Vercel.
 const previewUser = () => (process.env.NODE_ENV !== "production" ? process.env.DEV_FAKE_USER || null : null);

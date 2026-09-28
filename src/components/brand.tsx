@@ -18,7 +18,7 @@ export function Brand({ size = "md" }: { size?: "md" | "lg" }) {
   return (
     <span className={`inline-flex items-center font-semibold tracking-[-0.04em] ${size === "lg" ? "gap-3 text-[23px]" : "gap-2.5 text-[18px]"}`}>
       <BrandMark size={size === "lg" ? 30 : 24} />
-      <span className="whitespace-nowrap leading-none">Auto Apply</span>
+      <span className="whitespace-nowrap leading-none">Lazy Apply</span>
     </span>
   );
 }

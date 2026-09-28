@@ -37,7 +37,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   return (
     <div className="space-y-8">
       <AutoRefresh seconds={s.inProgress || s.awaitingSubmit ? 5 : 20} />
-      <PageHeader title="Applications" description={apps.length ? "Newest first. Open one to review the resume, answer what is open, and approve." : "Paste a job link and Auto Apply prepares the whole application for your review."} />
+      <PageHeader title="Applications" description={apps.length ? "Newest first. Open one to review the resume, answer what is open, and approve." : "Paste a job link and Lazy Apply prepares the whole application for your review."} />
 
       {profile ? (
         <section className="relative">

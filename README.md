@@ -1,4 +1,4 @@
-# Auto Apply
+# Lazy Apply
 
 Paste a Greenhouse, Lever or Ashby job link. The app reads the posting, writes a one-page resume tailored to it from a fixed master profile, emails you the PDF with the questions it cannot answer, and a local runner fills the form. Nothing is submitted until you press Submit.
 
