@@ -14,9 +14,9 @@ const GROUPS: { title: string; hint: string; fields: [keyof Settings, string, st
   { title: "Work", hint: "Answers for the usual screening questions.", fields: [["currentCompany", "Current company"], ["currentTitle", "Current title"], ["yearsExperience", "Years of experience", "5"], ["noticePeriod", "Notice period or earliest start", "30 days"], ["salaryExpectation", "Salary expectation, if you want it filled"], ["heardFrom", "How you heard about jobs", "LinkedIn"]] }
 ];
 
-export default async function AnswersPage({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
+export default async function AnswersPage({ searchParams }: { searchParams: Promise<{ saved?: string; from?: string; missing?: string }> }) {
   const uid = await requireUserId();
-  const { saved } = await searchParams;
+  const { saved, from, missing } = await searchParams;
   const [settings, profile, email] = await Promise.all([getSettings(uid), getProfile(uid), userEmail()]);
   // Anything the resume already says (name, phone, links, current role) shows here filled in, exactly as the
   // form filler will use it; typing over a value and saving makes that the answer instead.
@@ -24,6 +24,8 @@ export default async function AnswersPage({ searchParams }: { searchParams: Prom
   return (
     <div className="space-y-8">
       <PageHeader title="Answers" description="What the form filler already knows about you, filled in from your resume where it says. Anything a form asks that is not covered here comes back to you as an open question." />
+      {from === "profile" && <p className="rounded-[var(--radius-ctl)] bg-go-soft px-4 py-3 text-[13.5px]"><span className="font-medium text-go">Profile saved.</span> Last step: check these answers, most already come from your resume, then save to start finding roles.</p>}
+      {missing && <p className="rounded-[var(--radius-ctl)] bg-signal-soft px-4 py-3 text-[13.5px] text-signal">Saved. Still needed before forms can be filled without stopping: {missing}.</p>}
       <form action={saveSettingsAction} className="space-y-5">
         {GROUPS.map((g) => (
           <section key={g.title} className="panel grid gap-6 p-5 md:grid-cols-[200px_1fr] md:p-6">
@@ -56,7 +58,7 @@ export default async function AnswersPage({ searchParams }: { searchParams: Prom
           <div><h2 className="text-[15px] font-semibold">Notifications</h2><p className="mt-1 text-[12.5px] leading-relaxed text-muted">Resume ready, form filled and submitted events go here.</p></div>
           <label className="text-[13px] sm:max-w-[calc(50%-0.5rem)]"><span className="text-muted">Email for notifications</span><input name="notifyEmail" defaultValue={s.notifyEmail} className="field mt-1.5" /></label>
         </section>
-        <div className="sticky bottom-4 flex items-center justify-end gap-3">{saved && <span className="text-[13px] text-go">Saved.</span>}<SubmitButton pending="Saving" className="btn-primary lift">Save answers</SubmitButton></div>
+        <div className="sticky bottom-4 flex items-center justify-end gap-3">{saved && !missing && <span className="text-[13px] text-go">Saved.</span>}<SubmitButton pending="Saving" className="btn-primary lift">{from === "profile" ? "Save and find roles" : "Save answers"}</SubmitButton></div>
       </form>
     </div>
   );

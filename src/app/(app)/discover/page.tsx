@@ -25,7 +25,7 @@ function defaultQuery(title: string, skills: Record<string, string[]>): string {
   return [...words].slice(0, 7).join(" ") || "software engineer";
 }
 
-export default async function Discover({ searchParams }: { searchParams: Promise<{ q?: string; location?: string; board?: string; added?: string; error?: string; page?: string; field?: string }> }) {
+export default async function Discover({ searchParams }: { searchParams: Promise<{ q?: string; location?: string; board?: string; added?: string; error?: string; page?: string; field?: string; from?: string }> }) {
   const uid = await requireUserId();
   const sp = await searchParams;
   const [profile, settings, companies] = await Promise.all([getProfile(uid), getSettings(uid), allCompanies(uid)]);
@@ -54,6 +54,7 @@ export default async function Discover({ searchParams }: { searchParams: Promise
     <div className="space-y-8">
       <PageHeader title="Discover" description={`${listings.length.toLocaleString()} open roles across ${companies.length} companies that hire through Greenhouse, Ashby or Lever. Refreshed every six hours and completely free. Anything here can be prepared with one click.`} />
 
+      {sp.from === "answers" && <p className="rounded-[var(--radius-ctl)] bg-go-soft px-4 py-3 text-[13.5px]"><span className="font-medium text-go">You are set up.</span> Pick a role below and press Prepare, or paste any Greenhouse, Lever or Ashby link on Applications.</p>}
       {needsCountry && (
         <form action={setSearchCountryAction} className="flex flex-col gap-3 border border-line-strong bg-surface p-4 md:flex-row md:items-center md:px-5">
           <div className="flex items-start gap-3 md:flex-1">

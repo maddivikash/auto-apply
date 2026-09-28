@@ -14,6 +14,7 @@ import { companyFromUrl, addUserCompany } from "@/lib/jobs/boards";
 import { pdfToText, textToProfile } from "@/lib/profile/import";
 import { mergeProfiles } from "@/lib/profile/merge";
 import { ANSWERS_MATTER, refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
+import { answerGaps, profileGaps } from "@/lib/onboarding";
 import { LABEL } from "@/components/status";
 
 export async function createApplicationAction(formData: FormData) {
@@ -294,8 +295,9 @@ export async function saveProfileAction(formData: FormData) {
   await saveProfile(userId, parsed);
   await seedAnswersFromProfile(userId, parsed, await userEmail());
   revalidatePath("/", "layout");
-  revalidatePath("/", "layout");
-  redirect("/profile?saved=1");
+  // A complete profile moves on to the answers; an incomplete one stays and says what is missing.
+  const gaps = profileGaps(parsed);
+  redirect(gaps.length ? `/profile?saved=1&missing=${encodeURIComponent(gaps.join(", "))}` : "/answers?from=profile");
 }
 
 export async function saveSettingsAction(formData: FormData) {
@@ -305,10 +307,13 @@ export async function saveSettingsAction(formData: FormData) {
   for (const key of Object.keys(Settings.shape)) { const v = formData.get(key); if (typeof v === "string") next[key] = v.trim(); }
   const saved = Settings.parse({ ...current, ...next });
   await saveSettings(userId, saved);
-  await refreshOpenApplications(userId, withProfileFallback(saved, await getProfile(userId)));
+  const profile = await getProfile(userId);
+  const known = withProfileFallback(saved, profile, await userEmail());
+  await refreshOpenApplications(userId, known);
   revalidatePath("/", "layout");
-  revalidatePath("/", "layout");
-  redirect("/answers?saved=1");
+  // With the essentials answered there is nothing left to set up: go find roles.
+  const gaps = answerGaps(known);
+  redirect(gaps.length || !profile ? `/answers?saved=1${gaps.length ? `&missing=${encodeURIComponent(gaps.join(", "))}` : ""}` : "/discover?from=answers");
 }
 
 export async function rotateRunnerTokenAction(): Promise<ActionResult> {

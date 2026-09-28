@@ -9,9 +9,9 @@ import { PageHeader } from "@/components/page-header";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ error?: string; saved?: string; imported?: string; mode?: string; welcome?: string; need?: string }> }) {
+export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ error?: string; saved?: string; imported?: string; mode?: string; welcome?: string; need?: string; missing?: string }> }) {
   const uid = await requireUserId();
-  const { error, saved, imported, mode, welcome, need } = await searchParams;
+  const { error, saved, imported, mode, welcome, need, missing } = await searchParams;
   const profile = await getProfile(uid);
   const errorText = error === "file" ? "Choose a file first." : error === "empty" ? "That file had no readable text. Try a text-based PDF." : error ? decodeURIComponent(error) : null;
   return (
@@ -38,7 +38,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         <p className="mt-2.5 text-[12.5px] text-muted">PDF or plain text, up to four files at once. Several versions of your resume are combined into one profile with every bullet, project and skill from all of them, nothing twice. Tailoring then picks from the full set.</p>
         {errorText && <p className="mt-2 text-[13px] text-danger">{errorText}</p>}
         {imported && <p className="mt-2 text-[13px] text-go">{Number(imported) > 1 ? `${imported} resumes combined` : "Profile built"}{mode === "merge" && profile ? " and added to your profile" : ""}. Check every section below, then save.</p>}
-        {saved && <p className="mt-2 text-[13px] text-go">Saved.</p>}
+        {saved && (missing ? <p className="mt-2 text-[13px] text-signal">Saved. Add your {missing} to continue.</p> : <p className="mt-2 text-[13px] text-go">Saved.</p>)}
       </section>
       {profile && !profile.gender && <p className="rounded-[var(--radius-ctl)] bg-signal-soft px-4 py-3 text-[13.5px] text-signal">Gender is missing. Forms ask it as a voluntary question; pick a value or &quot;Prefer not to say&quot; under Contact, then save.</p>}
       {profile ? <ProfileEditor initial={profile} /> : <section className="panel px-6 py-16 text-center text-[13.5px] text-muted">No profile yet. Upload a resume above and every section appears here for editing.</section>}

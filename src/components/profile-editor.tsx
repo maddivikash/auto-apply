@@ -96,7 +96,7 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
           <label className="text-[13px]"><span className="text-muted">Coursework</span><textarea className="field mt-1.5 text-[12.5px]" rows={4} defaultValue={lines(p.coursework)} onBlur={(e) => set("coursework", unlines(e.target.value))} /></label>
         </div>
       </Section>
-      <div className="sticky bottom-4 flex items-center justify-end gap-3"><span className="text-[12.5px] text-muted">Saves every section, not just the one open.</span><SubmitButton pending="Saving" className="btn-primary lift">Save profile</SubmitButton></div>
+      <div className="sticky bottom-4 flex items-center justify-end gap-3"><SubmitButton pending="Saving" className="btn-primary lift">Save profile</SubmitButton></div>
       </div>
     </form>
   );
