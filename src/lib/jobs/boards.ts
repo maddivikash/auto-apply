@@ -146,7 +146,25 @@ export async function allListings(companies: Company[], force = false): Promise<
 const INDIA = /\b(india|bengaluru|bangalore|hyderabad|pune|chennai|mumbai|gurugram|gurgaon|delhi|noida|kolkata|ahmedabad|kochi|jaipur|indore|apac)\b/i;
 const words = (s: string) => s.toLowerCase().split(/[^a-z0-9+#.]+/).filter((w) => w.length > 1);
 
-export type SearchOptions = { query: string; location?: string; limit?: number; boards?: Board[] };
+/**
+ * Job fields for the Discover dropdown, matched on the title. A role can sit in several at once:
+ * "Product Marketing Manager" is product, marketing and management; "Data Engineer" is software and analytics.
+ */
+export const JOB_FIELDS = [
+  { id: "software", label: "Software engineering", match: /\b(engineer|engineering|developer|sde|swe|programmer|devops|sre|architect|firmware|full[- ]?stack|back[- ]?end|front[- ]?end|mobile|ios|android)\b/i },
+  { id: "product", label: "Product management", match: /\bproduct (manager|owner|lead|director|management|operations|analyst|strategy|marketing)|\b(head|vp|director) of product|\bproduct manager|\bgroup pm\b|\bapm\b/i },
+  { id: "analytics", label: "Analytics and data", match: /\b(analyst|analytics|data scien\w*|data engineer\w*|business intelligence|\bbi\b|insights|statistic\w*|quantitative|machine learning|ml engineer)\b/i },
+  { id: "marketing", label: "Marketing", match: /\b(marketing|marketer|growth|seo|sem|content|brand|demand gen\w*|communications|social media|campaigns?|lifecycle|community|pr manager|copywriter)\b/i },
+  { id: "management", label: "Management", match: /\b(manager|director|head of|vp|vice president|chief|general manager|team lead|lead,)\b/i },
+] as const;
+export type JobField = (typeof JOB_FIELDS)[number]["id"];
+
+/** Every field a title belongs to. A plain "Product Manager" is product, not people management. */
+export function fieldsOf(title: string): JobField[] {
+  return JOB_FIELDS.filter((f) => f.match.test(title) && !(f.id === "management" && /^\s*(senior |sr\.? |lead |principal |associate |group )?product manager\b/i.test(title))).map((f) => f.id);
+}
+
+export type SearchOptions = { query: string; location?: string; limit?: number; boards?: Board[]; field?: JobField };
 
 export function rankListings(listings: Listing[], opts: SearchOptions): (Listing & { score: number })[] {
   const q = words(opts.query || "").filter((w) => !["engineer", "software", "developer", "senior", "and", "or"].includes(w));
@@ -156,11 +174,13 @@ export function rankListings(listings: Listing[], opts: SearchOptions): (Listing
   const locWords = words(loc).filter((w) => !["remote", "or", "and", "india"].includes(w));
   const scored = listings.map((l) => {
     const title = l.title.toLowerCase();
+    if (opts.field && !fieldsOf(l.title).includes(opts.field)) return null;
+    const engineering = !opts.field || opts.field === "software";
     let score = 0;
     for (const w of q) if (title.includes(w)) score += 3;
     if (q.length && score === 0) return null;
-    if (/engineer|developer/i.test(title)) score += 1;
-    if (/(staff|principal|director|vp|head|manager|intern)\b/i.test(title)) score -= 2;
+    if (engineering && /engineer|developer/i.test(title)) score += 1;
+    if (/(staff|principal|intern)\b/i.test(title) || (opts.field !== "management" && /(director|vp|head|manager)\b/i.test(title) && engineering)) score -= 2;
     const inIndia = INDIA.test(l.location); const isRemote = l.remote;
     if (loc) {
       let ok = false;

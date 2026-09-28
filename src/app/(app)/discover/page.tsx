@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
-import { getProfile, getSettings } from "@/lib/store";
+import { getProfile, getSettings, saveSettings } from "@/lib/store";
 import { Settings } from "@/lib/profile/types";
 import { withProfileFallback } from "@/lib/apply/answers";
-import { allCompanies, allListings, rankListings } from "@/lib/jobs/boards";
+import { allCompanies, allListings, rankListings, fieldsOf, JOB_FIELDS, type JobField } from "@/lib/jobs/boards";
 import type { Board } from "@/lib/jobs/fetch";
 import { createApplicationAction, addCompanyAction, setSearchCountryAction } from "../../actions";
 import { PageHeader } from "@/components/page-header";
@@ -25,25 +25,31 @@ function defaultQuery(title: string, skills: Record<string, string[]>): string {
   return [...words].slice(0, 7).join(" ") || "software engineer";
 }
 
-export default async function Discover({ searchParams }: { searchParams: Promise<{ q?: string; location?: string; board?: string; added?: string; error?: string; page?: string }> }) {
+export default async function Discover({ searchParams }: { searchParams: Promise<{ q?: string; location?: string; board?: string; added?: string; error?: string; page?: string; field?: string }> }) {
   const uid = await requireUserId();
   const sp = await searchParams;
   const [profile, settings, companies] = await Promise.all([getProfile(uid), getSettings(uid), allCompanies(uid)]);
   const known = withProfileFallback(Settings.parse(settings ?? {}), profile);
-  const q = sp.q ?? (profile ? defaultQuery(known.currentTitle || profile.roles[0]?.title || "", profile.skills) : "software engineer");
+  // The field comes from the URL when picked, otherwise from the last pick; a new pick is remembered.
+  const isField = (f: string): f is JobField => JOB_FIELDS.some((x) => x.id === f);
+  const picked = sp.field ?? known.jobField;
+  const field: JobField | undefined = picked && isField(picked) ? picked : undefined;
+  if (sp.field !== undefined && sp.field !== (settings?.jobField ?? "")) await saveSettings(uid, { ...Settings.parse(settings ?? {}), jobField: field ?? "" });
+  // Title words default from the profile only for software roles; other fields start from the field itself.
+  const q = sp.q ?? (field && field !== "software" ? "" : profile ? defaultQuery(known.currentTitle || profile.roles[0]?.title || "", profile.skills) : field ? "" : "software engineer");
   const country = known.workAuthorizedCountries.split(",")[0].trim();
   const needsCountry = !country && !sp.location;
   const location = sp.location ?? (country ? `${country}, Remote` : "");
   const boards = (sp.board || "").split(",").filter((b): b is Board => BOARDS.includes(b as Board));
   const listings = await allListings(companies);
-  const ranked = rankListings(listings, { query: q, location, limit: 200, boards: boards.length ? boards : undefined });
+  const ranked = rankListings(listings, { query: q, location, limit: 200, boards: boards.length ? boards : undefined, field });
   const pages = Math.max(1, Math.ceil(ranked.length / PAGE_SIZE));
   const page = Math.min(pages, Math.max(1, Number(sp.page) || 1));
   const results = ranked.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const pageHref = (n: number) => { const p = new URLSearchParams({ q, location }); if (boards.length) p.set("board", boards.join(",")); if (n > 1) p.set("page", String(n)); return `/discover?${p}`; };
+  const pageHref = (n: number) => { const p = new URLSearchParams({ q, location, field: field ?? "" }); if (boards.length) p.set("board", boards.join(",")); if (n > 1) p.set("page", String(n)); return `/discover?${p}`; };
   const openByToken = new Map<string, number>();
   for (const l of listings) openByToken.set(`${l.board}/${l.token.toLowerCase()}`, (openByToken.get(`${l.board}/${l.token.toLowerCase()}`) || 0) + 1);
-  const toggleBoard = (b: Board) => { const set = new Set(boards); if (set.has(b)) set.delete(b); else set.add(b); const p = new URLSearchParams({ q, location }); if (set.size) p.set("board", [...set].join(",")); return `/discover?${p}`; };
+  const toggleBoard = (b: Board) => { const set = new Set(boards); if (set.has(b)) set.delete(b); else set.add(b); const p = new URLSearchParams({ q, location, field: field ?? "" }); if (set.size) p.set("board", [...set].join(",")); return `/discover?${p}`; };
   return (
     <div className="space-y-8">
       <PageHeader title="Discover" description={`${listings.length.toLocaleString()} open roles across ${companies.length} companies that hire through Greenhouse, Ashby or Lever. Refreshed every six hours and completely free. Anything here can be prepared with one click.`} />
@@ -59,7 +65,11 @@ export default async function Discover({ searchParams }: { searchParams: Promise
         </form>
       )}
       <form method="get" className="panel flex flex-col gap-2 p-2 md:flex-row">
-        <input name="q" defaultValue={q} placeholder="Title words: AI agents, platform, full stack" className="field mono h-11 flex-1 text-[13.5px]" aria-label="Title words" />
+        <select name="field" defaultValue={field ?? ""} className="field h-11 text-[13.5px] md:w-52" aria-label="Job field">
+          <option value="">All job fields</option>
+          {JOB_FIELDS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+        </select>
+        <input name="q" defaultValue={q} placeholder="Title words: AI agents, platform, growth" className="field mono h-11 flex-1 text-[13.5px]" aria-label="Title words" />
         <input name="location" defaultValue={location} placeholder="Location: Bengaluru, India, Remote" className="field mono h-11 md:w-64 text-[13.5px]" aria-label="Location" />
         {boards.length > 0 && <input type="hidden" name="board" value={boards.join(",")} />}
         <button className="btn-primary h-11 px-5">Search</button>
@@ -71,14 +81,14 @@ export default async function Discover({ searchParams }: { searchParams: Promise
       </div>
 
       <section className="panel overflow-hidden">
-        <div className="panel-head"><h2 className="text-[15px] font-semibold">{needsCountry ? "Matches everywhere" : "Best matches"}</h2><span className="meta">{ranked.length ? `${(page - 1) * PAGE_SIZE + 1}–${(page - 1) * PAGE_SIZE + results.length} of ${ranked.length}` : "0"}{needsCountry ? ", set a country above to rank by place" : ""}</span></div>
+        <div className="panel-head"><h2 className="text-[15px] font-semibold">{needsCountry ? "Matches everywhere" : "Best matches"}</h2><span className="meta">{ranked.length ? `${(page - 1) * PAGE_SIZE + 1}–${(page - 1) * PAGE_SIZE + results.length} of ${ranked.length}${ranked.length >= 200 ? "+" : ""}` : "0"}{needsCountry ? ", set a country above to rank by place" : ""}</span></div>
         {results.length === 0 ? <p className="px-5 py-10 text-center text-[13.5px] text-muted">Nothing matched those words in that location. Try fewer words, or widen the location to a country or Remote.</p> : (
           <ul className="divide-rows">
             {results.map((l) => (
               <li key={`${l.board}/${l.id}`} className="grid gap-3 px-5 py-3.5 md:grid-cols-[1fr_auto_auto] md:items-center md:gap-5">
                 <div className="min-w-0">
                   <div className="truncate text-[14px] font-medium">{l.company}, {l.title}</div>
-                  <div className="meta mt-1 flex flex-wrap items-center gap-x-3"><span className="truncate">{l.location || (l.remote ? "Remote" : "Location not listed")}</span><span>{BOARD_NAME[l.board]}</span>{l.postedAt && <span>{new Date(l.postedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}</div>
+                  <div className="meta mt-1 flex flex-wrap items-center gap-x-3"><span className="truncate">{l.location || (l.remote ? "Remote" : "Location not listed")}</span><span>{BOARD_NAME[l.board]}</span>{fieldsOf(l.title).map((f) => <span key={f} className={f === field ? "text-accent" : ""}>{JOB_FIELDS.find((x) => x.id === f)!.label}</span>)}{l.postedAt && <span>{new Date(l.postedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}</div>
                 </div>
                 <a href={l.url} target="_blank" rel="noreferrer" className="btn-quiet h-8 text-[12.5px]"><ExternalLink size={13} /> Posting</a>
                 {profile

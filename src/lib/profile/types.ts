@@ -80,7 +80,9 @@ export const Settings = z.object({
   education: z.array(Education).default([]),
   notifyEmail: z.string().default(""),
   /** When the user closed the paid-plan offer shown after their free applications. Empty until then. */
-  planOfferSeenAt: z.string().default("")
+  planOfferSeenAt: z.string().default(""),
+  /** The job field last picked on Discover, so it opens there next time. Empty means all fields. */
+  jobField: z.string().default("")
 });
 export type Settings = z.infer<typeof Settings>;
 
