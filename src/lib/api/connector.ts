@@ -11,7 +11,7 @@ import { z } from "zod";
 import { getApplication, saveApplication, deleteApplication, listApplications, getProfile, saveProfile, getSettings, saveSettings, type Application, type ApplicationStatus } from "../store";
 import { Profile, Settings } from "../profile/types";
 import { scheduleProcessing } from "../apply/schedule";
-import { ANSWERS_MATTER, refreshAnswers, withProfileFallback } from "../apply/answers";
+import { refreshAnswers, withProfileFallback } from "../apply/answers";
 import { textToProfile } from "../profile/import";
 import { mergeProfiles } from "../profile/merge";
 import { signedPdfUrl } from "./sign";
@@ -21,6 +21,8 @@ import { fetchJob } from "../jobs/fetch";
 import { resumeFileName } from "../resume/filename";
 import { ApiError } from "./auth";
 import { LABEL } from "@/components/status";
+import { learnAnswers, refreshOpenWithBank } from "../apply/learn";
+import { getBank } from "../apply/bank";
 
 const PROCESSING: ApplicationStatus[] = ["queued", "fetching", "tailoring", "rendering", "filling", "submit_requested"];
 
@@ -126,9 +128,10 @@ export async function answerQuestions(userId: string, id: string, answers: Recor
     const q = app.questions.find((x) => x.id === key) || app.questions.find((x) => x.label.toLowerCase() === key.toLowerCase());
     if (!q) { unknown.push(key); continue; }
     const v = String(raw ?? "").trim();
-    q.answer = v || undefined; q.source = v ? "user" : undefined; q.needsHuman = !v && q.required;
+    q.answer = v || undefined; q.source = v ? "user" : undefined; q.needsHuman = !v && q.required; q.fromDraft = undefined;
   }
   await saveApplication(app);
+  await learnAnswers(userId, app, withProfileFallback(Settings.parse((await getSettings(userId)) ?? {}), await getProfile(userId)));
   return { ...summarize(app), unknownQuestions: unknown.length ? unknown : undefined };
 }
 
@@ -149,7 +152,7 @@ export async function redraftAnswer(userId: string, id: string, questionId: stri
 export async function acceptDrafts(userId: string, id: string) {
   const app = await load(userId, id);
   let n = 0;
-  for (const q of app.questions) if (q.source === "ai" && q.needsHuman && q.answer) { q.source = "user"; q.needsHuman = false; n++; }
+  for (const q of app.questions) if (q.source === "ai" && q.needsHuman && q.answer) { q.source = "user"; q.fromDraft = true; q.needsHuman = false; n++; }
   if (!n) throw new ApiError(409, "No AI drafts are waiting for confirmation.");
   await saveApplication(app);
   return { ...summarize(app), accepted: n };
@@ -194,7 +197,7 @@ export async function formAnswers(userId: string, id: string, allowOpen = false)
   const app = await load(userId, id);
   if (!app.resumePdfUrl || !["ready", "approved", "filling", "filled", "submit_requested", "code_required", "failed"].includes(app.status)) throw new ApiError(409, `The resume is not ready yet (${LABEL[app.status].toLowerCase()}).`);
   const settings = withProfileFallback(Settings.parse((await getSettings(userId)) ?? {}), await getProfile(userId));
-  refreshAnswers(app, settings);
+  refreshAnswers(app, settings, await getBank(userId));
   const open = app.questions.filter((q) => q.needsHuman);
   if (open.length && !allowOpen) throw new ApiError(409, `${open.length} question(s) still need the user's answer: ${open.map((q) => q.label).join("; ")}. Call answer_questions first, or pass allowOpen to get the partial form.`);
   const contact = stripSecrets(settings);
@@ -250,8 +253,7 @@ async function seedAnswers(userId: string, profile: Profile) {
 }
 
 async function refreshOpen(userId: string, settings: Settings) {
-  const apps = (await listApplications(userId)).filter(ANSWERS_MATTER);
-  await Promise.all(apps.filter((a) => refreshAnswers(a, settings)).map((a) => saveApplication(a)));
+  await refreshOpenWithBank(userId, settings);
 }
 
 function stripSecrets(s: Settings): KnownAnswers {

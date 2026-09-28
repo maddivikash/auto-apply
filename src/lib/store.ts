@@ -13,7 +13,8 @@ import type { Profile, Settings } from "./profile/types";
 
 export type ResumeVariant = { resume: TailoredResume; pdfUrl: string; match: Match; headline?: string; trims: string[] };
 
-export type QuestionState = JobQuestion & { answer?: string; source?: "profile" | "rule" | "user" | "ai"; needsHuman: boolean };
+/** `saved` answers come from the answer bank; `fromDraft` marks a user answer that was an accepted AI draft (never banked). */
+export type QuestionState = JobQuestion & { answer?: string; source?: "profile" | "rule" | "user" | "ai" | "saved"; needsHuman: boolean; fromDraft?: boolean };
 
 export type ApplicationStatus =
   | "queued" | "fetching" | "unsupported" | "tailoring" | "rendering" | "ready"

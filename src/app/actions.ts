@@ -13,9 +13,11 @@ import { fetchJob } from "@/lib/jobs/fetch";
 import { companyFromUrl, addUserCompany } from "@/lib/jobs/boards";
 import { pdfToText, textToProfile } from "@/lib/profile/import";
 import { mergeProfiles } from "@/lib/profile/merge";
-import { ANSWERS_MATTER, refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
+import { withProfileFallback } from "@/lib/apply/answers";
 import { answerGaps, profileGaps } from "@/lib/onboarding";
 import { LABEL } from "@/components/status";
+import { learnAnswers, refreshOpenWithBank } from "@/lib/apply/learn";
+import { getBank, saveBank } from "@/lib/apply/bank";
 
 export async function createApplicationAction(formData: FormData) {
   const userId = await requireUserId();
@@ -64,9 +66,15 @@ export async function saveAnswersAction(formData: FormData) {
     if (typeof v !== "string") continue;
     const changed = v.trim() !== (q.answer || "");
     // Saving the page confirms AI drafts as they stand; an edited draft becomes the user's own answer.
-    if (changed || (q.source === "ai" && q.needsHuman && v.trim())) { q.answer = v.trim() || undefined; q.source = v.trim() ? "user" : undefined; q.needsHuman = !v.trim() && q.required; }
+    if (changed || (q.source === "ai" && q.needsHuman && v.trim())) {
+      const acceptedDraft = !changed && q.source === "ai";
+      q.answer = v.trim() || undefined; q.source = v.trim() ? "user" : undefined; q.needsHuman = !v.trim() && q.required;
+      q.fromDraft = acceptedDraft || (q.fromDraft && !changed) || undefined;
+    }
   }
   await saveApplication(app);
+  // Remember these answers and fill the same questions on the other open applications.
+  await learnAnswers(userId, app, withProfileFallback(Settings.parse((await getSettings(userId)) ?? {}), await getProfile(userId)));
   revalidatePath(`/a/${id}`);
   redirect(`/a/${id}?saved=1`);
 }
@@ -225,7 +233,7 @@ export async function acceptDraftsAction(id: string): Promise<ActionResult> {
     const app = await getApplication(userId, id);
     if (!app) return { ok: false, error: "This application no longer exists." };
     let n = 0;
-    for (const q of app.questions) if (q.source === "ai" && q.needsHuman && q.answer) { q.source = "user"; q.needsHuman = false; n++; }
+    for (const q of app.questions) if (q.source === "ai" && q.needsHuman && q.answer) { q.source = "user"; q.fromDraft = true; q.needsHuman = false; n++; }
     if (!n) return { ok: false, error: "No AI drafts are waiting for confirmation." };
     await saveApplication(app);
     revalidatePath("/", "layout");
@@ -283,8 +291,7 @@ async function seedAnswersFromProfile(userId: string, profile: Profile, email: s
 
 /** Re-derive rule answers on every application that is not done yet, so filled-in details stop being asked. */
 async function refreshOpenApplications(userId: string, settings: Settings) {
-  const apps = (await listApplications(userId)).filter(ANSWERS_MATTER);
-  await Promise.all(apps.filter((a) => refreshAnswers(a, settings)).map((a) => saveApplication(a)));
+  await refreshOpenWithBank(userId, settings);
 }
 
 export async function saveProfileAction(formData: FormData) {
@@ -417,4 +424,22 @@ export async function dismissPlanOfferAction() {
   const userId = await requireUserId();
   const s = Settings.parse((await getSettings(userId)) ?? {});
   await saveSettings(userId, { ...s, planOfferSeenAt: new Date().toISOString() });
+}
+
+/** Edit or remove answers in the answer bank; open applications pick the change up at once. */
+export async function saveBankAction(formData: FormData) {
+  const userId = await requireUserId();
+  const bank = await getBank(userId);
+  const remove = formData.get("delete");
+  if (typeof remove === "string" && remove) delete bank[remove];
+  else for (const key of Object.keys(bank)) {
+    const v = formData.get(`bank:${key}`);
+    if (typeof v !== "string") continue;
+    if (!v.trim()) delete bank[key];
+    else if (v.trim() !== bank[key].answer) bank[key] = { ...bank[key], answer: v.trim(), updatedAt: new Date().toISOString() };
+  }
+  await saveBank(userId, bank);
+  await refreshOpenWithBank(userId, withProfileFallback(Settings.parse((await getSettings(userId)) ?? {}), await getProfile(userId)), bank);
+  revalidatePath("/", "layout");
+  redirect(`/answers?bank=${typeof remove === "string" && remove ? "removed" : "1"}#saved`);
 }

@@ -3,6 +3,7 @@ import { getApplication, saveApplication, saveFile, getSettings, getProfile, add
 import { Settings } from "@/lib/profile/types";
 import { refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
 import { emailCodeRequired, emailFormFilled, emailSubmitted, reportEmailFailuresTo } from "@/lib/email";
+import { getBank } from "@/lib/apply/bank";
 
 const ALLOWED: ApplicationStatus[] = ["filling", "filled", "submitted", "failed", "approved", "code_required"];
 
@@ -23,7 +24,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (body.questions?.length) {
     const known = new Set(app.questions.map((q) => q.label.toLowerCase()));
     for (const q of body.questions) if (!known.has(q.label.toLowerCase())) app.questions.push({ id: q.label, label: q.label, required: q.required, type: q.type as QuestionState["type"], options: q.options, needsHuman: true });
-    refreshAnswers(app, settings);
+    refreshAnswers(app, settings, await getBank(uid));
   }
   if (body.error) app.error = body.error;
   if (body.status && ALLOWED.includes(body.status)) {

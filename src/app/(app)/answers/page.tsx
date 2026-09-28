@@ -2,7 +2,8 @@ import { requireUserId, userEmail } from "@/lib/auth";
 import { getProfile, getSettings } from "@/lib/store";
 import { withProfileFallback } from "@/lib/apply/answers";
 import { Settings } from "@/lib/profile/types";
-import { saveSettingsAction } from "../../actions";
+import { saveSettingsAction, saveBankAction } from "../../actions";
+import { getBank } from "@/lib/apply/bank";
 import { PageHeader } from "@/components/page-header";
 import { SubmitButton } from "@/components/submit-button";
 
@@ -14,10 +15,11 @@ const GROUPS: { title: string; hint: string; fields: [keyof Settings, string, st
   { title: "Work", hint: "Answers for the usual screening questions.", fields: [["currentCompany", "Current company"], ["currentTitle", "Current title"], ["yearsExperience", "Years of experience", "5"], ["noticePeriod", "Notice period or earliest start", "30 days"], ["salaryExpectation", "Salary expectation, if you want it filled"], ["heardFrom", "How you heard about jobs", "LinkedIn"]] }
 ];
 
-export default async function AnswersPage({ searchParams }: { searchParams: Promise<{ saved?: string; from?: string; missing?: string }> }) {
+export default async function AnswersPage({ searchParams }: { searchParams: Promise<{ saved?: string; from?: string; missing?: string; bank?: string }> }) {
   const uid = await requireUserId();
-  const { saved, from, missing } = await searchParams;
-  const [settings, profile, email] = await Promise.all([getSettings(uid), getProfile(uid), userEmail()]);
+  const { saved, from, missing, bank: bankSaved } = await searchParams;
+  const [settings, profile, email, bank] = await Promise.all([getSettings(uid), getProfile(uid), userEmail(), getBank(uid)]);
+  const banked = Object.entries(bank).sort(([, a], [, b]) => b.updatedAt.localeCompare(a.updatedAt));
   // Anything the resume already says (name, phone, links, current role) shows here filled in, exactly as the
   // form filler will use it; typing over a value and saving makes that the answer instead.
   const s = withProfileFallback(Settings.parse(settings ?? {}), profile, email);
@@ -60,6 +62,34 @@ export default async function AnswersPage({ searchParams }: { searchParams: Prom
         </section>
         <div className="sticky bottom-4 flex items-center justify-end gap-3">{saved && !missing && <span className="text-[13px] text-go">Saved.</span>}<SubmitButton pending="Saving" className="btn-primary lift">{from === "profile" ? "Save and find roles" : "Save answers"}</SubmitButton></div>
       </form>
+
+      <section id="saved" className="panel">
+        <div className="panel-head">
+          <div><h2 className="text-[15px] font-semibold">Saved from your applications</h2><p className="mt-0.5 text-[12.5px] text-muted">Every answer you typed on a form. When another form asks the same question, it is filled from here. Questions about one company, and AI drafts, are never reused.</p></div>
+          <span className="meta shrink-0">{banked.length} saved</span>
+        </div>
+        {banked.length === 0 ? (
+          <p className="px-5 py-8 text-center text-[13.5px] text-muted">Nothing yet. Answer a question on any application and it shows up here, ready for the next form.</p>
+        ) : (
+          <form action={saveBankAction}>
+            <ul className="divide-rows">
+              {banked.map(([key, e]) => (
+                <li key={key} className="grid gap-2 px-5 py-4 md:grid-cols-[1fr_1.2fr_auto] md:items-start md:gap-5">
+                  <div className="min-w-0">
+                    <div className="text-[13.5px] font-medium">{e.label}</div>
+                    <div className="meta mt-1">Used for {e.uses.slice(0, 3).map((u) => u.company || "an application").join(", ")}{e.uses.length > 3 ? ` and ${e.uses.length - 3} more` : ""}</div>
+                  </div>
+                  {e.type === "textarea"
+                    ? <textarea name={`bank:${key}`} defaultValue={e.answer} rows={3} className="field text-[13px]" aria-label={e.label} />
+                    : <input name={`bank:${key}`} defaultValue={e.answer} className="field mono text-[13px]" aria-label={e.label} />}
+                  <button name="delete" value={key} className="btn-quiet h-9 text-[12.5px] text-faint hover:text-danger">Remove</button>
+                </li>
+              ))}
+            </ul>
+            <div className="flex items-center justify-end gap-3 border-t border-line px-5 py-3.5">{bankSaved && <span className="text-[13px] text-go">{bankSaved === "removed" ? "Removed." : "Saved. Open applications were updated."}</span>}<SubmitButton pending="Saving" className="btn-ghost">Save saved answers</SubmitButton></div>
+          </form>
+        )}
+      </section>
     </div>
   );
 }

@@ -9,6 +9,7 @@
  *    application is shown or the settings are saved, not only when it was created.
  */
 import { answerFor, countryOf, needsHuman } from "../defaults";
+import { bankAnswer, type AnswerBank } from "./bank";
 import type { Profile, Settings } from "../profile/types";
 import type { JobQuestion } from "../jobs/fetch";
 import type { Application, QuestionState } from "../store";
@@ -53,10 +54,10 @@ export function withProfileFallback(s: Settings, p: Profile | null | undefined, 
 export const isHiddenGeo = (label: string) => /^(longitude|latitude)$/i.test(label);
 
 /** Fresh question states for a posting's questions, answered from the given settings. */
-export function questionStates(questions: JobQuestion[], settings: Settings, jobLocation?: string): QuestionState[] {
+export function questionStates(questions: JobQuestion[], settings: Settings, jobLocation?: string, bank?: AnswerBank, company?: string): QuestionState[] {
   const out = questions.filter((q) => !isHiddenGeo(q.label)).map((q): QuestionState => ({ ...q, needsHuman: false }));
-  const app = { questions: out, job: { location: jobLocation } } as unknown as Application;
-  refreshAnswers(app, settings);
+  const app = { questions: out, job: { location: jobLocation, company } } as unknown as Application;
+  refreshAnswers(app, settings, bank);
   return out;
 }
 
@@ -64,11 +65,13 @@ export function questionStates(questions: JobQuestion[], settings: Settings, job
  * Re-derive every answer that did not come from the user. Returns true when anything changed,
  * so callers can decide whether to persist.
  */
-export function refreshAnswers(app: Application, settings: Settings): boolean {
+export function refreshAnswers(app: Application, settings: Settings, bank?: AnswerBank): boolean {
   let changed = false;
   for (const q of app.questions) {
     if ((q.source === "user" || q.source === "ai") && q.answer) continue;
-    const a = answerFor(settings, q.label, q.options, q.type, { jobLocation: app.job?.location });
+    // Standing answers and profile facts first; otherwise what the user typed for the same question before.
+    let a: { value: string; source: QuestionState["source"] } | null | undefined = answerFor(settings, q.label, q.options, q.type, { jobLocation: app.job?.location });
+    if (!a && bank) { const v = bankAnswer(bank, q, app.job?.company); if (v) a = { value: v, source: "saved" }; }
     const human = q.type !== "file" && !a && (needsHuman(q.label, q.type) || q.required);
     if (q.answer !== a?.value || q.source !== a?.source || q.needsHuman !== human) {
       q.answer = a?.value;

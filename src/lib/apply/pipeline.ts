@@ -11,6 +11,7 @@ import { Settings } from "../profile/types";
 import { launchBrowser } from "../browser";
 import { emailNotPossible, emailResumeReady, reportEmailFailuresTo } from "../email";
 import { resumeFileName } from "../resume/filename";
+import { getBank } from "./bank";
 
 /** Everything between "link pasted" and "resume ready". Safe to re-run: it overwrites. */
 export async function processApplication(userId: string, id: string): Promise<void> {
@@ -39,6 +40,7 @@ export async function processApplication(userId: string, id: string): Promise<vo
     const profile = await getProfile(userId);
     if (!profile) throw new Error("Add your profile first (Profile page) so the resume has something to work from.");
     const settings = withProfileFallback(Settings.parse((await getSettings(userId)) ?? {}), profile);
+    const bank = await getBank(userId);
     const to = settings.notifyEmail || settings.email;
     reportEmailFailuresTo((message) => addNotification({ userId, kind: "info", title: "Notification email not delivered", body: message }));
 
@@ -59,14 +61,14 @@ export async function processApplication(userId: string, id: string): Promise<vo
     // Answers first from what is known; the form's own questions (Lever, Ashby) and the AI drafts arrive in parallel with the resume.
     const kept = new Map(app.questions.filter((q) => (q.source === "user" || q.source === "ai") && q.answer).map((q) => [q.label.toLowerCase(), q]));
     const withKept = (qs: ReturnType<typeof questionStates>) => qs.map((q) => { const t = kept.get(q.label.toLowerCase()); return t ? { ...q, answer: t.answer, source: t.source, needsHuman: false } : q; });
-    app.questions = withKept(questionStates(job.questions, settings, job.location));
+    app.questions = withKept(questionStates(job.questions, settings, job.location, bank, job.company));
     const questionsTask = (async () => {
       if (job.board !== "greenhouse") {
         try {
           const found = await discoverFormQuestions(job.applyUrl, sharedLaunch);
           const known = new Set(job.questions.map((q) => q.label.toLowerCase()));
           for (const q of found) if (!known.has(q.label.toLowerCase())) job.questions.push(q);
-          app.questions = withKept(questionStates(job.questions, settings, job.location));
+          app.questions = withKept(questionStates(job.questions, settings, job.location, bank, job.company));
           console.log(`application ${id}: ${found.length} form questions discovered on ${job.board}`);
         } catch (e) { console.warn(`application ${id}: could not read the form's questions:`, (e as Error).message); }
       }

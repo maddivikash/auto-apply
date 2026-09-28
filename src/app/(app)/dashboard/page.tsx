@@ -15,6 +15,7 @@ import { StatusBadge, StageTrack } from "@/components/status";
 import { LinkInput } from "@/components/link-input";
 import { SubmitButton } from "@/components/submit-button";
 import { PageHeader } from "@/components/page-header";
+import { getBank } from "@/lib/apply/bank";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -22,12 +23,12 @@ export const maxDuration = 300;
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const uid = await requireUserId();
   const { error } = await searchParams;
-  const [apps, profile, settings] = await Promise.all([listApplications(uid), getProfile(uid), getSettings(uid)]);
+  const [apps, profile, settings, bank] = await Promise.all([listApplications(uid), getProfile(uid), getSettings(uid), getBank(uid)]);
   // A new account starts on the upload step: nothing else works until the profile exists.
   if (!profile && apps.length === 0) redirect("/profile?welcome=1");
   const known = withProfileFallback(Settings.parse(settings ?? {}), profile);
   await Promise.all(apps.filter((a) => markStale(a)).map((a) => saveApplication(a)));
-  for (const a of apps) refreshAnswers(a, known);
+  for (const a of apps) refreshAnswers(a, known, bank);
   const s = summarize(apps);
   const counts: { label: string; n: number; tone: string }[] = [
     { label: "awaiting your Submit", n: s.awaitingSubmit, tone: "bg-signal" },

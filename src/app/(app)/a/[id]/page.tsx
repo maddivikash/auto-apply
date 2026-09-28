@@ -16,6 +16,8 @@ import { ActionButton } from "@/components/action-button";
 import { RegeneratePanel } from "@/components/regenerate-panel";
 import { CodeForm } from "@/components/code-form";
 import { ResumeToggle } from "@/components/resume-toggle";
+import { RequiredTag } from "@/components/required-tag";
+import { getBank } from "@/lib/apply/bank";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -24,11 +26,11 @@ export default async function ApplicationPage({ params, searchParams }: { params
   const uid = await requireUserId();
   const { id } = await params;
   const { saved } = await searchParams;
-  const [app, settings, profile] = await Promise.all([getApplication(uid, id), getSettings(uid), getProfile(uid)]);
+  const [app, settings, profile, bank] = await Promise.all([getApplication(uid, id), getSettings(uid), getProfile(uid), getBank(uid)]);
   if (!app) notFound();
   if (markStale(app)) await saveApplication(app);
   // Answers follow the current Profile and Answers pages, not the moment the link was pasted.
-  if (refreshAnswers(app, withProfileFallback(Settings.parse(settings ?? {}), profile)) && app.status === "ready") await saveApplication(app);
+  if (refreshAnswers(app, withProfileFallback(Settings.parse(settings ?? {}), profile), bank) && app.status === "ready") await saveApplication(app);
   const waitingForCode = app.status === "code_required" && !app.verificationCode;
   const busy = IN_PROGRESS.includes(app.status) || (app.status === "code_required" && !!app.verificationCode);
   // Filling, submitting and entering the code happen in the local runner; nothing moves if it is not running.
@@ -219,7 +221,7 @@ function Step({ n, title, state, body, children }: { n: number; title: string; s
 function QuestionField({ q, appId }: { q: QuestionState; appId: string }) {
   const name = `q:${q.id}`;
   const redraft = q.source === "ai" || (q.type === "textarea" && !q.answer && q.needsHuman) ? <RedraftPanel id={appId} questionId={q.id} action={redraftAction} /> : null;
-  const label = <label htmlFor={name} className="flex flex-wrap items-baseline gap-x-2 text-[13px] font-medium">{q.label}{q.required && (!q.answer || q.needsHuman) && <span className="text-danger">required</span>}{q.source === "user" && q.answer && <span className="text-[11.5px] font-normal text-faint">you answered</span>}{q.source === "ai" && q.answer && <span className={`rounded-full px-1.5 py-[1px] text-[11px] font-medium ${q.needsHuman ? "bg-signal-soft text-signal" : "bg-accent-soft text-accent"}`}>{q.needsHuman ? "AI draft from your profile, needs your confirmation" : "AI draft, accepted"}</span>}{q.source && q.source !== "user" && q.source !== "ai" && <span className="text-[11.5px] font-normal text-faint">from your answers</span>}</label>;
+  const label = <label htmlFor={name} className="flex flex-wrap items-baseline gap-x-2 text-[13px] font-medium">{q.label}{q.required && (!q.answer || q.needsHuman) && <RequiredTag htmlFor={name} initiallyEmpty={!q.answer} />}{q.source === "user" && q.answer && <span className="text-[11.5px] font-normal text-faint">you answered</span>}{q.source === "ai" && q.answer && <span className={`rounded-full px-1.5 py-[1px] text-[11px] font-medium ${q.needsHuman ? "bg-signal-soft text-signal" : "bg-accent-soft text-accent"}`}>{q.needsHuman ? "AI draft from your profile, needs your confirmation" : "AI draft, accepted"}</span>}{q.source === "saved" && q.answer && <span className="rounded-full bg-go-soft px-1.5 py-[1px] text-[11px] font-medium text-go">from your saved answers</span>}{(q.source === "profile" || q.source === "rule") && <span className="text-[11.5px] font-normal text-faint">from your answers</span>}</label>;
   if (q.type === "file") return null;
   if (q.options?.length) return <div>{label}<select id={name} name={name} defaultValue={q.answer || ""} className="field mt-1.5"><option value="">Choose</option>{q.options.map((o) => <option key={o} value={o}>{o}</option>)}</select></div>;
   if (q.type === "textarea" || q.needsHuman || q.source === "ai") return <div>{label}<textarea key={q.answer || ""} id={name} name={name} defaultValue={q.answer || ""} rows={q.source === "ai" ? 5 : 3} className="field mt-1.5" />{redraft}</div>;
