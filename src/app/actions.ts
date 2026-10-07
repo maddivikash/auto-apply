@@ -21,10 +21,10 @@ import { getBank, saveBank } from "@/lib/apply/bank";
 import { isTemplateId, templateInfo } from "@/lib/resume/templates";
 import { parseEdited, rewriteBullet } from "@/lib/resume/edit";
 import { renderPdf } from "@/lib/resume/render";
-import { matchResume } from "@/lib/resume/match";
 import { validate } from "@/lib/resume/tailor";
 import { resumeProfileFor } from "@/lib/apply/pipeline";
 import { launchBrowser } from "@/lib/browser";
+import { ensureJobDescription, rescore } from "@/lib/apply/match-repair";
 
 export async function createApplicationAction(formData: FormData) {
   const userId = await requireUserId();
@@ -482,7 +482,10 @@ export async function saveResumeEditAction(id: string, input: { resume: unknown;
     if (!profile) return { ok: false, error: "Add your profile first." };
     const choice = app.resumeChoice || "tailored";
     const other = choice === "tailored" ? "full" : "tailored";
-    const jd = app.jobDescription || app.job.descriptionPreview;
+    // A template change alone keeps the score: the words did not change. Real edits are rescored against the full posting.
+    const stored = parseEdited(app.variants[choice].resume);
+    const sameWords = stored.ok && JSON.stringify(parsed.resume) === JSON.stringify(stored.resume);
+    const jd = sameWords ? (app.jobDescription || app.job.descriptionPreview || "") : await ensureJobDescription(app);
     const renderProfile = resumeProfileFor(profile, app.job.title, jd);
     let browser: Awaited<ReturnType<typeof launchBrowser>> | null = null;
     const shared = async () => {
@@ -497,7 +500,7 @@ export async function saveResumeEditAction(id: string, input: { resume: unknown;
       ]);
       // A fresh path per save: the Blob CDN may keep serving an overwritten file for a while.
       const mineUrl = await saveFile(`users/${userId}/resumes/${id}-${choice}-${stamp}.pdf`, mine.pdf, "application/pdf");
-      app.variants[choice] = { ...app.variants[choice], resume: mine.resume, pdfUrl: mineUrl, trims: mine.trims, scale: mine.scale, match: matchResume(jd, mine.resume, profile, app.job.company) };
+      app.variants[choice] = { ...app.variants[choice], resume: mine.resume, pdfUrl: mineUrl, trims: mine.trims, scale: mine.scale, match: sameWords ? app.variants[choice].match : rescore(jd, mine.resume, profile, app.job.company, app.variants[choice].match) };
       if (theirs) app.variants[other] = { ...app.variants[other], pdfUrl: await saveFile(`users/${userId}/resumes/${id}-${other}-${stamp}.pdf`, theirs.pdf, "application/pdf"), trims: theirs.trims, scale: theirs.scale };
       app.template = input.template;
       app.editedAt = new Date().toISOString();

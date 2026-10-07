@@ -22,6 +22,7 @@ import { CodeForm } from "@/components/code-form";
 import { ResumeToggle } from "@/components/resume-toggle";
 import { RequiredTag } from "@/components/required-tag";
 import { getBank } from "@/lib/apply/bank";
+import { repairMatches } from "@/lib/apply/match-repair";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -33,6 +34,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
   const [app, settings, profile, bank] = await Promise.all([getApplication(uid, id), getSettings(uid), getProfile(uid), getBank(uid)]);
   if (!app) notFound();
   if (markStale(app)) await saveApplication(app);
+  if (profile && (await repairMatches(app, profile))) await saveApplication(app);
   // Answers follow the current Profile and Answers pages, not the moment the link was pasted.
   if (refreshAnswers(app, withProfileFallback(Settings.parse(settings ?? {}), profile), bank) && app.status === "ready") await saveApplication(app);
   const waitingForCode = app.status === "code_required" && !app.verificationCode;
