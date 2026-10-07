@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { ResumeFrame } from "./resume-frame";
@@ -12,14 +12,24 @@ export function TemplateCarousel({ pages }: { pages: Page[] }) {
   const n = pages.length;
   const go = useCallback((d: number) => setI((x) => (x + d + n) % n), [n]);
   const [hover, setHover] = useState(false);
+  // Each preview is a full page with its own web fonts: build them only once the section is near.
+  const root = useRef<HTMLDivElement>(null);
+  const [near, setNear] = useState(false);
   useEffect(() => {
-    if (hover) return;
+    const el = root.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setNear(true); io.disconnect(); } }, { rootMargin: "500px 0px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  useEffect(() => {
+    if (hover || !near) return;
     const t = setInterval(() => go(1), 4500);
     return () => clearInterval(t);
-  }, [go, hover]);
+  }, [go, hover, near]);
   const cur = pages[i];
   return (
-    <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onKeyDown={(e) => { if (e.key === "ArrowLeft") go(-1); if (e.key === "ArrowRight") go(1); }} tabIndex={0} role="region" aria-roledescription="carousel" aria-label="Resume templates" className="outline-none">
+    <div ref={root} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onKeyDown={(e) => { if (e.key === "ArrowLeft") go(-1); if (e.key === "ArrowRight") go(1); }} tabIndex={0} role="region" aria-roledescription="carousel" aria-label="Resume templates" className="outline-none">
       <div className="relative mx-auto max-w-[1100px] [--card-w:min(76vw,400px,max(240px,calc((100svh-370px)*0.773)))]" style={{ height: "calc(var(--card-w) / 0.773 + 40px)" }}>
         {pages.map((p, j) => {
           let off = j - i;
@@ -35,7 +45,7 @@ export function TemplateCarousel({ pages }: { pages: Page[] }) {
                 zIndex: 10 - abs, opacity: hidden ? 0 : 1, pointerEvents: hidden ? "none" : "auto"
               }}>
               <div className={`relative overflow-hidden rounded-[10px] bg-white transition-shadow ${off === 0 ? "shadow-[0_0_0_2px_var(--accent),0_40px_80px_-30px_rgba(18,24,38,0.55)]" : "shadow-[0_20px_50px_-24px_rgba(18,24,38,0.5)]"}`}>
-                <ResumeFrame html={p.html} title={`${p.name} template`} fill />
+                {near && abs <= 1 ? <ResumeFrame html={p.html} title={`${p.name} template`} fill /> : <div className="aspect-[816/1056] w-full bg-white" />}
                 {off !== 0 && <span className="absolute inset-0 bg-bg/45 transition-colors hover:bg-bg/20" aria-hidden />}
               </div>
             </button>

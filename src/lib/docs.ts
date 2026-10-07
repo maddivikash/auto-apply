@@ -22,8 +22,9 @@ type HranaValue = { type: "text"; value: string } | { type: "null" } | { type: "
 type Stmt = { sql: string; args?: HranaValue[] };
 let tableReady: Promise<void> | null = null;
 
-async function turso(stmts: Stmt[]): Promise<HranaValue[][][]> {
+async function turso(stmts: Stmt[], retried = false): Promise<HranaValue[][][]> {
   const url = process.env.TURSO_DATABASE_URL!.replace(/^libsql:\/\//, "https://").replace(/\/$/, "");
+  const t0 = Date.now();
   const r = await fetch(`${url}/v2/pipeline`, {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.TURSO_AUTH_TOKEN}`, "Content-Type": "application/json" },
@@ -32,11 +33,24 @@ async function turso(stmts: Stmt[]): Promise<HranaValue[][][]> {
   });
   if (!r.ok) throw new Error(`Turso ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const data = (await r.json()) as { results: Array<{ type: string; error?: { message: string }; response?: { result?: { rows: HranaValue[][] } } }> };
+  const ms = Date.now() - t0;
+  if (ms > 300) console.warn(`turso slow ${ms}ms: ${stmts.map((s) => `${s.sql.slice(0, 40)} [${s.args?.[0] && "value" in s.args[0] ? String(s.args[0].value).slice(0, 60) : ""}]`).join("; ")}`);
+  // The tables exist in every real deployment; create them only when a query says they are missing,
+  // instead of spending a round trip on CREATE TABLE before the first query of every cold instance.
+  if (!retried && data.results.some((res) => res.type === "error" && /no such table/i.test(res.error?.message || ""))) {
+    tableReady = null; await ensureTable();
+    return turso(stmts, true);
+  }
   return data.results.slice(0, stmts.length).map((res) => {
     if (res.type === "error") throw new Error(`Turso: ${res.error?.message}`);
     return res.response?.result?.rows ?? [];
   });
 }
+/**
+ * Bounds for "every path under prefix" as a range on the primary key, so SQLite walks the index
+ * instead of scanning the whole table the way LIKE 'prefix%' does.
+ */
+const prefixRange = (prefix: string): [HranaValue, HranaValue] => [arg(prefix), arg(prefix + "\uffff")];
 const text = (v: HranaValue) => (v.type === "text" ? v.value : v.type === "null" ? "" : String(v.value));
 const arg = (value: string): HranaValue => ({ type: "text", value });
 
@@ -69,7 +83,6 @@ const LOCAL_DIR = join(process.cwd(), ".data");
 export async function getDoc<T>(path: string): Promise<T | null> {
   switch (backend()) {
     case "turso": {
-      await ensureTable();
       const [rows] = await turso([{ sql: "SELECT body FROM docs WHERE path = ?", args: [arg(path)] }]);
       return rows[0] ? (JSON.parse(text(rows[0][0])) as T) : null;
     }
@@ -92,7 +105,6 @@ export async function putDoc(path: string, value: unknown): Promise<void> {
   const body = JSON.stringify(value, null, 2);
   switch (backend()) {
     case "turso":
-      await ensureTable();
       await turso([{ sql: "INSERT INTO docs (path, body, updated_at) VALUES (?, ?, ?) ON CONFLICT(path) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at", args: [arg(path), arg(body), arg(new Date().toISOString())] }]);
       return;
     case "blob":
@@ -108,8 +120,7 @@ export async function putDoc(path: string, value: unknown): Promise<void> {
 export async function listDocs<T>(prefix: string): Promise<T[]> {
   switch (backend()) {
     case "turso": {
-      await ensureTable();
-      const [rows] = await turso([{ sql: "SELECT body FROM docs WHERE path LIKE ? ESCAPE '\\'", args: [arg(`${prefix.replace(/[%_\\]/g, (c) => `\\${c}`)}%`)] }]);
+      const [rows] = await turso([{ sql: "SELECT body FROM docs WHERE path >= ? AND path < ?", args: prefixRange(prefix) }]);
       return rows.map((r) => JSON.parse(text(r[0])) as T);
     }
     case "blob": {
@@ -128,8 +139,7 @@ export async function listDocs<T>(prefix: string): Promise<T[]> {
 export async function listDocPaths(prefix: string): Promise<string[]> {
   switch (backend()) {
     case "turso": {
-      await ensureTable();
-      const [rows] = await turso([{ sql: "SELECT path FROM docs WHERE path LIKE ?", args: [arg(`${prefix}%`)] }]);
+      const [rows] = await turso([{ sql: "SELECT path FROM docs WHERE path >= ? AND path < ?", args: prefixRange(prefix) }]);
       return rows.map((r) => text(r[0]));
     }
     case "blob": {
@@ -146,7 +156,6 @@ export async function listDocPaths(prefix: string): Promise<string[]> {
 export async function delDoc(path: string): Promise<void> {
   switch (backend()) {
     case "turso":
-      await ensureTable();
       await turso([{ sql: "DELETE FROM docs WHERE path = ?", args: [arg(path)] }]);
       return;
     case "blob": {
@@ -163,7 +172,6 @@ export async function delDoc(path: string): Promise<void> {
 // ---- files (Turso and fs only; the Blob backend keeps files in Blob, see store.ts) -------------
 export async function putFile(path: string, data: Buffer, contentType: string): Promise<void> {
   if (backend() === "turso") {
-    await ensureTable();
     await turso([{ sql: "INSERT INTO files (path, content_type, body_b64, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(path) DO UPDATE SET content_type = excluded.content_type, body_b64 = excluded.body_b64, updated_at = excluded.updated_at", args: [arg(path), arg(contentType), arg(data.toString("base64")), arg(new Date().toISOString())] }]);
     return;
   }
@@ -172,7 +180,6 @@ export async function putFile(path: string, data: Buffer, contentType: string): 
 
 export async function getFile(path: string): Promise<{ data: Uint8Array; contentType: string } | null> {
   if (backend() === "turso") {
-    await ensureTable();
     const [rows] = await turso([{ sql: "SELECT content_type, body_b64 FROM files WHERE path = ?", args: [arg(path)] }]);
     return rows[0] ? { contentType: text(rows[0][0]), data: new Uint8Array(Buffer.from(text(rows[0][1]), "base64")) } : null;
   }

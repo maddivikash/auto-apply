@@ -75,21 +75,27 @@ async function fetchBoard(c: Company): Promise<Listing[]> {
   return (Array.isArray(d) ? d : []).map((j) => ({ ...base, id: j.id, title: j.text, location: j.categories?.location || j.categories?.allLocations?.join(", ") || "", remote: j.workplaceType === "remote" || /remote/i.test(j.categories?.location || ""), url: j.hostedUrl, postedAt: j.createdAt ? new Date(j.createdAt).toISOString() : undefined }));
 }
 
-export async function boardListings(c: Company, force = false): Promise<Listing[]> {
+export async function boardListings(c: Company, force = false, serveStale = false): Promise<Listing[]> {
   const key = `cache/boards/${c.board}/${c.token.toLowerCase()}.json`;
   const cached = force ? null : await getDoc<Cached>(key);
   if (cached && Date.now() - cached.at < TTL_MS) return cached.listings;
-  try {
-    const listings = await fetchBoard(c);
-    await putDoc(key, { at: Date.now(), listings } satisfies Cached);
-    return listings;
-  } catch { return cached?.listings ?? []; }
+  const refresh = async () => {
+    try {
+      const listings = await fetchBoard(c);
+      await putDoc(key, { at: Date.now(), listings } satisfies Cached);
+      return listings;
+    } catch { return cached?.listings ?? []; }
+  };
+  // A stale copy is served at once and refreshed after the response, like the catalog: a page never
+  // waits on a job board (up to 12 s each) just because six hours have passed.
+  if (cached && serveStale) { after(() => refresh().then(() => undefined)); return cached.listings; }
+  return refresh();
 }
 
 /** Fan out over boards with bounded concurrency. */
-async function fanOut(companies: Company[], force: boolean): Promise<Listing[]> {
+async function fanOut(companies: Company[], force: boolean, serveStale = false): Promise<Listing[]> {
   const out: Listing[] = []; let i = 0;
-  const worker = async () => { while (i < companies.length) { const c = companies[i++]; out.push(...(await boardListings(c, force))); } };
+  const worker = async () => { while (i < companies.length) { const c = companies[i++]; out.push(...(await boardListings(c, force, serveStale))); } };
   await Promise.all(Array.from({ length: 12 }, worker));
   return out;
 }
@@ -138,7 +144,7 @@ async function catalogListings(force: boolean): Promise<Listing[]> {
 /** Every open role across the catalog plus the companies this user added. */
 export async function allListings(companies: Company[], force = false): Promise<Listing[]> {
   const extra = companies.filter((m) => !CATALOG.some((c) => c.board === m.board && c.token.toLowerCase() === m.token.toLowerCase()));
-  const [catalog, mine] = await Promise.all([catalogListings(force), fanOut(extra, force)]);
+  const [catalog, mine] = await Promise.all([catalogListings(force), fanOut(extra, force, !force)]);
   return [...catalog, ...mine];
 }
 

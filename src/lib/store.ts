@@ -5,6 +5,7 @@
 import { put } from "@vercel/blob";
 import { readFileSync } from "node:fs";
 import { nanoid } from "nanoid";
+import { cache } from "react";
 import { getDoc, putDoc, listDocs, delDoc, putFile, getFile, backend } from "./docs";
 import type { JobPosting, JobQuestion } from "./jobs/fetch";
 import type { TailoredResume } from "./resume/schema";
@@ -99,9 +100,10 @@ export async function listApplications(userId: string) { return (await listJson<
 export const deleteApplication = (userId: string, id: string) => delJson(appKey(userId, id));
 
 // ---- profile and settings ---------------------------------------------------
-export const getProfile = (userId: string) => getJson<Profile>(`users/${userId}/profile.json`);
+/** Read once per request: the app layout and the page both need it. (Outside a render, cache() is a pass-through.) */
+export const getProfile = cache((userId: string) => getJson<Profile>(`users/${userId}/profile.json`));
 export const saveProfile = (userId: string, p: Profile) => putJson(`users/${userId}/profile.json`, p);
-export const getSettings = (userId: string) => getJson<Settings>(`users/${userId}/settings.json`);
+export const getSettings = cache((userId: string) => getJson<Settings>(`users/${userId}/settings.json`));
 export const saveSettings = (userId: string, s: Settings) => putJson(`users/${userId}/settings.json`, s);
 
 // ---- runner tokens ----------------------------------------------------------
@@ -124,7 +126,7 @@ export async function addNotification(n: Omit<Notification, "id" | "createdAt" |
   const full: Notification = { ...n, id: nanoid(10), createdAt: new Date().toISOString(), read: false };
   await putJson(`users/${n.userId}/notifications/${full.id}.json`, full);
 }
-export async function listNotifications(userId: string) { return (await listJson<Notification>(`users/${userId}/notifications/`)).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
+export const listNotifications = cache(async (userId: string) => (await listJson<Notification>(`users/${userId}/notifications/`)).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
 export async function markNotificationsRead(userId: string, ids?: string[]) {
   const all = await listNotifications(userId);
   await Promise.all(all.filter((n) => !n.read && (!ids || ids.includes(n.id))).map((n) => putJson(`users/${userId}/notifications/${n.id}.json`, { ...n, read: true })));

@@ -43,13 +43,21 @@ export function HowItWorks({ steps }: { steps: { title: string; body: string; vi
   const [buffering, setBuffering] = useState(false);
   const videos = useRef<(HTMLVideoElement | null)[]>([]);
   const box = useRef<HTMLDivElement>(null);
+  const frame = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
+  const [near, setNear] = useState(false);
+  const [soon, setSoon] = useState(false);
   useEffect(() => {
     const el = box.current;
     if (!el) return;
     const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { threshold: 0.25 });
+    // Two stages, so a landing page visit downloads nothing here until the visitor scrolls to it:
+    // the current poster when the frame is about to appear, the clips once it is actually on screen.
+    const early = new IntersectionObserver(([e]) => { if (e.isIntersecting) setSoon(true); }, { rootMargin: "100px 0px" });
+    const onScreen = new IntersectionObserver(([e]) => { if (e.isIntersecting) setNear(true); }, { threshold: 0.15 });
+    if (frame.current) { early.observe(frame.current); onScreen.observe(frame.current); }
     io.observe(el);
-    return () => io.disconnect();
+    return () => { io.disconnect(); early.disconnect(); onScreen.disconnect(); };
   }, []);
   useEffect(() => {
     videos.current.forEach((v, j) => {
@@ -81,10 +89,10 @@ export function HowItWorks({ steps }: { steps: { title: string; body: string; vi
       {/* Sized by the screen height as well as the width, so the whole frame is visible with the heading above it. */}
       <div className="mx-auto w-full overflow-hidden rounded-[16px] bg-[#121826] p-1.5 shadow-[0_30px_70px_-30px_rgba(18,24,38,0.55)] lg:max-w-[max(560px,calc((100svh-280px)*1.6))]">
         <div className="flex items-center gap-1.5 px-2.5 py-2" aria-hidden><span className="h-2.5 w-2.5 rounded-full bg-white/20" /><span className="h-2.5 w-2.5 rounded-full bg-white/20" /><span className="h-2.5 w-2.5 rounded-full bg-white/20" /><span className="ml-3 truncate text-[11.5px] text-white/50">lazyapply.online</span></div>
-        <div className="relative aspect-[16/10] overflow-hidden rounded-[10px] bg-[#f4f2ed]">
+        <div ref={frame} className="relative aspect-[16/10] overflow-hidden rounded-[10px] bg-[#f4f2ed]">
           {steps.map((s, j) => (
-            <video key={s.video} ref={(el) => { videos.current[j] = el; }} src={s.video} poster={s.poster} muted playsInline
-              preload={j === i || j === (i + 1) % steps.length ? "auto" : "metadata"}
+            <video key={s.video} ref={(el) => { videos.current[j] = el; }} src={near ? s.video : undefined} poster={near || (soon && j === i) ? s.poster : undefined} muted playsInline
+              preload={!near ? "none" : j === i || j === (i + 1) % steps.length ? "auto" : "none"}
               aria-label={`${s.title}: screen recording`} aria-hidden={j !== i}
               className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${j === i ? "opacity-100" : "opacity-0"}`}
               onWaiting={() => j === i && setBuffering(true)}

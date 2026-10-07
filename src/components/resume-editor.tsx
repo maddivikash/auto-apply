@@ -34,6 +34,7 @@ export function ResumeEditor({ id, title, initial, profile, renderProfile, templ
   const [highlight, setHighlight] = useState(true);
   const [fit, setFit] = useState<number | null>(null);
   const [saving, startSave] = useTransition();
+  const [leaving, setLeaving] = useState(false);
 
   const dirty = template !== savedTemplate || JSON.stringify(resume) !== JSON.stringify(saved);
   useEffect(() => {
@@ -58,13 +59,14 @@ export function ResumeEditor({ id, title, initial, profile, renderProfile, templ
   const update = (fn: (r: TailoredResume) => void) => setResume((prev) => { const next = clone(prev); fn(next); return next; });
   const edited = countEdits(saved, resume);
 
-  const doSave = () => startSave(async () => {
+  const doSave = (then?: () => void) => startSave(async () => {
     try {
       const r = await save(id, { resume, template });
-      if (r.ok) { toast(r.message ?? "Saved.", "success"); setSaved(clone(resume)); setSavedTemplate(template); router.refresh(); }
+      if (r.ok) { toast(r.message ?? "Saved.", "success"); setSaved(clone(resume)); setSavedTemplate(template); if (then) then(); else router.refresh(); }
       else toast(r.error, "error");
     } catch { toast("Something went wrong. Please try again.", "error"); }
   });
+  const goBack = () => { setLeaving(false); router.push(`/a/${id}`); router.refresh(); };
 
   const total = match.matched.length + match.missing.length;
   const strength = match.tailored >= 70 ? ["Strong", "bg-go-soft text-go"] : match.tailored >= 50 ? ["Good", "bg-accent-soft text-accent"] : ["Fair", "bg-signal-soft text-signal"];
@@ -74,20 +76,33 @@ export function ResumeEditor({ id, title, initial, profile, renderProfile, templ
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <Link href={`/a/${id}`} className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-fg"><ArrowLeft size={14} /> Back to the application</Link>
+          <Link href={`/a/${id}`} onClick={(e) => { if (dirty) { e.preventDefault(); setLeaving(true); } }} className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-fg"><ArrowLeft size={14} /> Back to the application</Link>
           <h1 className="mt-2 text-[26px] font-medium leading-tight tracking-[-0.03em]">Edit resume</h1>
           <p className="mt-1 truncate text-[13.5px] text-muted">Tailored for {title}</p>
         </div>
         <div className="flex items-center gap-2">
           {dirty && <span className="text-[12.5px] text-signal">Unsaved changes</span>}
           <button type="button" className="btn-quiet h-9" disabled={!dirty || saving} onClick={() => { setResume(clone(saved)); setTemplate(savedTemplate); }}><RotateCcw size={14} /> Discard</button>
-          <button type="button" className="btn-primary h-9" disabled={!dirty || saving || !!locked} aria-busy={saving} onClick={doSave} title={locked}>
+          <button type="button" className="btn-primary h-9" disabled={!dirty || saving || !!locked} aria-busy={saving} onClick={() => doSave()} title={locked}>
             {saving && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current/30 border-t-current" aria-hidden />}
             {saving ? "Rendering PDF" : "Save and render"}
           </button>
         </div>
       </div>
       {locked && <p className="rounded-[var(--radius-ctl)] bg-signal-soft px-4 py-2.5 text-[13px] text-signal">{locked}</p>}
+      {leaving && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#121826]/40 p-4 backdrop-blur-[2px] sm:items-center" onClick={() => !saving && setLeaving(false)}>
+          <div role="dialog" aria-modal="true" aria-labelledby="leave-title" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === "Escape" && !saving) setLeaving(false); }} className="w-full max-w-md rounded-[var(--radius-panel)] bg-surface p-5 shadow-xl">
+            <h2 id="leave-title" className="text-[16px] font-medium">You have unsaved changes</h2>
+            <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">Save them to update the PDF on this application, or leave them behind.</p>
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button type="button" className="btn-quiet h-9" disabled={saving} onClick={() => setLeaving(false)} autoFocus>Keep editing</button>
+              <button type="button" className="btn-ghost h-9" disabled={saving} onClick={() => { setResume(clone(saved)); setTemplate(savedTemplate); goBack(); }}>Discard changes</button>
+              <button type="button" className="btn-primary h-9" disabled={saving || !!locked} aria-busy={saving} onClick={() => doSave(goBack)}>{saving ? "Saving" : "Save and go back"}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <TemplateStrip value={template} onChange={setTemplate} />
 
