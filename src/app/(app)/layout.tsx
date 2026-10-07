@@ -20,7 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const preview = process.env.NODE_ENV !== "production" && !!process.env.DEV_FAKE_USER;
   const account = preview ? <span className="h-7 w-7 rounded-full bg-surface-2" /> : <UserButton appearance={{ elements: { avatarBox: "h-7 w-7" } }} />;
   return (
-    <div className="relative flex min-h-screen bg-bg">
+    <div className="relative flex min-h-screen bg-bg animate-[fade-in_0.35s_ease-out_both]">
       <Suspense fallback={null}><PlanOfferGate uid={uid} /></Suspense>
       <aside className="sticky top-0 hidden h-screen w-[240px] shrink-0 flex-col border-r border-line bg-bg px-4 py-5 md:flex">
         <Link href="/dashboard" className="w-fit px-1.5 py-1"><Brand /></Link>
