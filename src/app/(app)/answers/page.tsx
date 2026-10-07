@@ -6,6 +6,8 @@ import { saveSettingsAction, saveBankAction } from "../../actions";
 import { getBank } from "@/lib/apply/bank";
 import { PageHeader } from "@/components/page-header";
 import { SubmitButton } from "@/components/submit-button";
+import { AnswerField, MissingSummary } from "@/components/answer-field";
+import { answerGaps, ESSENTIAL_KEYS } from "@/lib/onboarding";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +19,7 @@ const GROUPS: { title: string; hint: string; fields: [keyof Settings, string, st
 
 export default async function AnswersPage({ searchParams }: { searchParams: Promise<{ saved?: string; from?: string; missing?: string; bank?: string }> }) {
   const uid = await requireUserId();
-  const { saved, from, missing, bank: bankSaved } = await searchParams;
+  const { saved, from, bank: bankSaved } = await searchParams;
   const [settings, profile, email, bank] = await Promise.all([getSettings(uid), getProfile(uid), userEmail(), getBank(uid)]);
   const banked = Object.entries(bank).sort(([, a], [, b]) => b.updatedAt.localeCompare(a.updatedAt));
   // Anything the resume already says (name, phone, links, current role) shows here filled in, exactly as the
@@ -27,20 +29,21 @@ export default async function AnswersPage({ searchParams }: { searchParams: Prom
     <div className="space-y-8">
       <PageHeader title="Answers" description="What the form filler already knows about you, filled in from your resume where it says. Anything a form asks that is not covered here comes back to you as an open question." />
       {from === "profile" && <p className="rounded-[var(--radius-ctl)] bg-go-soft px-4 py-3 text-[13.5px]"><span className="font-medium text-go">Profile saved.</span> Last step: check these answers, most already come from your resume, then save to start finding roles.</p>}
-      {missing && <p className="rounded-[var(--radius-ctl)] bg-signal-soft px-4 py-3 text-[13.5px] text-signal">Saved. Still needed before forms can be filled without stopping: {missing}.</p>}
+      {/* Always computed from what is saved, not only after a save, so the gaps show on every visit. */}
+      <MissingSummary labels={answerGaps(s)} />
       <form action={saveSettingsAction} className="space-y-5">
         {GROUPS.map((g) => (
           <section key={g.title} className="panel grid gap-6 p-5 md:grid-cols-[200px_1fr] md:p-6">
             <div><h2 className="text-[15px] font-semibold">{g.title}</h2><p className="mt-1 text-[12.5px] leading-relaxed text-muted">{g.hint}</p></div>
             <div className="grid gap-4 sm:grid-cols-2">
-              {g.fields.map(([k, label, ph]) => <label key={k} className="text-[13px]"><span className="text-muted">{label}</span><input name={k} defaultValue={s[k] as string} placeholder={ph} className="field mt-1.5" /></label>)}
+              {g.fields.map(([k, label, ph]) => <AnswerField key={k} name={k} label={label} defaultValue={String(s[k] ?? "")} placeholder={ph} essential={ESSENTIAL_KEYS.has(k)} />)}
             </div>
           </section>
         ))}
         <section className="panel grid gap-6 p-5 md:grid-cols-[200px_1fr] md:p-6">
           <div><h2 className="text-[15px] font-semibold">Work authorization</h2><p className="mt-1 text-[12.5px] leading-relaxed text-muted">Sponsorship questions are answered per job: No when the job is in a country listed here, your answer below everywhere else, and left for you when the country is unclear, as with fully remote roles.</p></div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-[13px]"><span className="text-muted">Countries where you can work without sponsorship</span><input name="workAuthorizedCountries" defaultValue={s.workAuthorizedCountries} placeholder="India, United Kingdom" className="field mt-1.5" /></label>
+            <AnswerField name="workAuthorizedCountries" label="Countries where you can work without sponsorship" defaultValue={s.workAuthorizedCountries} placeholder="India, United Kingdom" essential />
             <label className="text-[13px]"><span className="text-muted">Outside those countries, do you need sponsorship?</span><select name="sponsorshipElsewhere" defaultValue={s.sponsorshipElsewhere} className="field mt-1.5"><option>Yes</option><option>No</option></select></label>
             <label className="text-[13px]"><span className="text-muted">Willing to relocate?</span><select name="willingToRelocate" defaultValue={s.willingToRelocate} className="field mt-1.5"><option>Yes</option><option>No</option></select></label>
             <label className="text-[13px]"><span className="text-muted">Open to on-site or hybrid?</span><select name="openToOnsite" defaultValue={s.openToOnsite} className="field mt-1.5"><option>Yes</option><option>No</option></select></label>
@@ -60,7 +63,7 @@ export default async function AnswersPage({ searchParams }: { searchParams: Prom
           <div><h2 className="text-[15px] font-semibold">Notifications</h2><p className="mt-1 text-[12.5px] leading-relaxed text-muted">Resume ready, form filled and submitted events go here.</p></div>
           <label className="text-[13px] sm:max-w-[calc(50%-0.5rem)]"><span className="text-muted">Email for notifications</span><input name="notifyEmail" defaultValue={s.notifyEmail} className="field mt-1.5" /></label>
         </section>
-        <div className="sticky bottom-4 flex items-center justify-end gap-3">{saved && !missing && <span className="text-[13px] text-go">Saved.</span>}<SubmitButton pending="Saving" className="btn-primary lift">{from === "profile" ? "Save and find roles" : "Save answers"}</SubmitButton></div>
+        <div className="sticky bottom-4 flex items-center justify-end gap-3">{saved && <span className="text-[13px] text-go">Saved.</span>}<SubmitButton pending="Saving" className="btn-primary lift">{from === "profile" ? "Save and find roles" : "Save answers"}</SubmitButton></div>
       </form>
 
       <section id="saved" className="panel">

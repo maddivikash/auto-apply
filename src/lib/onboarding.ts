@@ -10,7 +10,7 @@ export function profileGaps(p: Profile): string[] {
   return gaps;
 }
 
-const ESSENTIAL: [keyof Settings, string][] = [
+export const ESSENTIAL: [keyof Settings, string][] = [
   ["firstName", "first name"], ["lastName", "last name"], ["email", "email"], ["phone", "phone"],
   ["location", "current city"], ["workAuthorizedCountries", "countries you can work in"], ["noticePeriod", "notice period"],
 ];
@@ -19,3 +19,6 @@ const ESSENTIAL: [keyof Settings, string][] = [
 export function answerGaps(s: Settings): string[] {
   return ESSENTIAL.filter(([k]) => !String(s[k] ?? "").trim()).map(([, label]) => label);
 }
+
+/** The essential keys alone, for marking those fields on the Answers page. */
+export const ESSENTIAL_KEYS = new Set<string>(ESSENTIAL.map(([k]) => k));

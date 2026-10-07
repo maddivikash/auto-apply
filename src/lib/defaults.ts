@@ -71,7 +71,7 @@ const RULES: Rule[] = [
   { test: /open to (working )?(in[- ]?person|hybrid|in one of our offices)|onsite|on-site/i, answer: (s, o) => pick(o, s.openToOnsite === "Yes" ? /^yes\b/i : /^no\b/i) },
   { test: /remote/i, answer: (_s, o) => pick(o, /^yes\b/i, /open|either|flexible/i) },
   { test: /office of choice|which office|preferred (office|location)|office location|work location preference/i, answer: (s, o, ctx) => { if (!o?.length) return undefined; const cities = [s.location, ctx?.jobLocation].filter(Boolean).flatMap((v) => v!.split(/[,/]/)).map((c) => c.trim()).filter((c) => c.length > 2); for (const c of cities) { const hit = o.find((x) => new RegExp(`\\b${c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(x) || (/^bengaluru$/i.test(c) && /bangalore/i.test(x)) || (/^bangalore$/i.test(c) && /bengaluru/i.test(x))); if (hit) return hit; } return undefined; } },
-  { test: /^(current )?location( \(city\))?$|^city$|where (are you|do you) (currently )?(based|live|reside)|current(ly)? (city|located|residing)|(your|preferred|present) location\b|location in (india|the )/i, answer: (s) => or(s.location) },
+  { test: /^(what('s| is) )?(your )?(current |present )?location( \([^)]*\))?$|^(current )?city( \([^)]*\))?$|city of residence|which city (are you|do you) (currently )?(based|located|live|reside)|city (you|do you) (currently )?(live|are based|reside) in|where (are you|do you) (currently )?(based|live|reside|located)|current(ly)? (city|located|residing)|(your|preferred|present) location\b|location in (india|the )/i, answer: (s) => or(s.location) },
   { test: /flexible (to |with )?(work|working|relocat)|willing to work (from|in|at)|open to (working|relocating) (from|in|to)|comfortable (working|commuting) (from|to|in)/i, answer: (s, o) => o?.length ? pick(o, s.willingToRelocate === "Yes" ? /^yes\b/i : /^no\b/i) : s.willingToRelocate },
   { test: /country of residence|(country|where) (are|do) you (currently )?(based|reside|live|located)/i, answer: (s) => countryOf(s.location) },
   { test: /(how|where) did you (hear|find|learn)|referral source|^source$/i, answer: (s, o) => o?.length ? pick(o, new RegExp(s.heardFrom || "linkedin", "i")) : or(s.heardFrom, "LinkedIn") },
@@ -102,9 +102,11 @@ const RULES: Rule[] = [
 
 export function answerFor(settings: Settings, label: string, options?: string[], type?: string, ctx?: AnswerContext): Answer | undefined {
   if (type === "file") return undefined;
+  // Forms decorate labels: "Current location *", "Current location?", stray spaces. Match on the words.
+  const words = label.replace(/\s+/g, " ").replace(/[\s*:?.]+$/, "").trim();
   for (const r of RULES) {
-    if (r.test.test(label)) {
-      const v = r.answer(settings, options, ctx, label);
+    if (r.test.test(words)) {
+      const v = r.answer(settings, options, ctx, words);
       return v ? { value: v, source: "rule" } : undefined;
     }
   }
