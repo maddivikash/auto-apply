@@ -75,7 +75,9 @@
   --radius-panel: 16px;
 }
 
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+/* A section you can jump to fills exactly one screen and centres its content, so landing on it shows all of it. */
+.screen { min-height: 100svh; display: flex; flex-direction: column; justify-content: center; scroll-margin-top: 0; }
 body { background: var(--bg); color: var(--fg); font-family: var(--font-sans); font-size: 14px; line-height: 1.5; }
 h1, h2, h3 { letter-spacing: -0.025em; }
 ::selection { background: var(--accent); color: var(--on-accent); }
@@ -134,4 +136,4 @@ select.field { @apply pr-8 appearance-none bg-no-repeat; background-image: url("
 @keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .pulse-soft { animation: pulse-soft 1.6s ease-in-out infinite; }
 
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }

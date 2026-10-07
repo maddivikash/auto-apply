@@ -56,11 +56,12 @@ export default async function Landing() {
       </section>
 
       {/* How: real screen recordings */}
-      <section id="how" className="mx-auto max-w-[1240px] px-6 pt-28">
-        <div className="eyebrow">How it works</div>
-        <h2 className="display mt-4 max-w-2xl text-[36px] sm:text-[46px]">One link in. <span className="serif-i">A finished application out.</span></h2>
-        <p className="mt-4 max-w-xl text-[16px] text-muted">Recorded in the real app with a sample applicant. Pick a step or let it play.</p>
-        <div className="mt-12"><HowItWorks steps={HOW} /></div>
+      <section id="how" className="screen mx-auto max-w-[1280px] px-6 py-10">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div><div className="eyebrow">How it works</div><h2 className="display mt-3 text-[32px] sm:text-[42px]">One link in. <span className="serif-i">A finished application out.</span></h2></div>
+          <p className="max-w-xs text-[14px] text-muted">Recorded in the real app with a sample applicant. Pick a step or let it play.</p>
+        </div>
+        <div className="mt-8"><HowItWorks steps={HOW} /></div>
       </section>
 
       {/* Stats */}
@@ -84,37 +85,37 @@ export default async function Landing() {
       </section>
 
       {/* Toolkit */}
-      <section id="toolkit" className="px-3 pt-28">
-        <div className="navy mx-auto max-w-[1900px] rounded-[22px] px-6 py-20">
-          <div className="mx-auto max-w-[1040px]">
+      <section id="toolkit" className="screen px-3 py-3">
+        <div className="navy mx-auto flex w-full max-w-[1900px] flex-1 flex-col justify-center rounded-[22px] px-6 py-10">
+          <div className="mx-auto w-full max-w-[1120px]">
             <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-              <div><div className="eyebrow">Under the hood</div><h2 className="display mt-4 max-w-xl text-[40px] sm:text-[52px]">From link to Submit, <span className="serif-i">nothing to retype.</span></h2></div>
+              <div><div className="eyebrow">Under the hood</div><h2 className="display mt-3 max-w-xl text-[34px] sm:text-[44px]">From link to Submit, <span className="serif-i">nothing to retype.</span></h2></div>
               <div className="max-w-xs"><p className="text-[14px] text-muted">The writing is grounded in your profile. The submitting is yours.</p><Link href="/sign-up" className="paper btn-ghost mt-4">Start free</Link></div>
             </div>
-            <div className="mt-12 grid gap-4 md:grid-cols-3">
+            <div className="mt-8 grid gap-3 md:grid-cols-4">
               <Tile n="01" title="Your resume, converted for each job." wide>
                 <RewriteDemo />
               </Tile>
               <Tile n="02" title="Scored before you send it.">
-                <div className="mt-6 flex items-center gap-4"><ScoreRing value={28} size={96} tone="var(--accent)" label="Keyword match" /><p className="text-[13px] text-muted">Keyword match, the way an ATS reads it. Tailoring lifts it by picking your most relevant work, not by copying the ad.</p></div>
+                <div className="mt-4 flex items-center gap-3"><ScoreRing value={28} size={76} tone="var(--accent)" label="Keyword match" /><p className="text-[12.5px] leading-relaxed text-muted">Keyword match, as an ATS reads it. Raised by picking your most relevant work, not by copying the ad.</p></div>
               </Tile>
-              <Tile n="03" title="See which keywords land.">
-                <div className="mt-6 flex flex-wrap gap-1.5">{["FastAPI", "Kubernetes", "SQS", "React"].map((k) => <span key={k} className="chip bg-go-soft text-go"><Check size={11} strokeWidth={3} />{k}</span>)}<span className="chip border border-dashed border-line-strong text-muted">gRPC</span></div>
+              <Tile n="03" title="Filled on your machine." accent><p className="mt-3 text-[13px] leading-relaxed text-white/80">A visible browser window types the answers, attaches the PDF and stops. You press Submit.</p></Tile>
+              <Tile n="04" title="See which keywords land." wide>
+                <div className="mt-4 flex flex-wrap gap-1.5">{["FastAPI", "Kubernetes", "SQS", "React", "PostgreSQL"].map((k) => <span key={k} className="chip bg-go-soft text-go"><Check size={11} strokeWidth={3} />{k}</span>)}<span className="chip border border-dashed border-line-strong text-muted">gRPC</span><span className="chip border border-dashed border-line-strong text-muted">Terraform</span></div>
               </Tile>
-              <Tile n="04" title="Fresh roles from 130+ boards."><p className="mt-3 text-[13.5px] text-muted">Filter by field, country and remote. Prepare any of them with one click.</p></Tile>
-              <Tile n="05" title="Form answers you set once."><p className="mt-3 text-[13.5px] text-muted">Sponsorship, notice period, links. A new question is asked, never guessed.</p></Tile>
-              <Tile n="06" title="Filled on your machine." accent wide3><p className="mt-3 text-[13.5px] text-white/80">A visible browser window types the answers, attaches the PDF and stops. You press Submit.</p></Tile>
+              <Tile n="05" title="Fresh roles from 130+ boards."><p className="mt-3 text-[13px] leading-relaxed text-muted">Filter by field, country and remote. Prepare any with one click.</p></Tile>
+              <Tile n="06" title="Answers you set once."><p className="mt-3 text-[13px] leading-relaxed text-muted">Sponsorship, notice period, links. A new question is asked, never guessed.</p></Tile>
             </div>
           </div>
         </div>
       </section>
 
       {/* Templates: the finishing touch, not the headline. */}
-      <section id="templates" className="mx-auto max-w-[1240px] overflow-hidden px-6 pt-28 text-center">
-        <AtsBadge />
-        <h2 className="display text-[34px] sm:text-[42px]">Every resume comes out <span className="serif-i">in your layout.</span></h2>
-        <p className="mx-auto mt-4 max-w-lg text-[15.5px] text-muted">Pick one of seven ATS-safe templates once. Each tailored resume is rendered in it, and any single one can switch in a click.</p>
-        <div className="mt-12"><TemplateCarousel pages={TEMPLATES.map((t) => ({ id: t.id, name: t.name, tier: t.tier, blurb: t.blurb, html: resumeHtml(SHOWCASE, SAMPLE_PROFILE, 1, t.id) }))} /></div>
+      <section id="templates" className="screen mx-auto max-w-[1240px] overflow-hidden px-6 py-8 text-center">
+        <AtsBadge className="mx-auto mb-3" />
+        <h2 className="display text-[30px] sm:text-[38px]">Every resume comes out <span className="serif-i">in your layout.</span></h2>
+        <p className="mx-auto mt-2 max-w-lg text-[14.5px] text-muted">Pick one of seven ATS-safe templates once. Each tailored resume is rendered in it, and any single one can switch in a click.</p>
+        <div className="mt-8"><TemplateCarousel pages={TEMPLATES.map((t) => ({ id: t.id, name: t.name, tier: t.tier, blurb: t.blurb, html: resumeHtml(SHOWCASE, SAMPLE_PROFILE, 1, t.id) }))} /></div>
       </section>
 
       {/* CTA */}
@@ -136,9 +137,9 @@ export default async function Landing() {
 
 function Tile({ n, title, children, wide, wide3, accent }: { n: string; title: string; children?: React.ReactNode; wide?: boolean; wide3?: boolean; accent?: boolean }) {
   return (
-    <div className={`rounded-[16px] p-6 shadow-[var(--ring)] ${wide ? "md:col-span-2" : wide3 ? "md:col-span-3" : ""} ${accent ? "bg-[#0b7f7a] [--muted:rgba(255,255,255,0.8)]" : "bg-surface"}`}>
+    <div className={`rounded-[16px] p-5 shadow-[var(--ring)] ${wide ? "md:col-span-2" : wide3 ? "md:col-span-3" : ""} ${accent ? "bg-[#0b7f7a] [--muted:rgba(255,255,255,0.8)]" : "bg-surface"}`}>
       <div className={`eyebrow ${accent ? "!text-white/70" : "!text-faint"}`}>{n}</div>
-      <h3 className="mt-3 text-[20px] font-medium leading-snug tracking-[-0.02em]">{title}</h3>
+      <h3 className="mt-2 text-[18px] font-medium leading-snug tracking-[-0.02em]">{title}</h3>
       {children}
     </div>
   );

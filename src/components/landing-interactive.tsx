@@ -62,7 +62,7 @@ export function HowItWorks({ steps }: { steps: { title: string; body: string; vi
   }, [i, visible]);
   const select = (j: number) => { setProgress(0); setI(j); };
   return (
-    <div ref={box} className="grid gap-8 lg:grid-cols-[340px_1fr] lg:items-start">
+    <div ref={box} className="grid gap-6 lg:grid-cols-[320px_1fr] lg:items-center">
       <ol className="space-y-2" role="tablist" aria-label="How it works">
         {steps.map((s, j) => (
           <li key={s.title}>
@@ -78,7 +78,8 @@ export function HowItWorks({ steps }: { steps: { title: string; body: string; vi
           </li>
         ))}
       </ol>
-      <div className="overflow-hidden rounded-[16px] bg-[#121826] p-1.5 shadow-[0_30px_70px_-30px_rgba(18,24,38,0.55)]">
+      {/* Sized by the screen height as well as the width, so the whole frame is visible with the heading above it. */}
+      <div className="mx-auto w-full overflow-hidden rounded-[16px] bg-[#121826] p-1.5 shadow-[0_30px_70px_-30px_rgba(18,24,38,0.55)] lg:max-w-[max(560px,calc((100svh-280px)*1.6))]">
         <div className="flex items-center gap-1.5 px-2.5 py-2" aria-hidden><span className="h-2.5 w-2.5 rounded-full bg-white/20" /><span className="h-2.5 w-2.5 rounded-full bg-white/20" /><span className="h-2.5 w-2.5 rounded-full bg-white/20" /><span className="ml-3 truncate text-[11.5px] text-white/50">lazyapply.online</span></div>
         <div className="relative aspect-[16/10] overflow-hidden rounded-[10px] bg-[#f4f2ed]">
           {steps.map((s, j) => (
