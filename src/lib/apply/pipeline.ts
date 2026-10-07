@@ -126,8 +126,8 @@ export async function processApplication(userId: string, id: string): Promise<vo
       saveFile(`users/${userId}/resumes/${id}-full.pdf`, plain.pdf, "application/pdf")
     ]);
     app.variants = {
-      tailored: { resume: rendered.resume, pdfUrl: tailoredUrl, match: best.match, headline: result.resume.headline, trims: rendered.trims },
-      full: { resume: plain.resume, pdfUrl: fullUrl, match: plainMatch, headline: profile.roles[0]?.title, trims: plain.trims }
+      tailored: { resume: rendered.resume, pdfUrl: tailoredUrl, match: best.match, headline: result.resume.headline, trims: rendered.trims, scale: rendered.scale },
+      full: { resume: plain.resume, pdfUrl: fullUrl, match: plainMatch, headline: profile.roles[0]?.title, trims: plain.trims, scale: plain.scale }
     };
     // The user's preference decides which version is attached; "best" picks by score. Both stay available.
     const pref = settings.resumeDefault;

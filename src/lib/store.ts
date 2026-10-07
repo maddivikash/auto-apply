@@ -12,7 +12,7 @@ import type { Match } from "./resume/match";
 import type { TemplateId } from "./resume/templates";
 import type { Profile, Settings } from "./profile/types";
 
-export type ResumeVariant = { resume: TailoredResume; pdfUrl: string; match: Match; headline?: string; trims: string[] };
+export type ResumeVariant = { resume: TailoredResume; pdfUrl: string; match: Match; headline?: string; trims: string[]; scale?: number };
 
 /** `saved` answers come from the answer bank; `fromDraft` marks a user answer that was an accepted AI draft (never banked). */
 export type QuestionState = JobQuestion & { answer?: string; source?: "profile" | "rule" | "user" | "ai" | "saved"; needsHuman: boolean; fromDraft?: boolean };
@@ -25,7 +25,7 @@ export type ApplicationStatus =
 export function applyResumeChoice(app: Application, choice: "tailored" | "full") {
   const v = app.variants?.[choice];
   if (!v) return;
-  app.resumeChoice = choice; app.resume = v.resume; app.resumePdfUrl = v.pdfUrl; app.match = v.match; app.headline = v.headline; app.trims = v.trims;
+  app.resumeChoice = choice; app.resume = v.resume; app.resumePdfUrl = v.pdfUrl; app.match = v.match; app.headline = v.headline; app.trims = v.trims; app.scale = v.scale;
 }
 
 export type Application = {
@@ -44,6 +44,8 @@ export type Application = {
   resumePdfUrl?: string;
   resumeWarnings?: string[];
   trims?: string[];
+  /** Type scale the active PDF was rendered at after fitting to one page, so previews match it. */
+  scale?: number;
   /** Keyword match with the job for the active resume: `tailored` is the active PDF's score, `profile` the raw profile text's. */
   match?: Match;
   /** Both rendered versions, so the user can switch. The active one is copied into resume, resumePdfUrl, match, headline. */

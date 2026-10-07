@@ -497,8 +497,8 @@ export async function saveResumeEditAction(id: string, input: { resume: unknown;
       ]);
       // A fresh path per save: the Blob CDN may keep serving an overwritten file for a while.
       const mineUrl = await saveFile(`users/${userId}/resumes/${id}-${choice}-${stamp}.pdf`, mine.pdf, "application/pdf");
-      app.variants[choice] = { ...app.variants[choice], resume: mine.resume, pdfUrl: mineUrl, trims: mine.trims, match: matchResume(jd, mine.resume, profile, app.job.company) };
-      if (theirs) app.variants[other] = { ...app.variants[other], pdfUrl: await saveFile(`users/${userId}/resumes/${id}-${other}-${stamp}.pdf`, theirs.pdf, "application/pdf"), trims: theirs.trims };
+      app.variants[choice] = { ...app.variants[choice], resume: mine.resume, pdfUrl: mineUrl, trims: mine.trims, scale: mine.scale, match: matchResume(jd, mine.resume, profile, app.job.company) };
+      if (theirs) app.variants[other] = { ...app.variants[other], pdfUrl: await saveFile(`users/${userId}/resumes/${id}-${other}-${stamp}.pdf`, theirs.pdf, "application/pdf"), trims: theirs.trims, scale: theirs.scale };
       app.template = input.template;
       app.editedAt = new Date().toISOString();
       applyResumeChoice(app, choice);
@@ -529,5 +529,18 @@ export async function rewriteBulletAction(id: string, bullet: string, instructio
     return { ok: true, text };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not rewrite the bullet." };
+  }
+}
+
+/** Re-render this application's resume in another template. No model call: the content stays, only the layout changes. */
+export async function applyTemplateAction(id: string, template: string): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const app = await getApplication(userId, id);
+    if (!app?.resume) return { ok: false, error: "This application has no resume yet." };
+    if (app.template === template) return { ok: true };
+    return await saveResumeEditAction(id, { resume: app.resume, template });
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not switch the template." };
   }
 }

@@ -186,7 +186,7 @@ export function resumeHtml(r: TailoredResume, profile: Profile, scale = 1, templ
     m.linkedin && `<span>${look.icons ? icon.linkedin : ""}<a href="${esc(href(m.linkedin))}">${esc(bare(m.linkedin))}</a></span>`,
     m.github && `<span>${look.icons ? icon.github : ""}<a href="${esc(href(m.github))}">${esc(bare(m.github))}</a></span>`,
     m.website && `<span><a href="${esc(href(m.website))}">${esc(bare(m.website))}</a></span>`
-  ].filter(Boolean).join(look.icons ? "" : `<i class="dot">·</i>`);
+  ].filter(Boolean).join(look.icons ? " " : ` <i class="dot">·</i> `); // spaces give the line somewhere to wrap
 
   return `<!doctype html><html><head><meta charset="utf-8">${look.head}
 <style>

@@ -29,7 +29,7 @@ export function RegeneratePanel({ id, action, disabled, lastNotes }: { id: strin
         <RefreshCw size={14} aria-hidden /> Regenerate
       </button>
       {open && (
-        <div className="fixed inset-0 z-40 flex items-end justify-center bg-[#071a31]/40 backdrop-blur-[2px] p-4 sm:items-center" onClick={() => !busy && setOpen(false)}>
+        <div className="fixed inset-0 z-40 flex items-end justify-center bg-[#121826]/40 backdrop-blur-[2px] p-4 sm:items-center" onClick={() => !busy && setOpen(false)}>
           <div role="dialog" aria-modal="true" aria-labelledby={`notes-title-${id}`} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === "Escape" && !busy) setOpen(false); }} className="w-full max-w-lg rounded-[var(--radius-panel)] border border-line bg-surface p-5 shadow-xl">
             <h2 id={`notes-title-${id}`} className="text-[15px] font-semibold">Regenerate the resume</h2>
             <label htmlFor={`notes-${id}`} className="mt-3 block text-[13px] font-medium">What should change?</label>

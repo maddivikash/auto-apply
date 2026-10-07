@@ -7,7 +7,11 @@ import { Settings } from "@/lib/profile/types";
 import { refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
 import { markStale } from "@/lib/apply/stale";
 import { openQuestions } from "@/lib/stats";
-import { approveAction, deleteAction, reprocessAction, requestSubmitAction, saveAnswersAction, submitCodeAction, markSubmittedAction, requestNewCodeAction, chooseResumeAction, acceptDraftsAction, redraftAction } from "../../../actions";
+import { approveAction, deleteAction, reprocessAction, requestSubmitAction, saveAnswersAction, submitCodeAction, markSubmittedAction, requestNewCodeAction, chooseResumeAction, acceptDraftsAction, redraftAction, applyTemplateAction } from "../../../actions";
+import { TemplateSwitch } from "@/components/template-switch";
+import { ResumeFrame } from "@/components/resume-frame";
+import { resumeHtml } from "@/lib/resume/templates";
+import { resumeProfileFor } from "@/lib/apply/pipeline";
 import { RedraftPanel } from "@/components/redraft-panel";
 import { IN_PROGRESS, LABEL, StatusBadge, StageTrack } from "@/components/status";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -152,10 +156,11 @@ export default async function ApplicationPage({ params, searchParams }: { params
                   <div className="flex flex-wrap items-center gap-2"><span className="text-[15px] font-semibold">{app.resumeChoice === "full" ? "Original resume" : "Tailored resume"}</span>{app.variants && <ResumeToggle id={app.id} choice={app.resumeChoice || "tailored"} tailored={app.variants.tailored.match.tailored} full={app.variants.full.match.tailored} locked={!["ready", "approved"].includes(app.status)} action={chooseResumeAction} />}</div>
                   <div className="truncate text-[12.5px] text-muted">{app.editedAt ? "Edited by you. " : ""}{app.headline}{app.trims?.length ? `. Trimmed to fit: ${app.trims.join(", ")}` : ""}</div>
                 </div>
-                <div className="flex flex-wrap gap-2">{app.resume && <Link href={`/a/${app.id}/edit`} className="btn-primary h-8"><PenLine size={14} /> Edit resume</Link>}<a href={`/api/applications/${app.id}/pdf`} target="_blank" rel="noreferrer" className="btn-ghost h-8">Open PDF</a><RegeneratePanel id={app.id} action={reprocessAction} disabled={processing} lastNotes={app.revisionNotes} /></div>
+                <div className="flex flex-wrap gap-2">{app.resume && <Link href={`/a/${app.id}/edit`} className="btn-primary h-8"><PenLine size={14} /> Edit resume</Link>}{app.resume && <TemplateSwitch id={app.id} value={app.template ?? Settings.parse(settings ?? {}).resumeTemplate} action={applyTemplateAction} disabled={!["ready", "approved", "failed"].includes(app.status)} />}<a href={`/api/applications/${app.id}/pdf`} target="_blank" rel="noreferrer" className="btn-ghost h-8">Open PDF</a><RegeneratePanel id={app.id} action={reprocessAction} disabled={processing} lastNotes={app.revisionNotes} /></div>
               </div>
               {app.resumeWarnings?.length ? <p className="border-b border-line bg-signal-soft px-5 py-2 text-[12.5px] text-signal">Checks flagged: {app.resumeWarnings.join("; ")}</p> : null}
-              <object data={`/api/applications/${app.id}/pdf#toolbar=0&view=FitH`} type="application/pdf" className="aspect-[17/22] w-full bg-surface-2" aria-label="Resume preview"><div className="flex h-full items-center justify-center text-[13px] text-muted">Preview not available in this browser. <a className="ml-1 underline" href={`/api/applications/${app.id}/pdf`} target="_blank" rel="noreferrer">Open the PDF</a></div></object>
+{/* The same HTML the PDF is printed from, so it shows everywhere (phones and headless browsers have no PDF viewer). */}
+              {app.resume && profile && app.job ? <div className="bg-surface-2 p-3"><div className="overflow-hidden rounded-[6px] shadow-[0_1px_2px_rgba(18,24,38,0.08),0_12px_30px_-18px_rgba(18,24,38,0.4)]"><ResumeFrame html={resumeHtml(app.resume, resumeProfileFor(profile, app.job.title, app.jobDescription || app.job.descriptionPreview), app.scale ?? 1, app.template ?? Settings.parse(settings ?? {}).resumeTemplate)} title="Resume preview" /></div></div> : null}
             </section>
           ) : (
             <section className="panel flex h-64 items-center justify-center text-[13.5px] text-muted">{busy ? "The resume preview appears here when it is ready." : "No resume yet."}</section>

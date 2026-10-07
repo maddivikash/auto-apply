@@ -3,7 +3,7 @@ import { getProfile, getSettings } from "@/lib/store";
 import { Settings } from "@/lib/profile/types";
 import { profileAsResume } from "@/lib/resume/default";
 import { resumeHtml, TEMPLATES, type TemplateInfo } from "@/lib/resume/templates";
-import { SAMPLE_PROFILE } from "@/lib/resume/sample";
+import { SAMPLE_PROFILE, SHOWCASE } from "@/lib/resume/sample";
 import { setTemplateAction } from "../../actions";
 import { PageHeader } from "@/components/page-header";
 import { ResumeFrame } from "@/components/resume-frame";
@@ -22,7 +22,7 @@ export default async function TemplatesPage() {
   const [profile, settings] = await Promise.all([getProfile(uid), getSettings(uid)]);
   const current = Settings.parse(settings ?? {}).resumeTemplate;
   const who = profile ?? SAMPLE_PROFILE;
-  const resume = profileAsResume(who);
+  const resume = profile ? profileAsResume(profile) : SHOWCASE;
   return (
     <div className="space-y-12">
       <div>
@@ -44,8 +44,8 @@ export default async function TemplatesPage() {
           <ul className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
             {TEMPLATES.filter((t) => t.tier === tier).map((t) => (
               <li key={t.id} className={`group rounded-[18px] p-3 transition-shadow ${t.id === current ? "bg-accent-soft shadow-[0_0_0_2px_var(--accent)]" : "bg-surface-2 hover:shadow-[var(--ring)]"}`}>
-                <div className="overflow-hidden rounded-[8px] shadow-[0_1px_2px_rgba(7,26,49,0.08),0_12px_30px_-18px_rgba(7,26,49,0.4)]">
-                  <ResumeFrame html={resumeHtml(resume, who, 1, t.id)} title={`${t.name} template preview`} />
+                <div className="overflow-hidden rounded-[8px] shadow-[0_1px_2px_rgba(18,24,38,0.08),0_12px_30px_-18px_rgba(18,24,38,0.4)]">
+                  <ResumeFrame html={resumeHtml(resume, who, 1, t.id)} title={`${t.name} template preview`} fill />
                 </div>
                 <div className="px-1 pb-1 pt-4">
                   <div className="flex items-baseline justify-between gap-3"><h3 className="text-[16px] font-medium">{t.name}</h3><span className="meta uppercase">{t.font}</span></div>

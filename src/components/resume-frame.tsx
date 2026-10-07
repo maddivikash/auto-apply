@@ -7,9 +7,11 @@ const PAGE_W = 816, PAGE_H = 1056; // US Letter at 96 dpi, the size renderPdf la
  * A resume's HTML drawn at true page size and scaled to the container's width, so a preview looks
  * exactly like the PDF. Sandboxed with no scripts; fonts still load.
  */
-export function ResumeFrame({ html, title, className = "", interactive = false, onMeasure }: { html: string; title: string; className?: string; interactive?: boolean;
+export function ResumeFrame({ html, title, className = "", interactive = false, onMeasure, fill = false }: { html: string; title: string; className?: string; interactive?: boolean;
   /** Called with content height / page height once fonts load: above 1 means the resume runs past one page. */
-  onMeasure?: (pages: number) => void }) {
+  onMeasure?: (pages: number) => void;
+  /** Showcase only (galleries, landing): enlarge a short page until it reaches the bottom. Never for a real resume's preview. */
+  fill?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);
   useEffect(() => {
@@ -29,14 +31,32 @@ export function ResumeFrame({ html, title, className = "", interactive = false, 
           tabIndex={interactive ? 0 : -1}
           className={`absolute left-0 top-0 origin-top-left border-0 ${interactive ? "" : "pointer-events-none"}`}
           style={{ width: PAGE_W, height: PAGE_H, transform: `scale(${scale})` }}
-          onLoad={onMeasure ? (e) => {
+          onLoad={onMeasure || fill ? (e) => {
             const doc = e.currentTarget.contentDocument;
             const page = doc?.querySelector(".page") as HTMLElement | null;
             if (!doc || !page) return;
-            doc.fonts.ready.then(() => { page.style.minHeight = "0"; const h = page.scrollHeight; page.style.minHeight = ""; onMeasure(h / PAGE_H); });
+            doc.fonts.ready.then(() => {
+              page.style.minHeight = "0";
+              if (fill) fillPage(page);
+              const h = page.scrollHeight;
+              page.style.minHeight = "";
+              onMeasure?.(h / PAGE_H);
+            });
           } : undefined}
         />
       )}
     </div>
   );
+}
+
+/**
+ * Grow a short page to fill the sheet: zoom the content while narrowing the page by the same factor,
+ * so the paper size stays put and lines rewrap. Binary search on the zoom that lands just under one page.
+ */
+function fillPage(page: HTMLElement) {
+  const height = (z: number) => { page.style.setProperty("zoom", String(z)); page.style.width = `${8.5 / z}in`; return page.scrollHeight * z; };
+  if (height(1) >= PAGE_H * 0.94) { height(1); return; }
+  let lo = 1, hi = 1.6;
+  for (let i = 0; i < 9; i++) { const mid = (lo + hi) / 2; if (height(mid) <= PAGE_H * 0.985) lo = mid; else hi = mid; }
+  height(lo);
 }

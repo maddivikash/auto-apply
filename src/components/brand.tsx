@@ -1,26 +1,22 @@
 /**
- * The mark: a sheet of paper whose corner folds into a forward arrow, because the resume goes out
- * while you rest. Warm peach page, royal-blue fold, navy ink: the three colours of the product.
- * Holds up as a 16px favicon.
+ * The mark: a teal tile holding a resume page whose last line trails off into a "z", because the
+ * applying happens while you rest. Reads as a page at 16px and as the z up close.
  */
 export function BrandMark({ className = "", size = 28 }: { className?: string; size?: number }) {
   return (
     <svg className={`shrink-0 ${className}`} width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden>
-      <defs>
-        <linearGradient id="la-page" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ffc6a8" /><stop offset="1" stopColor="#f07aa0" /></linearGradient>
-        <linearGradient id="la-fold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#8f78ff" /><stop offset="1" stopColor="#2c44dc" /></linearGradient>
-      </defs>
-      <path d="M8 3h11l7 7v16a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3z" fill="url(#la-page)" />
-      <path d="M5 15.5c6.5 0 11.5 2.6 14.6 7.6L22.8 29H8a3 3 0 0 1-3-3z" fill="url(#la-fold)" />
-      <path d="M19 3v5a2 2 0 0 0 2 2h5" fill="#071a31" fillOpacity="0.85" />
+      <rect width="32" height="32" rx="9" fill="#0b7f7a" />
+      <path d="M10 7.5h9.5l3.5 3.5v13.5a1.5 1.5 0 0 1-1.5 1.5h-11.5a1.5 1.5 0 0 1-1.5-1.5v-15.5a1.5 1.5 0 0 1 1.5-1.5z" fill="#f4f2ed" />
+      <path d="M12 13h7M12 16.5h5" stroke="#0b7f7a" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M17.5 20h4.5l-4.5 4h4.5" stroke="#f2a65a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 export function Brand({ size = "md" }: { size?: "md" | "lg" }) {
   return (
-    <span className={`inline-flex items-center font-semibold text-fg ${size === "lg" ? "gap-3 text-[18px]" : "gap-2.5 text-[15px]"}`}>
+    <span className={`inline-flex items-center font-semibold tracking-[-0.03em] text-fg ${size === "lg" ? "gap-3 text-[21px]" : "gap-2.5 text-[17px]"}`}>
       <BrandMark size={size === "lg" ? 30 : 26} />
-      <span className="whitespace-nowrap uppercase leading-none tracking-[0.14em]">Lazy Apply</span>
+      <span className="whitespace-nowrap leading-none">Lazy Apply</span>
     </span>
   );
 }

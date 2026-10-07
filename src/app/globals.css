@@ -1,51 +1,52 @@
 @import "tailwindcss";
 
 /*
-  Tokens. One light theme in the spirit of a printed page: a warm paper canvas, deep navy ink,
-  one royal-blue accent, white cards lifted by hairline rings. `.navy` flips the same tokens for
-  the dark feature bands, so every component works on both without its own dark variant.
+  Tokens. One light theme: a warm paper canvas, charcoal ink and a single deep-teal accent (the
+  product's original cyan, grown up). `.navy` flips the same tokens for the dark teal-charcoal bands
+  and `.paper` restores the light ones inside them, so components never need their own dark variant.
 */
 :root, .paper {
   color-scheme: light;
-  --bg: #f5f3ee;
+  --bg: #f4f2ed;
   --surface: #ffffff;
-  --surface-2: #efede6;
-  --line: rgba(7, 26, 49, 0.09);
-  --line-strong: rgba(7, 26, 49, 0.18);
-  --fg: #071a31;
-  --muted: rgba(7, 26, 49, 0.64);
-  --faint: rgba(7, 26, 49, 0.40);
-  --accent: #3351e5;
-  --accent-soft: rgba(51, 81, 229, 0.09);
+  --surface-2: #ecebe5;
+  --line: rgba(18, 24, 38, 0.09);
+  --line-strong: rgba(18, 24, 38, 0.18);
+  --fg: #121826;
+  --muted: rgba(18, 24, 38, 0.64);
+  --faint: rgba(18, 24, 38, 0.40);
+  --accent: #0b7f7a;
+  --accent-strong: #0b7f7a;
+  --accent-soft: rgba(11, 127, 122, 0.10);
   --on-accent: #ffffff;
-  --go: #1a9a52;
-  --go-soft: rgba(34, 170, 94, 0.12);
+  --go: #2b8a3e;
+  --go-soft: rgba(43, 138, 62, 0.12);
   --signal: #b0680a;
   --signal-soft: rgba(214, 140, 30, 0.13);
   --danger: #cf3f3f;
   --danger-soft: rgba(207, 63, 63, 0.09);
-  --glow: rgba(51, 81, 229, 0.16);
-  --ring: 0 0 0 1px rgba(7, 26, 49, 0.07), 0 1px 2px rgba(7, 26, 49, 0.04), 0 8px 24px -12px rgba(7, 26, 49, 0.10);
+  --glow: rgba(11, 127, 122, 0.16);
+  --ring: 0 0 0 1px rgba(18, 24, 38, 0.07), 0 1px 2px rgba(18, 24, 38, 0.04), 0 8px 24px -12px rgba(18, 24, 38, 0.10);
 }
 .paper { color: var(--fg); }
 .navy {
   color-scheme: dark;
-  --bg: #071a31;
-  --surface: #0d2340;
-  --surface-2: #142c4d;
-  --line: rgba(245, 243, 238, 0.10);
-  --line-strong: rgba(245, 243, 238, 0.22);
-  --fg: #f5f3ee;
-  --muted: rgba(245, 243, 238, 0.66);
-  --faint: rgba(245, 243, 238, 0.40);
-  --accent: #7d93ff;
-  --accent-soft: rgba(125, 147, 255, 0.14);
-  --go: #4fd18b;
-  --go-soft: rgba(79, 209, 139, 0.14);
+  --bg: #0e1b1d;
+  --surface: #152628;
+  --surface-2: #1c3133;
+  --line: rgba(240, 238, 230, 0.10);
+  --line-strong: rgba(240, 238, 230, 0.22);
+  --fg: #f0eee6;
+  --muted: rgba(240, 238, 230, 0.68);
+  --faint: rgba(240, 238, 230, 0.42);
+  --accent: #5fd3c8;
+  --accent-soft: rgba(95, 211, 200, 0.14);
+  --go: #63d38a;
+  --go-soft: rgba(99, 211, 138, 0.14);
   --signal: #f2c572;
   --signal-soft: rgba(242, 197, 114, 0.14);
-  --glow: rgba(125, 147, 255, 0.2);
-  --ring: 0 0 0 1px rgba(245, 243, 238, 0.08);
+  --glow: rgba(95, 211, 200, 0.2);
+  --ring: 0 0 0 1px rgba(240, 238, 230, 0.08);
   background: var(--bg); color: var(--fg);
 }
 
@@ -92,14 +93,13 @@ h1, h2, h3 { letter-spacing: -0.025em; }
 /* Controls */
 .field { @apply w-full rounded-[var(--radius-ctl)] border border-line-strong bg-surface px-3 py-2 text-[14px] text-fg placeholder:text-faint transition-[border-color,box-shadow] focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15; }
 select.field { @apply pr-8 appearance-none bg-no-repeat; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23697586' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-position: right 0.75rem center; }
-.btn-primary, .btn-go, .btn-ghost, .btn-accent, .btn-quiet, /* On navy bands the accent token lightens for text; buttons keep the full royal blue. */
-.navy .btn-primary, .navy .btn-accent { background-color: #3351e5; }
-.btn-ink { @apply inline-flex h-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-ctl)] px-3.5 text-[13.5px] font-medium transition-[background-color,border-color,color,transform,filter,box-shadow] active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100; }
-/* Raised buttons: a light inner top edge, a tinted outline and a soft drop, like pressed paper. */
-.btn-primary, .btn-accent { @apply bg-accent text-on-accent hover:brightness-110; box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 0 0 1px rgba(20,30,90,0.55), 0 1px 3px rgba(10,15,50,0.3); }
-.btn-go { @apply bg-go text-white hover:brightness-110; box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 0 0 1px rgba(10,70,40,0.5), 0 1px 3px rgba(10,50,30,0.25); }
+.btn-primary, .btn-go, .btn-ghost, .btn-accent, .btn-quiet, .btn-ink { @apply inline-flex h-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-ctl)] px-3.5 text-[13.5px] font-medium transition-[background-color,border-color,color,transform,filter,box-shadow] active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100; }
+/* Primary keeps the full-strength teal everywhere, including on dark bands where --accent lightens for text. */
+.btn-primary, .btn-accent { background-color: var(--accent-strong); color: var(--on-accent); box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 1px 2px rgba(6,40,38,0.35); }
+.btn-primary:hover, .btn-accent:hover { filter: brightness(1.08); }
+.btn-go { @apply bg-go text-white hover:brightness-110; box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 1px 2px rgba(10,50,30,0.3); }
 .btn-ink { @apply bg-fg text-bg hover:opacity-90; box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 1px 3px rgba(0,0,0,0.25); }
-.btn-ghost { @apply bg-surface text-fg hover:bg-surface-2; box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 0 0 1px var(--line-strong), 0 1px 3px rgba(0,0,0,0.06); }
+.btn-ghost { @apply bg-surface text-fg hover:bg-surface-2; box-shadow: 0 0 0 1px var(--line-strong), 0 1px 2px rgba(0,0,0,0.05); }
 .btn-quiet { @apply text-muted hover:bg-surface-2 hover:text-fg; }
 .btn-lg { @apply h-11 px-5 text-[15px]; }
 
@@ -107,7 +107,7 @@ select.field { @apply pr-8 appearance-none bg-no-repeat; background-image: url("
 .panel { @apply rounded-[var(--radius-panel)] bg-surface; box-shadow: var(--ring); }
 .panel-pad { @apply rounded-[var(--radius-panel)] bg-surface p-5 md:p-6; box-shadow: var(--ring); }
 .panel-head { @apply flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3.5; }
-.lift { box-shadow: var(--ring), 0 24px 60px -28px rgba(7, 26, 49, 0.35); }
+.lift { box-shadow: var(--ring), 0 24px 60px -28px rgba(18, 24, 38, 0.35); }
 .kbd { @apply font-mono rounded-[6px] border border-line bg-surface-2 px-1.5 py-0.5 text-[11.5px] text-muted; }
 .pill { @apply inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium leading-none; }
 .chip { @apply inline-flex items-center gap-1 rounded-full px-2 py-[3px] text-[12px] leading-tight; }
@@ -115,10 +115,16 @@ select.field { @apply pr-8 appearance-none bg-no-repeat; background-image: url("
 .hairline { border-color: var(--line); }
 }
 
-/* Hero band: deep navy settling into periwinkle, as on a printed brochure cover. */
-.hero-grad { background: linear-gradient(180deg, #0f2547 0%, #233f7c 45%, #5f7fdd 100%); }
-/* The stats band: paper turning a faint lilac. */
-.lilac-grad { background: linear-gradient(180deg, #f7f5f2 0%, #e8e6f7 100%); }
+/* Dark bands: charcoal with a slow teal glow rising from one corner and a faint dot grid. */
+.hero-grad {
+  background:
+    radial-gradient(60% 80% at 85% 110%, rgba(38, 168, 158, 0.45), transparent 70%),
+    radial-gradient(40% 60% at 0% 0%, rgba(95, 211, 200, 0.10), transparent 70%),
+    radial-gradient(rgba(240, 238, 230, 0.07) 1px, transparent 1px) 0 0 / 22px 22px,
+    #0e1b1d;
+}
+/* The stats band: paper with a faint mint wash. */
+.lilac-grad { background: linear-gradient(180deg, #f6f5f0 0%, #e3efe9 100%); }
 .glow { background: radial-gradient(closest-side, var(--glow), transparent); }
 
 /* The one orchestrated moment: the hero product frame rises once on load. */

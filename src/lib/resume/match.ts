@@ -93,7 +93,8 @@ export function profileText(p: Profile): string {
 
 /** Score the tailored resume and the full profile against the same job, so the user sees the change. */
 export function matchResume(jd: string, tailored: TailoredResume, profile: Profile, company?: string): Match {
-  const terms = jobTerms(jd, 40, company ? [company] : []);
+  // The company is not a skill, however the posting spells it ("Wisdom AI", "WisdomAI", "wisdom-ai").
+  const terms = jobTerms(jd, 40, company ? [company, company.replace(/[\s-]+/g, "")] : []);
   const after = scoreText(terms, tailoredText(tailored));
   const before = scoreText(terms, profileText(profile));
   const shown = (list: string[]) => list.map((t) => surface.get(t) ?? t);
