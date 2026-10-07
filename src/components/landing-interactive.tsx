@@ -32,33 +32,41 @@ export function TemplatePlayground({ pages }: { pages: { id: string; name: strin
   );
 }
 
-/** "How it works": one recorded clip per step. Each clip plays through, then the next tab takes over. */
+/**
+ * "How it works": one recorded clip per step. Every clip stays mounted and stacked, so switching
+ * steps is a crossfade, not a fresh load; the current and next clips preload, the poster (the
+ * clip's first frame) shows at once, and a loader appears only if a clip is still buffering.
+ */
 export function HowItWorks({ steps }: { steps: { title: string; body: string; video: string; poster: string }[] }) {
   const [i, setI] = useState(0);
   const [progress, setProgress] = useState(0);
-  const video = useRef<HTMLVideoElement>(null);
+  const [buffering, setBuffering] = useState(false);
+  const videos = useRef<(HTMLVideoElement | null)[]>([]);
   const box = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     const el = box.current;
     if (!el) return;
-    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { threshold: 0.35 });
+    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { threshold: 0.25 });
     io.observe(el);
     return () => io.disconnect();
   }, []);
   useEffect(() => {
-    const v = video.current;
-    if (!v) return;
-    setProgress(0);
-    v.currentTime = 0;
-    if (visible) v.play().catch(() => {}); else v.pause();
+    videos.current.forEach((v, j) => {
+      if (!v) return;
+      if (j !== i) { v.pause(); return; }
+      v.currentTime = 0;
+      if (visible) v.play().catch(() => {});
+      else v.pause();
+    });
   }, [i, visible]);
+  const select = (j: number) => { setProgress(0); setI(j); };
   return (
     <div ref={box} className="grid gap-8 lg:grid-cols-[340px_1fr] lg:items-start">
       <ol className="space-y-2" role="tablist" aria-label="How it works">
         {steps.map((s, j) => (
           <li key={s.title}>
-            <button type="button" role="tab" aria-selected={j === i} onClick={() => setI(j)}
+            <button type="button" role="tab" aria-selected={j === i} onClick={() => select(j)}
               className={`relative w-full overflow-hidden rounded-[14px] p-4 text-left transition-colors ${j === i ? "bg-surface shadow-[var(--ring)]" : "hover:bg-surface/60"}`}>
               <div className="flex items-center gap-3">
                 <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold ${j === i ? "bg-accent text-white" : j < i ? "bg-go-soft text-go" : "bg-surface-2 text-muted"}`}>{j < i ? <Check size={12} strokeWidth={3} /> : j + 1}</span>
@@ -72,10 +80,27 @@ export function HowItWorks({ steps }: { steps: { title: string; body: string; vi
       </ol>
       <div className="overflow-hidden rounded-[16px] bg-[#121826] p-1.5 shadow-[0_30px_70px_-30px_rgba(18,24,38,0.55)]">
         <div className="flex items-center gap-1.5 px-2.5 py-2" aria-hidden><span className="h-2.5 w-2.5 rounded-full bg-white/20" /><span className="h-2.5 w-2.5 rounded-full bg-white/20" /><span className="h-2.5 w-2.5 rounded-full bg-white/20" /><span className="ml-3 truncate text-[11.5px] text-white/50">lazyapply.online</span></div>
-        <video key={steps[i].video} ref={video} src={steps[i].video} poster={steps[i].poster} muted playsInline preload="metadata"
-          aria-label={`${steps[i].title}: screen recording`} className="aspect-[16/10] w-full rounded-[10px] bg-black object-cover"
-          onTimeUpdate={(e) => { const v = e.currentTarget; if (v.duration) setProgress(v.currentTime / v.duration); }}
-          onEnded={() => setI((x) => (x + 1) % steps.length)} />
+        <div className="relative aspect-[16/10] overflow-hidden rounded-[10px] bg-[#f4f2ed]">
+          {steps.map((s, j) => (
+            <video key={s.video} ref={(el) => { videos.current[j] = el; }} src={s.video} poster={s.poster} muted playsInline
+              preload={j === i || j === (i + 1) % steps.length ? "auto" : "metadata"}
+              aria-label={`${s.title}: screen recording`} aria-hidden={j !== i}
+              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${j === i ? "opacity-100" : "opacity-0"}`}
+              onWaiting={() => j === i && setBuffering(true)}
+              onPlaying={() => j === i && setBuffering(false)}
+              onCanPlay={() => j === i && setBuffering(false)}
+              onTimeUpdate={(e) => { if (j !== i) return; const v = e.currentTarget; if (v.duration) setProgress(v.currentTime / v.duration); }}
+              onEnded={() => j === i && select((i + 1) % steps.length)} />
+          ))}
+          {buffering && (
+            <div className="absolute inset-0 flex items-center justify-center bg-[#f4f2ed]/40 backdrop-blur-[1px]" aria-hidden>
+              <span className="flex items-center gap-2.5 rounded-full bg-[#121826]/85 px-4 py-2 text-[12.5px] text-white shadow-lg">
+                <span className="flex gap-1">{[0, 1, 2].map((d) => <span key={d} className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#5fd3c8]" style={{ animationDelay: `${d * 120}ms` }} />)}</span>
+                Loading the clip
+              </span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

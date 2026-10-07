@@ -13,10 +13,10 @@ import { TemplateCarousel } from "@/components/template-carousel";
 
 /** Screen recordings of the real app in test mode, with a fictional applicant. Made by scripts/record-how.mts. */
 const HOW = [
-  { title: "Paste a job link", body: "Drop in any Greenhouse, Lever or Ashby posting. The job is read from the board itself, and a tailored one-page resume is ready in about a minute.", video: "/how/1-paste.webm", poster: "/how/1-paste.png" },
-  { title: "Edit any line, or let AI rewrite it", body: "Change a bullet by hand or ask for a rewrite. The fit score and the keywords you match update as you type, and nothing invents a number you did not give it.", video: "/how/2-edit.webm", poster: "/how/2-edit.png" },
-  { title: "Switch templates instantly", body: "Seven ATS-safe layouts. Click one and the page changes on the spot; save and the PDF is rendered in that layout.", video: "/how/3-templates.webm", poster: "/how/3-templates.png" },
-  { title: "Approve, and press Submit yourself", body: "Answers come from what you told us once. A runner on your machine fills the form and stops. Nothing goes out until you press Submit.", video: "/how/4-approve.webm", poster: "/how/4-approve.png" }
+  { title: "Paste a job link", body: "Drop in any Greenhouse, Lever or Ashby posting. The job is read from the board itself, and a tailored one-page resume is ready in about a minute.", video: "/how/1-paste.mp4", poster: "/how/1-paste.jpg" },
+  { title: "Edit any line, or let AI rewrite it", body: "Change a bullet by hand or ask for a rewrite. The fit score and the keywords you match update as you type, and nothing invents a number you did not give it.", video: "/how/2-edit.mp4", poster: "/how/2-edit.jpg" },
+  { title: "Switch templates instantly", body: "Seven ATS-safe layouts. Click one and the page changes on the spot; save and the PDF is rendered in that layout.", video: "/how/3-templates.mp4", poster: "/how/3-templates.jpg" },
+  { title: "Approve, and press Submit yourself", body: "Answers come from what you told us once. A runner on your machine fills the form and stops. Nothing goes out until you press Submit.", video: "/how/4-approve.mp4", poster: "/how/4-approve.jpg" }
 ];
 
 export default async function Landing() {
