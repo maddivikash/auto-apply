@@ -12,6 +12,7 @@ import { launchBrowser } from "../browser";
 import { emailNotPossible, emailResumeReady, reportEmailFailuresTo } from "../email";
 import { resumeFileName } from "../resume/filename";
 import { getBank } from "./bank";
+import type { Profile } from "../profile/types";
 
 /** Everything between "link pasted" and "resume ready". Safe to re-run: it overwrites. */
 export async function processApplication(userId: string, id: string): Promise<void> {
@@ -76,12 +77,10 @@ export async function processApplication(userId: string, id: string): Promise<vo
       catch (e) { console.warn(`application ${id}: drafting failed:`, (e as Error).message); }
     })();
 
-    // The personal website goes on the resume only for roles that prize building things alone: founding
-    // engineer, first hire, zero-to-one. Everywhere else the header stays to LinkedIn and GitHub.
-    const FOUNDING = /founding (engineer|team|member)|first (engineer|engineering hire|hire)|founder|0\s*(to|->|\u2192)\s*1\b|zero[- ]to[- ]one|from scratch|from the ground up|greenfield|indie hacker|solo (builder|founder)/i;
-    const showSite = FOUNDING.test(`${job.title} ${description}`);
-    const renderProfile = showSite ? profile : { ...profile, website: "" };
-    if (!showSite && profile.website) console.log(`application ${id}: website left off the resume (not a founding-style role)`);
+    const renderProfile = resumeProfileFor(profile, job.title, description);
+    if (!renderProfile.website && profile.website) console.log(`application ${id}: website left off the resume (not a founding-style role)`);
+    const template = app.template ?? settings.resumeTemplate;
+    app.jobDescription = description.slice(0, 20000);
 
     // Tailor, render, measure. A tailored resume that matches the posting worse than the raw profile is
     // a regression, so retry with the dropped terms called out and keep whichever attempt scores best.
@@ -89,7 +88,7 @@ export async function processApplication(userId: string, id: string): Promise<vo
       await step("tailoring");
       const result = await tailorResume(job, profile, { notes, previous });
       await step("rendering");
-      const rendered = await renderPdf(sanitize(result.resume), renderProfile, sharedLaunch);
+      const rendered = await renderPdf(sanitize(result.resume), renderProfile, sharedLaunch, template);
       return { result, rendered, match: matchResume(description, rendered.resume, profile, job.company) };
     };
     let best = await attempt(app.revisionNotes, app.resume);
@@ -111,7 +110,7 @@ export async function processApplication(userId: string, id: string): Promise<vo
     let keptPrevious = false;
     if (previous && previous.match.tailored > best.match.tailored) {
       await step("rendering");
-      const again = await renderPdf(previous.resume, renderProfile, sharedLaunch);
+      const again = await renderPdf(previous.resume, renderProfile, sharedLaunch, template);
       best = { result: { ...best.result, resume: { ...best.result.resume, headline: previous.headline }, fitNotes: app.fitNotes || best.result.fitNotes }, rendered: again, match: matchResume(description, again.resume, profile, job.company) };
       keptPrevious = true;
       console.log(`application ${id}: regenerated version scored lower (${previous.match.tailored} before); previous tailored resume kept`);
@@ -120,7 +119,7 @@ export async function processApplication(userId: string, id: string): Promise<vo
     // The full profile laid out as-is is always rendered too, so the user can switch and so a tailored
     // version that scores lower than the plain resume is never the default.
     await step("rendering");
-    const plain = await renderPdf(profileAsResume(profile), renderProfile, sharedLaunch);
+    const plain = await renderPdf(profileAsResume(profile), renderProfile, sharedLaunch, template);
     const plainMatch = matchResume(description, plain.resume, profile, job.company);
     const [tailoredUrl, fullUrl] = await Promise.all([
       saveFile(`users/${userId}/resumes/${id}.pdf`, rendered.pdf, "application/pdf"),
@@ -152,6 +151,7 @@ export async function processApplication(userId: string, id: string): Promise<vo
     app.resumeWarnings = [...result.warnings, ...validate(rendered.resume, profile), ...sparse, ...notice, ...keptNote].filter((w, i, a) => a.indexOf(w) === i);
     await questionsTask;
     app.error = undefined;
+    app.editedAt = undefined;
     await step("ready");
 
     const open = app.questions.filter((q) => q.needsHuman).length;
@@ -167,4 +167,13 @@ export async function processApplication(userId: string, id: string): Promise<vo
   } finally {
     await (realBrowser as Awaited<ReturnType<typeof launchBrowser>> | null)?.close().catch(() => {});
   }
+}
+
+/**
+ * The personal website goes on the resume only for roles that prize building things alone: founding
+ * engineer, first hire, zero-to-one. Everywhere else the header stays to LinkedIn and GitHub.
+ */
+const FOUNDING = /founding (engineer|team|member)|first (engineer|engineering hire|hire)|founder|0\s*(to|->|\u2192)\s*1\b|zero[- ]to[- ]one|from scratch|from the ground up|greenfield|indie hacker|solo (builder|founder)/i;
+export function resumeProfileFor(profile: Profile, jobTitle: string, description: string): Profile {
+  return FOUNDING.test(`${jobTitle} ${description}`) ? profile : { ...profile, website: "" };
 }

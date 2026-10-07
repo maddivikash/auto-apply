@@ -42,8 +42,6 @@ const FAQ: [string, string][] = [
 export default function SprintPage() {
   return (
     <main className="relative min-h-screen overflow-x-clip bg-bg text-fg">
-      <div className="topline absolute inset-x-0 top-0" aria-hidden />
-      <div className="grid-fade pointer-events-none absolute inset-x-0 top-0 h-[80vh]" aria-hidden />
       <div className="glow pointer-events-none absolute left-1/2 top-[-10vh] h-[60vh] w-[90vw] -translate-x-1/2 opacity-70" aria-hidden />
 
       <div className="relative mx-auto max-w-[1160px] px-6">

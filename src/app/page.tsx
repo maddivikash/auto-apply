@@ -1,143 +1,186 @@
 import Link from "next/link";
-import Image from "next/image";
 import { redirect } from "next/navigation";
-import { Check } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
 import { userId } from "@/lib/auth";
 import { Brand } from "@/components/brand";
 import { StageTrack } from "@/components/status";
+import { ResumeFrame } from "@/components/resume-frame";
+import { AtsBadge } from "@/components/ats-badge";
+import { resumeHtml, TEMPLATES } from "@/lib/resume/templates";
+import { profileAsResume } from "@/lib/resume/default";
+import { SAMPLE_PROFILE } from "@/lib/resume/sample";
 
 export default async function Landing() {
   if (await userId()) redirect("/dashboard");
+  const sample = profileAsResume(SAMPLE_PROFILE);
   return (
-    <main className="relative min-h-screen overflow-x-clip bg-bg text-fg">
-      <div className="topline absolute inset-x-0 top-0" aria-hidden />
-      <div className="grid-fade pointer-events-none absolute inset-x-0 top-0 h-[90vh]" aria-hidden />
-      <div className="glow pointer-events-none absolute left-1/2 top-[-10vh] h-[70vh] w-[90vw] -translate-x-1/2 opacity-70" aria-hidden />
+    <main className="min-h-screen overflow-x-clip bg-bg text-fg">
+      <header className="mx-auto flex max-w-[1240px] items-center justify-between px-6 py-4">
+        <Brand />
+        <nav className="hidden items-center gap-7 text-[14px] text-muted md:flex">
+          <a href="#how" className="hover:text-fg">How it works</a>
+          <a href="#templates" className="hover:text-fg">Templates</a>
+          <a href="#toolkit" className="hover:text-fg">Toolkit</a>
+          <Link href="/sprint" className="hover:text-fg">Done for you</Link>
+        </nav>
+        <nav className="flex items-center gap-2"><Link href="/sign-in" className="btn-quiet">Sign in</Link><Link href="/sign-up" className="btn-ink">Start free</Link></nav>
+      </header>
 
-      <div className="relative mx-auto max-w-[1160px] px-6">
-        <header className="flex items-center justify-between py-5">
-          <Brand />
-          <nav className="flex items-center gap-2"><Link href="/sign-in" className="btn-quiet">Sign in</Link><Link href="/sign-up" className="btn-primary">Create account</Link></nav>
-        </header>
+      {/* Hero */}
+      <section className="px-3">
+        <div className="hero-grad navy relative mx-auto max-w-[1900px] overflow-hidden rounded-[22px] px-6 pb-0 pt-16 text-center sm:pt-20">
+          <div className="rise mx-auto flex max-w-3xl flex-col items-center">
+            <span className="paper inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[13px] font-medium shadow-[0_6px_20px_-8px_rgba(0,0,0,0.4)]"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-white"><Sparkles size={11} /></span>Greenhouse, Lever and Ashby, filled on your machine</span>
+            <h1 className="display mt-7 text-[44px] text-white sm:text-[60px] lg:text-[70px]">Paste a job link.<br />Get a resume that fits it.</h1>
+            <p className="mt-6 max-w-xl text-[18px] leading-relaxed text-white/80">A one-page resume tailored from your own profile, scored like an ATS, with the application form answered. You review it, edit any line, and press Submit.</p>
+            <Link href="/sign-up" className="btn-primary btn-lg mt-9">Build my first application</Link>
+            <p className="mt-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[13px] text-white/75"><span>3 applications free</span><span aria-hidden>·</span><span>No card</span><span aria-hidden>·</span><span>Nothing is sent without you</span></p>
+          </div>
+          <HeroResume html={resumeHtml(sample, SAMPLE_PROFILE, 1, "standard")} />
+        </div>
+      </section>
 
-        <section className="flex flex-col items-center gap-14 pb-20 pt-16 text-center lg:pb-28 lg:pt-24">
-          <div className="rise flex max-w-3xl flex-col items-center">
-            <h1 className="display text-[46px] sm:text-[62px] lg:text-[76px]">Paste a job link.<br />Review it. Press <span className="serif-i">Submit.</span></h1>
-            <p className="mx-auto mt-7 max-w-xl text-[18px] leading-relaxed text-muted">Lazy Apply writes a one-page resume for the role from your own profile, answers the form with what it already knows about you, and fills it in a browser window on your machine. Nothing is sent until you say so.</p>
-            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-              <Link href="/sign-up" className="btn-primary btn-lg">Start with your resume</Link>
-              <Link href="/sign-in" className="btn-ghost btn-lg">I have an account</Link>
+      {/* Stats */}
+      <section className="px-3 pt-24">
+        <div className="lilac-grad mx-auto max-w-[1900px] rounded-[22px] px-6 py-16">
+          <div className="mx-auto max-w-[1040px]">
+            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+              <h2 className="display max-w-md text-[36px] sm:text-[44px]">Every application, ready in about a minute.</h2>
+              <p className="max-w-xs text-[14px] text-muted">Pulled straight from each company&apos;s own job board, refreshed every six hours.</p>
             </div>
-            <p className="mt-5 text-[13px] text-muted">Works with Greenhouse, Lever and Ashby job pages. Your first 3 applications are free.</p>
-            <Link href="/sprint" className="mt-3 text-[13px] text-accent underline-offset-4 hover:underline">No time? We apply for you. First 3 applications free →</Link>
+            <ul className="mt-10 grid border-t border-fg/70 sm:grid-cols-3">
+              {[["130+", "company boards watched for new roles", true], ["~60s", "from pasting a link to a resume ready to review", false], ["7", "ATS-safe templates, all free", false]].map(([n, label, blue]) => (
+                <li key={String(label)} className="border-line-strong py-6 sm:border-l sm:px-6 sm:first:border-l-0 sm:first:pl-0">
+                  <div className={`display text-[64px] sm:text-[80px] ${blue ? "text-accent" : ""}`}>{n}</div>
+                  <div className="mt-2 max-w-[220px] text-[14px] text-muted">{label}</div>
+                </li>
+              ))}
+            </ul>
           </div>
-          <ProductFrame />
-        </section>
+        </div>
+      </section>
 
-        <section className="border-t border-line py-20">
-          <div className="max-w-xl">
-            <h2 className="text-[30px] font-semibold leading-tight tracking-[-0.025em]">Every application moves through the same five stages.</h2>
-            <p className="mt-3 text-[15.5px] leading-relaxed text-muted">The rail on every card tells you where each one is and what it is waiting on.</p>
-          </div>
-          <ol className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
-            {[
-              ["Read", "The posting is read from the board's own API, including every question its form asks."],
-              ["Resume", "A one-page resume is written for that role. Every number is checked against your profile before it renders."],
-              ["Answers", "Name, links, location, sponsorship and relocation come from your Answers page. Anything else is asked, by email and in the app."],
-              ["Filled", "A small runner on your computer opens the real form, types the answers, attaches the PDF and stops with a screenshot."],
-              ["Submitted", "You press Submit. The runner clicks it and confirms. That is the only way anything goes out."]
-            ].map(([title, body], i) => (
-              <li key={title} className="relative">
-                <span className={`block h-[5px] w-full rounded-full ${i < 4 ? "bg-go" : "bg-signal shadow-[0_0_12px_var(--glow)]"}`} aria-hidden />
-                <h3 className="mt-4 text-[15px] font-semibold">{title}</h3>
-                <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">{body}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        <section className="grid gap-10 border-t border-line py-20 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+      {/* Templates */}
+      <section id="templates" className="mx-auto max-w-[1240px] px-6 pt-28 text-center">
+        <AtsBadge />
+        <h2 className="display text-[36px] sm:text-[46px]">Resume templates every ATS can read</h2>
+        <p className="mx-auto mt-4 max-w-lg text-[16px] text-muted">One column of real text and standard headings, so Greenhouse, Lever, Ashby and Workday read every line instead of skipping it.</p>
+        <ul className="mt-12 grid grid-cols-2 gap-5 text-left sm:grid-cols-3 lg:grid-cols-4">
+          {TEMPLATES.slice(0, 4).map((t) => (
+            <li key={t.id}>
+              <div className="overflow-hidden rounded-[10px] shadow-[0_1px_2px_rgba(7,26,49,0.08),0_16px_40px_-20px_rgba(7,26,49,0.45)]"><ResumeFrame html={resumeHtml(sample, SAMPLE_PROFILE, 1, t.id)} title={`${t.name} template`} /></div>
+              <div className="mt-3 flex items-baseline justify-between"><span className="text-[15px] font-medium">{t.name}</span><span className="meta">{t.tier} tier</span></div>
+            </li>
+          ))}
+        </ul>
+        <div className="paper mx-auto mt-10 grid max-w-3xl gap-6 rounded-[16px] bg-surface p-6 text-left shadow-[var(--ring)] md:grid-cols-[1.3fr_1fr]">
           <div>
-            <span className="pill bg-go-soft text-go">Completely free</span>
-            <h2 className="mt-4 text-[30px] font-semibold leading-tight tracking-[-0.025em]">Fresh roles, curated for you, every few hours.</h2>
-            <p className="mt-3 text-[15.5px] leading-relaxed text-muted">We keep a list of more than 130 product companies that hire through Greenhouse, Ashby and Lever, and pull their open roles straight from each board every six hours. Browse, filter by country and remote, and prepare any of them with one click. Browsing is free for good: no fee, no card, no job-board markup. Your first 3 applications are free too.</p>
-            <Link href="/sign-up" className="btn-primary mt-7">Browse open roles</Link>
+            <div className="eyebrow !text-faint">Read correctly by</div>
+            <div className="mt-3 flex flex-wrap gap-2">{["Greenhouse", "Lever", "Ashby", "Workday", "iCIMS", "SmartRecruiters"].map((b) => <span key={b} className="chip bg-surface-2 text-fg"><Check size={11} strokeWidth={3} className="text-go" /> {b}</span>)}</div>
           </div>
-          <ul className="grid gap-3 sm:grid-cols-3">
-            {[["130+", "company boards we watch"], ["6 h", "between refreshes"], ["₹0", "to browse, always"]].map(([n, label]) => (
-              <li key={label} className="panel p-5"><div className="display text-[34px]">{n}</div><div className="mt-1 text-[13px] text-muted">{label}</div></li>
-            ))}
-          </ul>
-        </section>
+          <ul className="space-y-2 text-[13.5px] md:border-l md:border-line md:pl-6">{["Clear reading order", "Real text, no images", "Standard section headings", "No tables or text boxes"].map((x) => <li key={x} className="flex items-center justify-between">{x}<Check size={14} strokeWidth={3} className="text-go" /></li>)}</ul>
+        </div>
+      </section>
 
-        <section className="grid gap-10 border-t border-line py-20 lg:grid-cols-[0.8fr_1.2fr]">
-          <div>
-            <h2 className="text-[30px] font-semibold leading-tight tracking-[-0.025em]">Built so you never have to wonder what it said about you.</h2>
-            <p className="mt-3 text-[15.5px] leading-relaxed text-muted">Automation that applies on your behalf has to be boring about facts and strict about control.</p>
+      {/* Toolkit */}
+      <section id="toolkit" className="px-3 pt-28">
+        <div className="navy mx-auto max-w-[1900px] rounded-[22px] px-6 py-20">
+          <div className="mx-auto max-w-[1040px]">
+            <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+              <div><div className="eyebrow">The whole toolkit</div><h2 className="display mt-4 max-w-xl text-[40px] sm:text-[52px]">Everything between the job link and Submit.</h2></div>
+              <div className="max-w-xs"><p className="text-[14px] text-muted">The writing is grounded in your profile. The submitting is yours.</p><Link href="/sign-up" className="paper btn-ghost mt-4">Start free</Link></div>
+            </div>
+            <div className="mt-12 grid gap-4 md:grid-cols-3">
+              <Tile n="01" title="Edit your resume line by line." wide>
+                <div className="paper mt-6 rounded-[12px] bg-white p-4 text-[13px]">
+                  <span className="chip bg-accent-soft text-accent"><Sparkles size={11} /> AI rewrite</span>
+                  <p className="mt-3 text-muted line-through">Worked on the events service and made it faster.</p>
+                  <p className="mt-1">Built a <b>FastAPI</b> service that processes <b>2 million events a day</b> with p95 latency under 120ms.</p>
+                </div>
+              </Tile>
+              <Tile n="02" title="Scored like an ATS.">
+                <div className="mt-8 text-[64px] font-medium leading-none tracking-[-0.04em] text-go">84%</div>
+                <div className="mt-3 h-1.5 rounded-full bg-surface-2"><div className="h-full w-[84%] rounded-full bg-go" /></div>
+              </Tile>
+              <Tile n="03" title="Every keyword the job asks for.">
+                <div className="mt-6 flex flex-wrap gap-1.5">{["FastAPI", "Kubernetes", "SQS", "React"].map((k) => <span key={k} className="chip bg-go-soft text-go"><Check size={11} strokeWidth={3} />{k}</span>)}<span className="chip border border-dashed border-line-strong text-muted">gRPC</span></div>
+              </Tile>
+              <Tile n="04" title="Fresh roles from 130+ boards."><p className="mt-3 text-[13.5px] text-muted">Filter by field, country and remote. Prepare any of them with one click.</p></Tile>
+              <Tile n="05" title="Form answers you set once."><p className="mt-3 text-[13.5px] text-muted">Sponsorship, notice period, links. A new question is asked, never guessed.</p></Tile>
+              <Tile n="06" title="Filled on your machine." accent wide3><p className="mt-3 text-[13.5px] text-white/80">A visible browser window types the answers, attaches the PDF and stops. You press Submit.</p></Tile>
+            </div>
           </div>
-          <ul className="divide-rows">
-            {[
-              ["Facts come only from your profile", "The resume writer cannot add a skill, a number or an employer that is not already in your profile. Flagged mismatches show on the review page."],
-              ["Fit, not overfit", "Tailoring chooses and orders your real work for the role. It does not rewrite your experience in the posting's words, because recruiters can tell, and a resume that echoes the ad reads as one."],
-              ["Known answers are filled, open questions are asked", "The form filler uses your Answers page. When a form asks something new, you get it as a question instead of a guess."],
-              ["The form is filled on your machine, in view", "The runner drives a visible browser window on your own computer. You can watch it type and check the screenshot it leaves."],
-              ["Submit is a button only you can press", "Approving lets the runner fill. Submitting is a second, separate step, and it is yours."],
-              ["Your data stays yours", "Profile, answers, resumes and applications live in your account. Delete any of it at any time."]
-            ].map(([title, body]) => (
-              <li key={title} className="flex gap-4 py-5 first:pt-0 last:pb-0">
-                <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-go-soft text-go"><Check size={12} strokeWidth={3} /></span>
-                <div><h3 className="text-[15px] font-medium">{title}</h3><p className="mt-1 text-[13.5px] leading-relaxed text-muted">{body}</p></div>
-              </li>
-            ))}
-          </ul>
-        </section>
+        </div>
+      </section>
 
-        <section className="my-8 border border-line bg-surface p-8 text-center md:p-14">
-          <h2 className="display text-[32px] sm:text-[40px]">Your next application, ready for review in about a minute.</h2>
-          <p className="mx-auto mt-4 max-w-md text-[15px] text-muted">Upload the resume you already have. It becomes your profile, and every tailored resume after that is written only from it.</p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3"><Link href="/sign-up" className="btn-primary btn-lg">Create your account</Link><Link href="/sign-in" className="btn-ghost btn-lg">Sign in</Link></div>
-        </section>
+      {/* How */}
+      <section id="how" className="mx-auto max-w-[1040px] px-6 py-28">
+        <div className="eyebrow">How it works</div>
+        <h2 className="display mt-4 max-w-xl text-[36px] sm:text-[44px]">Five stages, and the last one is always yours.</h2>
+        <ol className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
+          {[
+            ["Read", "The posting is read from the board's own API, including every question its form asks."],
+            ["Resume", "A one-page resume is written for the role. Every number is checked against your profile."],
+            ["Answers", "Known answers come from your Answers page. Anything new is asked, in the app and by email."],
+            ["Filled", "A runner on your computer opens the real form, types the answers and attaches the PDF."],
+            ["Submitted", "You press Submit. That is the only way anything goes out."]
+          ].map(([title, body], i) => (
+            <li key={title}>
+              <span className={`block h-[5px] w-full rounded-full ${i < 4 ? "bg-go" : "bg-accent"}`} aria-hidden />
+              <h3 className="mt-4 text-[15px] font-medium">{title}</h3>
+              <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">{body}</p>
+            </li>
+          ))}
+        </ol>
+        <div className="panel mt-14 p-5"><div className="flex items-center justify-between text-[13px]"><span className="font-medium">Cloudflare, Software Engineer, Platforms</span><span className="pill bg-signal-soft text-signal">1 question needs you</span></div><div className="mt-4"><StageTrack status="ready" needsDetails /></div></div>
+      </section>
 
-        <footer className="flex flex-wrap items-center justify-between gap-3 py-10 text-[13px] text-muted"><Brand /><span>For people applying to a lot of jobs and tired of retyping their own name.</span></footer>
-      </div>
+      {/* CTA */}
+      <section className="px-3 pb-6">
+        <div className="hero-grad navy mx-auto max-w-[1900px] rounded-[22px] px-6 py-20 text-center">
+          <h2 className="display mx-auto max-w-2xl text-[38px] text-white sm:text-[50px]">Your next application starts with the resume you already have.</h2>
+          <p className="mx-auto mt-5 max-w-md text-[15.5px] text-white/80">Upload it once. It becomes your profile, and every tailored resume is written only from it.</p>
+          <Link href="/sign-up" className="btn-primary btn-lg mt-9">Create your account</Link>
+        </div>
+      </section>
+
+      <footer className="mx-auto flex max-w-[1240px] flex-wrap items-center justify-between gap-3 px-6 py-10 text-[13px] text-muted">
+        <Brand />
+        <nav className="flex gap-5"><Link href="/privacy" className="hover:text-fg">Privacy</Link><Link href="/terms" className="hover:text-fg">Terms</Link><Link href="/connect/docs" className="hover:text-fg">API</Link></nav>
+      </footer>
     </main>
   );
 }
 
-/** A still of the review page with real-looking content, so the first thing you see is the product. */
-function ProductFrame() {
-  const answers: [string, string, boolean][] = [
-    ["First name", "John", true], ["Email", "john.doe@example.com", true], ["LinkedIn", "linkedin.com/in/john-doe", true],
-    ["Need sponsorship for this location?", "No", true], ["Willing to relocate?", "Yes, willing to relocate", true], ["Why Cloudflare?", "", false]
-  ];
+/** The sample resume rising out of the hero, with the match and rewrite cards floating beside it. */
+function HeroResume({ html }: { html: string }) {
   return (
-    <div className="rise-2 relative">
-      <div className="glow pointer-events-none absolute -inset-10 -z-10" aria-hidden />
-      <div className="panel lift overflow-hidden text-[12.5px]">
-        <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
-          <div className="min-w-0"><div className="truncate text-[13.5px] font-medium">Cloudflare, Software Engineer, Platforms</div><div className="text-muted">Bengaluru, Greenhouse</div></div>
-          <span className="pill bg-signal-soft text-signal">1 question needs you</span>
-        </div>
-        <div className="border-b border-line px-4 py-3"><StageTrack status="ready" needsDetails /></div>
-        <div className="grid gap-0 sm:grid-cols-[1.15fr_0.85fr]">
-          <ul className="divide-rows border-b border-line sm:border-b-0 sm:border-r">
-            {answers.map(([q, a, filled]) => (
-              <li key={q} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                <span className="truncate text-muted">{q}</span>
-                {filled ? <span className="mono shrink-0 rounded-md bg-surface-2 px-1.5 py-0.5 text-[11.5px] text-fg">{a}</span> : <span className="shrink-0 rounded-md bg-signal-soft px-1.5 py-0.5 text-[11.5px] text-signal">Your answer</span>}
-              </li>
-            ))}
-          </ul>
-          <div className="relative min-h-[240px] overflow-hidden bg-surface-2/60 p-4">
-            <div className="flex items-center justify-between"><span className="font-medium">Tailored resume</span><span className="text-muted">1 page</span></div>
-            <Image src="/sample-resume.png" alt="A one-page resume tailored by Lazy Apply" width={1200} height={1553} className="absolute left-4 right-4 top-11 w-[calc(100%-2rem)] rounded-[4px] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)]" priority />
-          </div>
-        </div>
-        <div className="flex items-center justify-between border-t border-line px-4 py-3">
-          <span className="text-muted">Approve, and the runner fills the form on your machine.</span>
-          <span className="btn-go h-8 px-3 text-[12.5px]">Approve for filling</span>
-        </div>
+    <div className="rise-2 paper relative mx-auto mt-16 max-w-[760px] text-left">
+      <div className="absolute inset-x-10 -top-5 h-8 rounded-t-[10px] bg-white/25" aria-hidden />
+      <div className="absolute inset-x-5 -top-2.5 h-8 rounded-t-[10px] bg-white/45" aria-hidden />
+      <div className="relative h-[420px] overflow-hidden rounded-t-[10px] shadow-[0_30px_80px_-30px_rgba(0,0,0,0.6)] sm:h-[520px]"><ResumeFrame html={html} title="A sample tailored resume" /></div>
+      <div className="absolute -right-6 top-24 hidden w-[230px] rounded-[14px] bg-white p-4 shadow-[0_20px_50px_-20px_rgba(7,26,49,0.55)] lg:-right-44 md:block">
+        <div className="flex items-center justify-between text-[13px] text-muted">Job match<span className="pill bg-go-soft text-go">Strong</span></div>
+        <div className="mt-2 text-[40px] font-medium leading-none tracking-[-0.04em]">84%</div>
+        <div className="mt-3 h-1.5 rounded-full bg-surface-2"><div className="h-full w-[84%] rounded-full bg-go" /></div>
+        <div className="eyebrow mt-4 !text-faint">Keywords matched</div>
+        <div className="mt-2 flex flex-wrap gap-1.5">{["FastAPI", "Kubernetes", "SQS", "React"].map((k) => <span key={k} className="chip bg-go-soft text-go"><Check size={11} strokeWidth={3} />{k}</span>)}</div>
       </div>
+      <div className="absolute -left-6 bottom-10 hidden w-[240px] rounded-[14px] bg-white p-4 text-[13px] shadow-[0_20px_50px_-20px_rgba(7,26,49,0.55)] lg:-left-44 md:block">
+        <span className="chip bg-accent-soft text-accent"><Sparkles size={11} /> AI rewrite</span>
+        <p className="mt-2 text-danger/80 line-through">Made the release process faster.</p>
+        <p className="mt-1">Release time from <b>2 hours to 15 minutes</b>.</p>
+      </div>
+    </div>
+  );
+}
+
+function Tile({ n, title, children, wide, wide3, accent }: { n: string; title: string; children?: React.ReactNode; wide?: boolean; wide3?: boolean; accent?: boolean }) {
+  return (
+    <div className={`rounded-[16px] p-6 shadow-[var(--ring)] ${wide ? "md:col-span-2" : wide3 ? "md:col-span-3" : ""} ${accent ? "bg-[#3351e5]" : "bg-surface"}`}>
+      <div className={`eyebrow ${accent ? "!text-white/70" : "!text-faint"}`}>{n}</div>
+      <h3 className="mt-3 text-[20px] font-medium leading-snug tracking-[-0.02em]">{title}</h3>
+      {children}
     </div>
   );
 }

@@ -12,7 +12,7 @@ export function PlanOffer({ plans, dismiss }: { plans: Plan[]; dismiss: () => Pr
   if (!open) return null;
   const close = () => { setOpen(false); start(() => dismiss()); };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="plan-offer-title" onClick={close}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#071a31]/50 px-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="plan-offer-title" onClick={close}>
       <div className="panel w-full max-w-[640px] p-7" onClick={(e) => e.stopPropagation()}>
         <span className="pill bg-go-soft text-go">{FREE_APPLICATIONS} of {FREE_APPLICATIONS} free applications submitted</span>
         <h2 id="plan-offer-title" className="mt-4 text-[24px] font-semibold leading-tight tracking-[-0.02em]">You can now apply to the rest.</h2>

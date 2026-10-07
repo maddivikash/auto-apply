@@ -9,6 +9,7 @@ import { getDoc, putDoc, listDocs, delDoc, putFile, getFile, backend } from "./d
 import type { JobPosting, JobQuestion } from "./jobs/fetch";
 import type { TailoredResume } from "./resume/schema";
 import type { Match } from "./resume/match";
+import type { TemplateId } from "./resume/templates";
 import type { Profile, Settings } from "./profile/types";
 
 export type ResumeVariant = { resume: TailoredResume; pdfUrl: string; match: Match; headline?: string; trims: string[] };
@@ -49,6 +50,12 @@ export type Application = {
   variants?: { tailored: ResumeVariant; full: ResumeVariant };
   /** Which variant is active. Defaults to whichever scored higher. */
   resumeChoice?: "tailored" | "full";
+  /** Template this application's PDFs are rendered with. Unset means the user's default from Settings. */
+  template?: TemplateId;
+  /** The full job description, kept so the resume editor can score edits live. Older applications only have descriptionPreview. */
+  jobDescription?: string;
+  /** Set when the user edited the active resume by hand in the editor. */
+  editedAt?: string;
   /** What the user asked to change on the last Regenerate. Fed to the tailoring step with the previous version. */
   revisionNotes?: string;
   questions: QuestionState[];

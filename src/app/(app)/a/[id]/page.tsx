@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowUpRight, Camera, Upload } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Camera, Check, PenLine, Upload } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
 import { fileHref, getApplication, getProfile, getSettings, saveApplication, type Application, type QuestionState } from "@/lib/store";
 import { Settings } from "@/lib/profile/types";
@@ -50,7 +50,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
         <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-fg"><ArrowLeft size={14} /> Applications</Link>
         <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.025em]">{app.job ? `${app.job.company}, ${app.job.title}` : busy ? "Reading the job post" : "Could not prepare this one"}</h1>
+            <h1 className="text-[28px] font-medium leading-tight tracking-[-0.03em]">{app.job ? `${app.job.company}, ${app.job.title}` : busy ? "Reading the job post" : "Could not prepare this one"}</h1>
             <p className="mt-1.5 flex flex-wrap items-center gap-x-3 text-[13.5px] text-muted">{app.job?.location && <span>{app.job.location}</span>}<a className="inline-flex items-center gap-1 hover:text-fg" href={app.url} target="_blank" rel="noreferrer">Open posting <ArrowUpRight size={13} /></a></p>
           </div>
           <StatusBadge status={app.status} />
@@ -150,9 +150,9 @@ export default async function ApplicationPage({ params, searchParams }: { params
               <div className="panel-head">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2"><span className="text-[15px] font-semibold">{app.resumeChoice === "full" ? "Original resume" : "Tailored resume"}</span>{app.variants && <ResumeToggle id={app.id} choice={app.resumeChoice || "tailored"} tailored={app.variants.tailored.match.tailored} full={app.variants.full.match.tailored} locked={!["ready", "approved"].includes(app.status)} action={chooseResumeAction} />}</div>
-                  <div className="truncate text-[12.5px] text-muted">{app.headline}{app.trims?.length ? `. Trimmed to fit: ${app.trims.join(", ")}` : ""}</div>
+                  <div className="truncate text-[12.5px] text-muted">{app.editedAt ? "Edited by you. " : ""}{app.headline}{app.trims?.length ? `. Trimmed to fit: ${app.trims.join(", ")}` : ""}</div>
                 </div>
-                <div className="flex gap-2"><a href={`/api/applications/${app.id}/pdf`} target="_blank" rel="noreferrer" className="btn-ghost h-8">Open PDF</a><RegeneratePanel id={app.id} action={reprocessAction} disabled={processing} lastNotes={app.revisionNotes} /></div>
+                <div className="flex flex-wrap gap-2">{app.resume && <Link href={`/a/${app.id}/edit`} className="btn-primary h-8"><PenLine size={14} /> Edit resume</Link>}<a href={`/api/applications/${app.id}/pdf`} target="_blank" rel="noreferrer" className="btn-ghost h-8">Open PDF</a><RegeneratePanel id={app.id} action={reprocessAction} disabled={processing} lastNotes={app.revisionNotes} /></div>
               </div>
               {app.resumeWarnings?.length ? <p className="border-b border-line bg-signal-soft px-5 py-2 text-[12.5px] text-signal">Checks flagged: {app.resumeWarnings.join("; ")}</p> : null}
               <object data={`/api/applications/${app.id}/pdf#toolbar=0&view=FitH`} type="application/pdf" className="aspect-[17/22] w-full bg-surface-2" aria-label="Resume preview"><div className="flex h-full items-center justify-center text-[13px] text-muted">Preview not available in this browser. <a className="ml-1 underline" href={`/api/applications/${app.id}/pdf`} target="_blank" rel="noreferrer">Open the PDF</a></div></object>
@@ -170,26 +170,23 @@ export default async function ApplicationPage({ params, searchParams }: { params
 function MatchCard({ match }: { match: NonNullable<Application["match"]> }) {
   const delta = match.tailored - match.profile;
   const pct = (n: number) => `${Math.round(n * 100)}%`;
+  const strength = match.tailored >= 70 ? ["Strong", "bg-go-soft text-go"] : match.tailored >= 50 ? ["Good", "bg-accent-soft text-accent"] : ["Fair", "bg-signal-soft text-signal"];
   return (
     <section className="panel-pad">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-[15px] font-semibold">Match with this job</h2>
-          <p className="mt-1 text-[12.5px] text-muted">Keyword match, the way an applicant tracking system reads it. Not a hiring prediction.</p>
-          <p className="mt-2 max-w-md text-[12.5px] leading-relaxed text-muted"><span className="text-fg">Fit, not overfit.</span> The resume selects and orders your real work; it does not rewrite it in the posting&apos;s words. Recruiters notice resumes that echo the ad, so a moderate score with true content beats a high one that reads like the job description.</p>
-        </div>
-        <div className="flex items-baseline gap-3 tabular-nums">
-          <span className="text-[32px] font-semibold leading-none">{match.tailored}</span>
-          <span className="text-[13px] text-muted">was {match.profile} with your full profile</span>
-          {delta !== 0 && <span className={`rounded-full px-2 py-0.5 text-[12px] font-medium ${delta > 0 ? "bg-go-soft text-go" : "bg-signal-soft text-signal"}`}>{delta > 0 ? "+" : ""}{delta}</span>}
-        </div>
+      <div className="flex items-center justify-between gap-3"><h2 className="text-[13px] text-muted">Job match</h2><span className={`pill ${strength[1]}`}>{strength[0]}</span></div>
+      <div className="mt-2 flex flex-wrap items-baseline gap-3 tabular-nums">
+        <span className="text-[44px] font-medium leading-none tracking-[-0.04em]">{match.tailored}%</span>
+        <span className="text-[13px] text-muted">was {match.profile}% with your full profile</span>
+        {delta !== 0 && <span className={`pill ${delta > 0 ? "bg-go-soft text-go" : "bg-signal-soft text-signal"}`}>{delta > 0 ? "+" : ""}{delta}</span>}
       </div>
-      <div className="mt-4 grid gap-3 text-[13px] sm:grid-cols-2">
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-2"><div className="h-full rounded-full bg-go" style={{ width: `${match.tailored}%` }} /></div>
+      <div className="mt-5 grid gap-3 text-[13px] sm:grid-cols-2">
         <Meter label="Job terms covered" value={match.coverage} hint={pct(match.coverage)} />
         <Meter label="Resume lines that speak to this job" value={match.focus} hint={pct(match.focus)} />
       </div>
-      {match.matched.length > 0 && <p className="mt-4 text-[12.5px] text-muted">Matched: {match.matched.join(", ")}.</p>}
-      {match.missing.length > 0 && <p className="mt-1.5 text-[12.5px] text-muted">Not found: <span className="text-fg">{match.missing.join(", ")}</span>. Add any of these to your profile only if they are genuinely true of you; the resume will pick them up on the next regenerate.</p>}
+      {match.matched.length > 0 && <><div className="eyebrow mt-5 !text-faint">Keywords matched</div><div className="mt-2 flex flex-wrap gap-1.5">{match.matched.map((k) => <span key={k} className="chip bg-go-soft text-go"><Check size={11} strokeWidth={3} />{k}</span>)}</div></>}
+      {match.missing.length > 0 && <><div className="eyebrow mt-4 !text-faint">Not found</div><div className="mt-2 flex flex-wrap gap-1.5">{match.missing.map((k) => <span key={k} className="chip border border-dashed border-line-strong text-muted">{k}</span>)}</div></>}
+      <p className="mt-4 text-[12.5px] leading-relaxed text-muted"><span className="text-fg">Fit, not overfit.</span> Keyword match the way an applicant tracking system reads it, not a hiring prediction. Add a missing term only if it is genuinely true of you; a moderate score with true content beats a resume that echoes the ad.</p>
     </section>
   );
 }
@@ -198,7 +195,7 @@ function Meter({ label, value, hint }: { label: string; value: number; hint: str
   return (
     <div>
       <div className="flex justify-between text-[12.5px]"><span className="text-muted">{label}</span><span className="tabular-nums">{hint}</span></div>
-      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-2" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value * 100)} aria-label={label}><div className="h-full rounded-full bg-fg" style={{ width: `${Math.round(value * 100)}%` }} /></div>
+      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-2" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value * 100)} aria-label={label}><div className="h-full rounded-full bg-accent" style={{ width: `${Math.round(value * 100)}%` }} /></div>
     </div>
   );
 }
@@ -209,7 +206,7 @@ function Notice({ tone, children }: { tone: "accent" | "danger" | "signal"; chil
 }
 
 function Step({ n, title, state, body, children }: { n: number; title: string; state: "done" | "current" | "later"; body: string; children?: React.ReactNode }) {
-  const dot = state === "done" ? "bg-go text-white" : state === "current" ? "bg-fg text-bg" : "bg-surface-2 text-faint";
+  const dot = state === "done" ? "bg-go text-white" : state === "current" ? "bg-accent text-white" : "bg-surface-2 text-faint";
   return (
     <li className={`flex gap-4 px-5 py-4 ${state === "later" ? "opacity-60" : ""}`}>
       <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${dot}`}>{n}</span>

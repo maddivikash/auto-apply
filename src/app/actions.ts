@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { nanoid } from "nanoid";
 import { randomBytes } from "node:crypto";
 import { requireUserId, userEmail } from "@/lib/auth";
-import { getApplication, saveApplication, deleteApplication, saveProfile, getProfile, getSettings, saveSettings, saveRunnerToken, deleteRunnerToken, saveApiKey, deleteApiKey, listApplications, applyResumeChoice, type Application } from "@/lib/store";
+import { getApplication, saveApplication, deleteApplication, saveProfile, getProfile, getSettings, saveSettings, saveRunnerToken, deleteRunnerToken, saveApiKey, deleteApiKey, listApplications, applyResumeChoice, saveFile, type Application } from "@/lib/store";
 import { Profile, Settings } from "@/lib/profile/types";
 import { scheduleProcessing } from "@/lib/apply/schedule";
 import { draftAnswers } from "@/lib/apply/draft";
@@ -18,6 +18,13 @@ import { answerGaps, profileGaps } from "@/lib/onboarding";
 import { LABEL } from "@/components/status";
 import { learnAnswers, refreshOpenWithBank } from "@/lib/apply/learn";
 import { getBank, saveBank } from "@/lib/apply/bank";
+import { isTemplateId, templateInfo } from "@/lib/resume/templates";
+import { parseEdited, rewriteBullet } from "@/lib/resume/edit";
+import { renderPdf } from "@/lib/resume/render";
+import { matchResume } from "@/lib/resume/match";
+import { validate } from "@/lib/resume/tailor";
+import { resumeProfileFor } from "@/lib/apply/pipeline";
+import { launchBrowser } from "@/lib/browser";
 
 export async function createApplicationAction(formData: FormData) {
   const userId = await requireUserId();
@@ -442,4 +449,85 @@ export async function saveBankAction(formData: FormData) {
   await refreshOpenWithBank(userId, withProfileFallback(Settings.parse((await getSettings(userId)) ?? {}), await getProfile(userId)), bank);
   revalidatePath("/", "layout");
   redirect(`/answers?bank=${typeof remove === "string" && remove ? "removed" : "1"}#saved`);
+}
+
+/** The template every new application is rendered with. Existing PDFs keep theirs until edited or regenerated. */
+export async function setTemplateAction(template: string): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    if (!isTemplateId(template)) return { ok: false, error: "Unknown template." };
+    const current = Settings.parse((await getSettings(userId)) ?? {});
+    await saveSettings(userId, { ...current, resumeTemplate: template });
+    revalidatePath("/", "layout");
+    return { ok: true, message: `${templateInfo(template).name} is now your default template.` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not save the template." };
+  }
+}
+
+/**
+ * Save the editor's version of the active resume. Both versions are re-rendered with the chosen
+ * template, so switching between tailored and original keeps the same look. No model call.
+ */
+export async function saveResumeEditAction(id: string, input: { resume: unknown; template: string }): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const app = await getApplication(userId, id);
+    if (!app?.job || !app.variants) return { ok: false, error: "This application has no resume to edit yet." };
+    if (!["ready", "approved", "failed"].includes(app.status)) return { ok: false, error: `The resume is locked once the form is ${LABEL[app.status].toLowerCase()}.` };
+    if (!isTemplateId(input.template)) return { ok: false, error: "Unknown template." };
+    const parsed = parseEdited(input.resume);
+    if (!parsed.ok) return { ok: false, error: parsed.error };
+    const profile = await getProfile(userId);
+    if (!profile) return { ok: false, error: "Add your profile first." };
+    const choice = app.resumeChoice || "tailored";
+    const other = choice === "tailored" ? "full" : "tailored";
+    const jd = app.jobDescription || app.job.descriptionPreview;
+    const renderProfile = resumeProfileFor(profile, app.job.title, jd);
+    let browser: Awaited<ReturnType<typeof launchBrowser>> | null = null;
+    const shared = async () => {
+      browser ??= await launchBrowser();
+      return new Proxy(browser, { get: (t, k) => (k === "close" ? async () => {} : Reflect.get(t, k as keyof typeof t)) });
+    };
+    try {
+      const stamp = Date.now().toString(36);
+      const [mine, theirs] = await Promise.all([
+        renderPdf(parsed.resume, renderProfile, shared, input.template),
+        app.template === input.template ? null : renderPdf(app.variants[other].resume, renderProfile, shared, input.template)
+      ]);
+      // A fresh path per save: the Blob CDN may keep serving an overwritten file for a while.
+      const mineUrl = await saveFile(`users/${userId}/resumes/${id}-${choice}-${stamp}.pdf`, mine.pdf, "application/pdf");
+      app.variants[choice] = { ...app.variants[choice], resume: mine.resume, pdfUrl: mineUrl, trims: mine.trims, match: matchResume(jd, mine.resume, profile, app.job.company) };
+      if (theirs) app.variants[other] = { ...app.variants[other], pdfUrl: await saveFile(`users/${userId}/resumes/${id}-${other}-${stamp}.pdf`, theirs.pdf, "application/pdf"), trims: theirs.trims };
+      app.template = input.template;
+      app.editedAt = new Date().toISOString();
+      applyResumeChoice(app, choice);
+      app.resumeWarnings = validate(mine.resume, profile).map((w) => w.replace(/ in master/, " in your profile"));
+      const wasApproved = app.status === "approved";
+      if (wasApproved) { app.status = "ready"; app.approvedAt = undefined; }
+      await saveApplication(app);
+      revalidatePath(`/a/${id}`);
+      const trimmed = mine.trims.length ? ` To fit one page: ${mine.trims.join(", ")}.` : "";
+      return { ok: true, message: `Saved. Match ${app.match?.tailored ?? 0}%.${trimmed}${wasApproved ? " Approval was cleared; approve again." : ""}` };
+    } finally {
+      await (browser as Awaited<ReturnType<typeof launchBrowser>> | null)?.close().catch(() => {});
+    }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not save the resume." };
+  }
+}
+
+/** AI rewrite of one bullet in the editor. Returns the text; nothing is saved until the user saves. */
+export async function rewriteBulletAction(id: string, bullet: string, instruction?: string): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+  try {
+    const userId = await requireUserId();
+    const [app, profile] = await Promise.all([getApplication(userId, id), getProfile(userId)]);
+    if (!app?.job) return { ok: false, error: "This application no longer exists." };
+    if (!profile) return { ok: false, error: "Add your profile first." };
+    if (bullet.trim().length < 10) return { ok: false, error: "Write a few words first, then rewrite them." };
+    const text = await rewriteBullet(bullet.slice(0, 600), profile, { instruction, jobTitle: `${app.job.title} at ${app.job.company}`, jd: app.jobDescription || app.job.descriptionPreview });
+    return { ok: true, text };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not rewrite the bullet." };
+  }
 }

@@ -76,6 +76,8 @@ export const Settings = z.object({
   apiKey: z.string().default(""),
   /** Which resume is attached by default: the higher-scoring one, always the original, or always the tailored one. */
   resumeDefault: z.enum(["best", "original", "tailored"]).default("best"),
+  /** The resume template every new application is rendered with (see lib/resume/templates.ts). */
+  resumeTemplate: z.enum(["classic", "standard", "modern", "compact", "harvard", "developer", "bold"]).default("classic"),
   /** Copied from the profile by withProfileFallback so the form filler and answer rules can use it. Not edited here. */
   education: z.array(Education).default([]),
   notifyEmail: z.string().default(""),
