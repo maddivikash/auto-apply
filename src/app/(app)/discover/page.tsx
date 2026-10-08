@@ -9,12 +9,14 @@ import type { Board } from "@/lib/jobs/fetch";
 import { createApplicationAction, addCompanyAction, setSearchCountryAction } from "../../actions";
 import { PageHeader } from "@/components/page-header";
 import { SubmitButton } from "@/components/submit-button";
-import { AutoSubmitForm } from "@/components/auto-submit-form";
+import { AutoSubmitForm, FilterLink, FilterProvider, PendingRegion } from "@/components/auto-submit-form";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const BOARDS: Board[] = ["greenhouse", "ashby", "lever"];
+/** Earliest posting time for the "posted within" filter; 0 means any time. */
+const cutoff = (posted: string) => (posted === "all" ? 0 : Date.now() - Number(posted) * 86400000);
 const PAGE_SIZE = 20;
 const BOARD_NAME: Record<Board, string> = { greenhouse: "Greenhouse", ashby: "Ashby", lever: "Lever" };
 
@@ -46,7 +48,7 @@ export default async function Discover({ searchParams }: { searchParams: Promise
   // Posted within: last 30 days unless chosen otherwise. Roles without a date only show under "Any time".
   const posted = (["7", "30", "90", "all"] as const).find((x) => x === sp.posted) ?? "30";
   const sort = sp.sort === "newest" ? "newest" : "match";
-  const since = posted === "all" ? 0 : Date.now() - Number(posted) * 86400000;
+  const since = cutoff(posted);
   const recent = since ? listings.filter((l) => l.postedAt && new Date(l.postedAt).getTime() >= since) : listings;
   let ranked = rankListings(recent, { query: q, location, limit: 200, boards: boards.length ? boards : undefined, field });
   // By time, not by text: boards write dates with different time-zone offsets.
@@ -59,6 +61,7 @@ export default async function Discover({ searchParams }: { searchParams: Promise
   for (const l of listings) openByToken.set(`${l.board}/${l.token.toLowerCase()}`, (openByToken.get(`${l.board}/${l.token.toLowerCase()}`) || 0) + 1);
   const toggleBoard = (b: Board) => { const set = new Set(boards); if (set.has(b)) set.delete(b); else set.add(b); const p = new URLSearchParams({ q, location, field: field ?? "", posted, sort }); if (set.size) p.set("board", [...set].join(",")); return `/discover?${p}`; };
   return (
+    <FilterProvider>
     <div className="space-y-8">
       <PageHeader title="Discover" description={`${listings.length.toLocaleString()} open roles across ${companies.length} companies that hire through Greenhouse, Ashby or Lever. Refreshed every six hours and completely free. Anything here can be prepared with one click.`} />
 
@@ -73,32 +76,40 @@ export default async function Discover({ searchParams }: { searchParams: Promise
           <SubmitButton pending="Saving" className="btn-primary h-9">Show roles</SubmitButton>
         </form>
       )}
-      <AutoSubmitForm className="panel flex flex-col gap-2 p-2 md:flex-row md:flex-wrap">
+      <AutoSubmitForm className="space-y-3">
+        <div className="panel flex flex-col gap-2 p-2 md:flex-row">
         <select name="field" defaultValue={field ?? ""} className="field h-11 text-[13.5px] md:w-52" aria-label="Job field">
           <option value="">All job fields</option>
           {JOB_FIELDS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
         </select>
         <input name="q" defaultValue={q} placeholder="Title words: AI agents, platform, growth" className="field mono h-11 flex-1 text-[13.5px]" aria-label="Title words" />
         <input name="location" defaultValue={location} placeholder="Location: Bengaluru, India, Remote" className="field mono h-11 md:w-64 text-[13.5px]" aria-label="Location" />
-        <select name="posted" defaultValue={posted} className="field h-11 text-[13.5px] md:w-40" aria-label="Posted">
+        {boards.length > 0 && <input type="hidden" name="board" value={boards.join(",")} />}
+        <button className="btn-primary h-11 px-5">Search</button>
+        </div>
+        {/* Applied the moment they change; the search words above need Enter or Search. */}
+        <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
+          <span className="text-muted">Posted</span>
+        <select name="posted" defaultValue={posted} className="field h-8 w-auto py-0 pl-2.5 text-[12.5px]" aria-label="Posted">
           <option value="7">Last 7 days</option>
           <option value="30">Last 30 days</option>
           <option value="90">Last 3 months</option>
           <option value="all">Any time</option>
         </select>
-        <select name="sort" defaultValue={sort} className="field h-11 text-[13.5px] md:w-40" aria-label="Sort by">
+          <span className="ml-2 text-muted">Sort by</span>
+        <select name="sort" defaultValue={sort} className="field h-8 w-auto py-0 pl-2.5 text-[12.5px]" aria-label="Sort by">
           <option value="match">Best match</option>
           <option value="newest">Newest first</option>
         </select>
-        {boards.length > 0 && <input type="hidden" name="board" value={boards.join(",")} />}
-        <button className="btn-primary h-11 px-5">Search</button>
+        </div>
       </AutoSubmitForm>
       <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
         <span className="text-muted">Boards:</span>
-        {BOARDS.map((b) => <Link key={b} href={toggleBoard(b)} className={`pill border ${boards.includes(b) || !boards.length ? "border-line-strong text-fg" : "border-line text-faint"}`}>{BOARD_NAME[b]}</Link>)}
+        {BOARDS.map((b) => <FilterLink key={b} href={toggleBoard(b)} className={`pill border ${boards.includes(b) || !boards.length ? "border-line-strong text-fg" : "border-line text-faint"}`}>{BOARD_NAME[b]}</FilterLink>)}
         <span className="ml-auto text-faint">Listings refresh every six hours.</span>
       </div>
 
+      <PendingRegion>
       <section className="panel overflow-hidden">
         <div className="panel-head"><h2 className="text-[15px] font-semibold">{sort === "newest" ? "Newest first" : needsCountry ? "Matches everywhere" : "Best matches"}{posted !== "all" ? <span className="ml-2 text-[12.5px] font-normal text-muted">posted in the last {posted === "7" ? "7 days" : posted === "30" ? "30 days" : "3 months"}</span> : null}</h2><span className="meta">{ranked.length ? `${(page - 1) * PAGE_SIZE + 1}–${(page - 1) * PAGE_SIZE + results.length} of ${ranked.length}${ranked.length >= 200 ? "+" : ""}` : "0"}{needsCountry ? ", set a country above to rank by place" : ""}</span></div>
         {results.length === 0 ? (
@@ -126,12 +137,13 @@ export default async function Discover({ searchParams }: { searchParams: Promise
         )}
         {pages > 1 && (
           <nav className="flex items-center justify-between border-t border-line px-5 py-3 text-[13px]" aria-label="Pages">
-            {page > 1 ? <Link href={pageHref(page - 1)} className="btn-ghost h-8">Previous</Link> : <span />}
+            {page > 1 ? <FilterLink href={pageHref(page - 1)} className="btn-ghost h-8">Previous</FilterLink> : <span />}
             <span className="meta">Page {page} of {pages}</span>
-            {page < pages ? <Link href={pageHref(page + 1)} className="btn-ghost h-8">Next</Link> : <span />}
+            {page < pages ? <FilterLink href={pageHref(page + 1)} className="btn-ghost h-8">Next</FilterLink> : <span />}
           </nav>
         )}
       </section>
+      </PendingRegion>
 
       <section className="panel">
         <div className="panel-head"><h2 className="text-[15px] font-semibold">Companies you can apply to</h2><span className="meta">{companies.length} companies</span></div>
@@ -158,5 +170,6 @@ export default async function Discover({ searchParams }: { searchParams: Promise
         </form>
       </section>
     </div>
+    </FilterProvider>
   );
 }

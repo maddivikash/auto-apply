@@ -183,7 +183,9 @@ export function rankListings(listings: Listing[], opts: SearchOptions): (Listing
     if (opts.field && !fieldsOf(l.title).includes(opts.field)) return null;
     const engineering = !opts.field || opts.field === "software";
     let score = 0;
-    for (const w of q) if (title.includes(w)) score += 3;
+    // Whole words only: "ai" must not match the "ai" inside "Mumbai" or "Maintenance".
+    const titleWords = ` ${title.replace(/\bfront[\s-]+end\b/g, "frontend").replace(/\bback[\s-]+end\b/g, "backend").replace(/\bfull[\s-]+stack\b/g, "fullstack").replace(/[^a-z0-9+#.]+/g, " ")} `;
+    for (const w of q) if (titleWords.includes(` ${w.replace(/^front-?end$/, "frontend").replace(/^back-?end$/, "backend").replace(/^full-?stack$/, "fullstack")} `)) score += 3;
     if (q.length && score === 0) return null;
     if (engineering && /engineer|developer/i.test(title)) score += 1;
     if (/(staff|principal|intern)\b/i.test(title) || (opts.field !== "management" && /(director|vp|head|manager)\b/i.test(title) && engineering)) score -= 2;
