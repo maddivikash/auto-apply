@@ -43,6 +43,10 @@ export default async function Discover({ searchParams }: { searchParams: Promise
   const country = known.workAuthorizedCountries.split(",")[0].trim();
   const needsCountry = !country && !sp.location;
   const location = sp.location ?? (country ? `${country}, Remote` : "");
+  // Anything different from what a fresh visit shows: words and place from the profile, all fields and boards, 30 days, best match.
+  const defaultQ = profile ? defaultQuery(known.currentTitle || profile.roles[0]?.title || "", profile.skills) : "software engineer";
+  const defaultLocation = country ? `${country}, Remote` : "";
+  const filtered = !!field || q !== defaultQ || location !== defaultLocation || (sp.posted ?? "30") !== "30" || sp.sort === "newest" || !!sp.board;
   const boards = (sp.board || "").split(",").filter((b): b is Board => BOARDS.includes(b as Board));
   const listings = await allListings(companies);
   // Posted within: last 30 days unless chosen otherwise. Roles without a date only show under "Any time".
@@ -76,7 +80,8 @@ export default async function Discover({ searchParams }: { searchParams: Promise
           <SubmitButton pending="Saving" className="btn-primary h-9">Show roles</SubmitButton>
         </form>
       )}
-      <AutoSubmitForm className="space-y-3">
+      {/* Keyed by the active filters, so the boxes show them after Reset or Back instead of what was last typed. */}
+      <AutoSubmitForm key={[field, q, location, posted, sort].join("|")} className="space-y-3">
         <div className="panel flex flex-col gap-2 p-2 md:flex-row">
         <select name="field" defaultValue={field ?? ""} className="field h-11 text-[13.5px] md:w-52" aria-label="Job field">
           <option value="">All job fields</option>
@@ -101,6 +106,7 @@ export default async function Discover({ searchParams }: { searchParams: Promise
           <option value="match">Best match</option>
           <option value="newest">Newest first</option>
         </select>
+        {filtered && <FilterLink href="/discover?field=" className="ml-2 inline-flex h-8 items-center gap-1 rounded-[var(--radius-ctl)] px-2.5 text-accent hover:bg-accent-soft">↺ Reset filters</FilterLink>}
         </div>
       </AutoSubmitForm>
       <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
