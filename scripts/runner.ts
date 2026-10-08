@@ -13,6 +13,7 @@ import { answerFor } from "../src/lib/defaults";
 import { resumeFileName } from "../src/lib/resume/filename";
 import { parsedEducation, degreeOptionPatterns, disciplineScore, schoolQueries, DISCIPLINE_MIN, type ParsedEducation } from "../src/lib/apply/education";
 import { discoverLiveFields, findEmptyRequiredLive } from "../src/lib/apply/discover";
+import { pickSuggestion, leverLocationPicked, ensureLeverLocation } from "../src/lib/apply/autocomplete";
 import type { Application, QuestionState } from "../src/lib/store";
 import type { Settings } from "../src/lib/profile/types";
 
@@ -452,26 +453,6 @@ async function attachResumeGeneric(page: Page, resumePath: string, notes: string
   notes.push(`Resume upload could not be confirmed on the page (looked for "${fileName}")`);
 }
 
-/**
- * After typing into a text field, some forms open a suggestion list (Lever's location, Google Places
- * widgets, listbox autocompletes). Typed text that is not picked from the list is thrown away on blur,
- * so pick the entry that names what was typed, or the first one. Returns the chosen text, or undefined
- * when no list appeared.
- */
-async function pickSuggestion(page: Page, typed: string): Promise<string | undefined> {
-  await page.waitForTimeout(1300);
-  const items = page.locator('[role="option"], [role="listbox"] li, [class*="dropdown-location"], [class*="dropdown-results"] > *, .pac-item, [class*="suggestion"] li, [class*="autocomplete"] li, [class*="autocomplete"] [class*="item"]').filter({ visible: true });
-  const n = await items.count();
-  if (!n) return undefined;
-  const texts = (await items.allInnerTexts()).map((t) => t.replace(/\s+/g, " ").trim());
-  const want = typed.toLowerCase();
-  let i = texts.findIndex((t) => t.toLowerCase().startsWith(want));
-  if (i < 0) i = texts.findIndex((t) => t.toLowerCase().includes(want));
-  if (i < 0) i = 0;
-  await items.nth(i).click(); await page.waitForTimeout(500);
-  return texts[i];
-}
-
 async function discoverAndFillGeneric(page: Page, app: Application, notes: string[]) {
   // Lever and Ashby pages keep analytics beacons open, so "networkidle" may never arrive. Wait for the
   // document, give the network a short grace period, then wait for the form itself.
@@ -524,9 +505,13 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
         const isPlace = /location|city|where (are|do) you/i.test(f.label);
         const typed = isPlace ? value.split(",")[0].trim() : value;
         await el.pressSequentially(typed, { delay: jitter(35, 80) });
-        const picked = await pickSuggestion(page, typed);
+        const picked = await pickSuggestion(page, typed, isPlace ? 8000 : 1300);
         if (picked) notes.push(`${f.label}: chose "${picked}" from the suggestions`);
         else if (isPlace && (await el.inputValue()) !== typed) notes.push(`${f.label}: the field did not keep "${typed}"; check it in the window`);
+        if (isPlace && !(await leverLocationPicked(page))) {
+          const fixed = await ensureLeverLocation(page, typed);
+          notes.push(fixed ? `${f.label}: picked "${fixed}" on a second try` : `${f.label}: Lever did not accept a location; pick one in the window`);
+        }
       }
     } catch (e) { notes.push(`Could not fill "${f.label}": ${(e as Error).message.slice(0, 80)}`); }
   }
@@ -594,6 +579,11 @@ async function submit(app: Application) {
     if (!entry) return;
   }
   try {
+    // A location typed but never chosen from Lever's list reads as empty: repair it before checking, rather than hand it back.
+    if (!(await leverLocationPicked(entry.page)) && SETTINGS.location) {
+      const fixed = await ensureLeverLocation(entry.page, SETTINGS.location.split(",")[0].trim());
+      log(fixed ? `repaired location for ${app.id}: "${fixed}"` : `could not repair location for ${app.id}`);
+    }
     // A person checks the form before pressing Submit; so does the runner. Empty required fields go back to the user as questions.
     const missing = await findEmptyRequiredLive(entry.page).catch(() => [] as string[]);
     if (missing.length) {
