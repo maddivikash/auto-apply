@@ -1,0 +1,13 @@
+{
+  "name": "lazy-apply",
+  "version": "0.1.0",
+  "description": "The Lazy Apply runner: fills your approved job applications in Chrome on your own computer. Run `npx lazy-apply`.",
+  "type": "module",
+  "bin": { "lazy-apply": "dist/cli.js" },
+  "files": ["dist", "README.md"],
+  "engines": { "node": ">=18" },
+  "dependencies": { "playwright-core": "1.63.0" },
+  "keywords": ["job application", "autofill", "greenhouse", "lever", "ashby", "resume"],
+  "homepage": "https://lazyapply.online",
+  "license": "UNLICENSED"
+}

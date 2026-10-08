@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { nanoid } from "nanoid";
 import { randomBytes } from "node:crypto";
 import { requireUserId, userEmail } from "@/lib/auth";
-import { getApplication, saveApplication, deleteApplication, saveProfile, getProfile, getSettings, saveSettings, saveRunnerToken, deleteRunnerToken, saveApiKey, deleteApiKey, listApplications, applyResumeChoice, saveFile, type Application } from "@/lib/store";
+import { getApplication, saveApplication, deleteApplication, saveProfile, getProfile, getSettings, saveSettings, saveRunnerToken, deleteRunnerToken, userForRunnerToken, saveApiKey, deleteApiKey, listApplications, applyResumeChoice, saveFile, type Application } from "@/lib/store";
 import { Profile, Settings } from "@/lib/profile/types";
 import { scheduleProcessing } from "@/lib/apply/schedule";
 import { draftAnswers } from "@/lib/apply/draft";
@@ -25,6 +25,7 @@ import { validate } from "@/lib/resume/tailor";
 import { resumeProfileFor } from "@/lib/apply/pipeline";
 import { launchBrowser } from "@/lib/browser";
 import { ensureJobDescription, rescore } from "@/lib/apply/match-repair";
+import { approveLink, linkForCode } from "@/lib/runner-link";
 
 export async function createApplicationAction(formData: FormData) {
   const userId = await requireUserId();
@@ -97,7 +98,7 @@ export async function approveAction(id: string): Promise<ActionResult> {
     app.status = "approved"; app.approvedAt = new Date().toISOString();
     await saveApplication(app);
     revalidatePath("/", "layout");
-    return { ok: true, message: "Approved. The runner on your machine fills the form next; make sure it is running (npm run runner, set-up steps on the Runner page)." };
+    return { ok: true, message: "Approved. The runner on your machine fills the form next; make sure it is running (npx lazy-apply, set-up steps on the Runner page)." };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not approve." };
   }
@@ -545,5 +546,26 @@ export async function applyTemplateAction(id: string, template: string): Promise
     return await saveResumeEditAction(id, { resume: app.resume, template });
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not switch the template." };
+  }
+}
+
+/** Approve a "connect this computer" code from `npx lazy-apply`. Reuses the account's runner token if it has one. */
+export async function approveRunnerLinkAction(code: string): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const found = await linkForCode(code);
+    if (!found) return { ok: false, error: "This code has expired or was already used. Run npx lazy-apply again for a new one." };
+    const current = Settings.parse((await getSettings(userId)) ?? {});
+    let token = current.runnerToken;
+    if (!token || !(await userForRunnerToken(token))) {
+      token = randomBytes(24).toString("base64url");
+      await saveRunnerToken(token, userId);
+      await saveSettings(userId, { ...current, runnerToken: token });
+    }
+    await approveLink(found.secret, userId, token, (await userEmail()) || "");
+    revalidatePath("/runner");
+    return { ok: true, message: "Connected. Go back to your terminal; the runner is starting." };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not connect this computer." };
   }
 }

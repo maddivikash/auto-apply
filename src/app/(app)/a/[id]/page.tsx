@@ -65,7 +65,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
       </div>
 
       {busy && (needsRunner
-        ? <Notice tone="accent">{LABEL[app.status]}. This step runs on your computer, so the runner must be running: start it with <code className="kbd">npm run runner</code> and leave its window open. First time? <Link href="/runner" className="text-accent hover:underline">Set up the runner</Link>. This page updates on its own.</Notice>
+        ? <Notice tone="accent">{LABEL[app.status]}. This step runs on your computer, so the runner must be running: start it with <code className="kbd">npx lazy-apply</code> and leave its window open. First time? <Link href="/runner" className="text-accent hover:underline">Set up the runner</Link>. This page updates on its own.</Notice>
         : <Notice tone="accent">{LABEL[app.status]}. This page updates on its own. Writing the resume takes about a minute, and the runner is not needed until you approve.</Notice>)}
       {waitingForCode && (
         <Notice tone="signal">
@@ -132,7 +132,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
                   {app.status === "ready" && <div className="mt-3 flex flex-wrap items-center gap-3"><ActionButton action={approveAction} id={app.id} pending="Approving" className="btn-go">Approve for filling</ActionButton>{blocked && <span className="text-[12.5px] text-signal">Answer the required questions first.</span>}</div>}
                 </Step>
                 <Step n={2} title="The runner fills the form" state={step === 2 ? "current" : step > 2 ? "done" : "later"} body="It types every answer, attaches the PDF and leaves a screenshot.">
-                  {["approved", "filling"].includes(app.status) && <p className="mt-2 text-[12.5px] text-muted">Not running? Start it with <code className="kbd">npm run runner</code>, or <Link href="/runner" className="text-accent hover:underline">set it up</Link> first.</p>}
+                  {["approved", "filling"].includes(app.status) && <p className="mt-2 text-[12.5px] text-muted">Not running? Start it with <code className="kbd">npx lazy-apply</code>, or <Link href="/runner" className="text-accent hover:underline">set it up</Link> first.</p>}
                   {app.filledScreenshotUrl && <a className="mt-3 inline-flex items-center gap-1.5 text-[13px] text-accent hover:underline" href={fileHref(app.id, "screenshot", app.filledScreenshotUrl)} target="_blank" rel="noreferrer"><Camera size={14} /> View the screenshot</a>}
                   {app.runnerNotes?.length ? <ul className="mt-3 space-y-1 text-[12.5px] text-muted">{app.runnerNotes.slice(-6).map((n, i) => <li key={i} className="mono break-words whitespace-pre-wrap">{n}</li>)}</ul> : null}
                 </Step>

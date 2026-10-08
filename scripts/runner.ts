@@ -28,7 +28,7 @@ const PROFILE_DIR = process.env.RUNNER_PROFILE || "chrome-profile";
 const log = (...a: unknown[]) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
 const api = async (path: string, init?: RequestInit) => {
-  const r = await fetch(`${APP_URL}/api/runner${path}`, { ...init, headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json", ...(init?.headers || {}) } });
+  const r = await fetch(`${APP_URL}/api/runner${path}`, { ...init, headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json", "x-runner-client": process.env.RUNNER_CLIENT || "repo", ...(init?.headers || {}) } });
   if (!r.ok) throw new Error(`${path} -> ${r.status} ${await r.text()}`);
   return r.json();
 };
