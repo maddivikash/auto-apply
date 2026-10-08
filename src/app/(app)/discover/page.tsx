@@ -9,6 +9,7 @@ import type { Board } from "@/lib/jobs/fetch";
 import { createApplicationAction, addCompanyAction, setSearchCountryAction } from "../../actions";
 import { PageHeader } from "@/components/page-header";
 import { SubmitButton } from "@/components/submit-button";
+import { AutoSubmitForm } from "@/components/auto-submit-form";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -25,7 +26,7 @@ function defaultQuery(title: string, skills: Record<string, string[]>): string {
   return [...words].slice(0, 7).join(" ") || "software engineer";
 }
 
-export default async function Discover({ searchParams }: { searchParams: Promise<{ q?: string; location?: string; board?: string; added?: string; error?: string; page?: string; field?: string; from?: string }> }) {
+export default async function Discover({ searchParams }: { searchParams: Promise<{ q?: string; location?: string; board?: string; added?: string; error?: string; page?: string; field?: string; from?: string; sort?: string; posted?: string }> }) {
   const uid = await requireUserId();
   const sp = await searchParams;
   const [profile, settings, companies] = await Promise.all([getProfile(uid), getSettings(uid), allCompanies(uid)]);
@@ -42,14 +43,21 @@ export default async function Discover({ searchParams }: { searchParams: Promise
   const location = sp.location ?? (country ? `${country}, Remote` : "");
   const boards = (sp.board || "").split(",").filter((b): b is Board => BOARDS.includes(b as Board));
   const listings = await allListings(companies);
-  const ranked = rankListings(listings, { query: q, location, limit: 200, boards: boards.length ? boards : undefined, field });
+  // Posted within: last 30 days unless chosen otherwise. Roles without a date only show under "Any time".
+  const posted = (["7", "30", "90", "all"] as const).find((x) => x === sp.posted) ?? "30";
+  const sort = sp.sort === "newest" ? "newest" : "match";
+  const since = posted === "all" ? 0 : Date.now() - Number(posted) * 86400000;
+  const recent = since ? listings.filter((l) => l.postedAt && new Date(l.postedAt).getTime() >= since) : listings;
+  let ranked = rankListings(recent, { query: q, location, limit: 200, boards: boards.length ? boards : undefined, field });
+  // By time, not by text: boards write dates with different time-zone offsets.
+  if (sort === "newest") ranked = [...ranked].sort((a, b) => (Date.parse(b.postedAt || "") || 0) - (Date.parse(a.postedAt || "") || 0));
   const pages = Math.max(1, Math.ceil(ranked.length / PAGE_SIZE));
   const page = Math.min(pages, Math.max(1, Number(sp.page) || 1));
   const results = ranked.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const pageHref = (n: number) => { const p = new URLSearchParams({ q, location, field: field ?? "" }); if (boards.length) p.set("board", boards.join(",")); if (n > 1) p.set("page", String(n)); return `/discover?${p}`; };
+  const pageHref = (n: number) => { const p = new URLSearchParams({ q, location, field: field ?? "", posted, sort }); if (boards.length) p.set("board", boards.join(",")); if (n > 1) p.set("page", String(n)); return `/discover?${p}`; };
   const openByToken = new Map<string, number>();
   for (const l of listings) openByToken.set(`${l.board}/${l.token.toLowerCase()}`, (openByToken.get(`${l.board}/${l.token.toLowerCase()}`) || 0) + 1);
-  const toggleBoard = (b: Board) => { const set = new Set(boards); if (set.has(b)) set.delete(b); else set.add(b); const p = new URLSearchParams({ q, location, field: field ?? "" }); if (set.size) p.set("board", [...set].join(",")); return `/discover?${p}`; };
+  const toggleBoard = (b: Board) => { const set = new Set(boards); if (set.has(b)) set.delete(b); else set.add(b); const p = new URLSearchParams({ q, location, field: field ?? "", posted, sort }); if (set.size) p.set("board", [...set].join(",")); return `/discover?${p}`; };
   return (
     <div className="space-y-8">
       <PageHeader title="Discover" description={`${listings.length.toLocaleString()} open roles across ${companies.length} companies that hire through Greenhouse, Ashby or Lever. Refreshed every six hours and completely free. Anything here can be prepared with one click.`} />
@@ -65,16 +73,26 @@ export default async function Discover({ searchParams }: { searchParams: Promise
           <SubmitButton pending="Saving" className="btn-primary h-9">Show roles</SubmitButton>
         </form>
       )}
-      <form method="get" className="panel flex flex-col gap-2 p-2 md:flex-row">
+      <AutoSubmitForm className="panel flex flex-col gap-2 p-2 md:flex-row md:flex-wrap">
         <select name="field" defaultValue={field ?? ""} className="field h-11 text-[13.5px] md:w-52" aria-label="Job field">
           <option value="">All job fields</option>
           {JOB_FIELDS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
         </select>
         <input name="q" defaultValue={q} placeholder="Title words: AI agents, platform, growth" className="field mono h-11 flex-1 text-[13.5px]" aria-label="Title words" />
         <input name="location" defaultValue={location} placeholder="Location: Bengaluru, India, Remote" className="field mono h-11 md:w-64 text-[13.5px]" aria-label="Location" />
+        <select name="posted" defaultValue={posted} className="field h-11 text-[13.5px] md:w-40" aria-label="Posted">
+          <option value="7">Last 7 days</option>
+          <option value="30">Last 30 days</option>
+          <option value="90">Last 3 months</option>
+          <option value="all">Any time</option>
+        </select>
+        <select name="sort" defaultValue={sort} className="field h-11 text-[13.5px] md:w-40" aria-label="Sort by">
+          <option value="match">Best match</option>
+          <option value="newest">Newest first</option>
+        </select>
         {boards.length > 0 && <input type="hidden" name="board" value={boards.join(",")} />}
         <button className="btn-primary h-11 px-5">Search</button>
-      </form>
+      </AutoSubmitForm>
       <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
         <span className="text-muted">Boards:</span>
         {BOARDS.map((b) => <Link key={b} href={toggleBoard(b)} className={`pill border ${boards.includes(b) || !boards.length ? "border-line-strong text-fg" : "border-line text-faint"}`}>{BOARD_NAME[b]}</Link>)}
@@ -82,13 +100,13 @@ export default async function Discover({ searchParams }: { searchParams: Promise
       </div>
 
       <section className="panel overflow-hidden">
-        <div className="panel-head"><h2 className="text-[15px] font-semibold">{needsCountry ? "Matches everywhere" : "Best matches"}</h2><span className="meta">{ranked.length ? `${(page - 1) * PAGE_SIZE + 1}–${(page - 1) * PAGE_SIZE + results.length} of ${ranked.length}${ranked.length >= 200 ? "+" : ""}` : "0"}{needsCountry ? ", set a country above to rank by place" : ""}</span></div>
+        <div className="panel-head"><h2 className="text-[15px] font-semibold">{sort === "newest" ? "Newest first" : needsCountry ? "Matches everywhere" : "Best matches"}{posted !== "all" ? <span className="ml-2 text-[12.5px] font-normal text-muted">posted in the last {posted === "7" ? "7 days" : posted === "30" ? "30 days" : "3 months"}</span> : null}</h2><span className="meta">{ranked.length ? `${(page - 1) * PAGE_SIZE + 1}–${(page - 1) * PAGE_SIZE + results.length} of ${ranked.length}${ranked.length >= 200 ? "+" : ""}` : "0"}{needsCountry ? ", set a country above to rank by place" : ""}</span></div>
         {results.length === 0 ? (
           <div className="px-6 py-12 text-center">
             <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-[14px] bg-surface-2 text-accent"><SearchX size={22} /></span>
             <h3 className="mt-4 text-[16px] font-medium">No roles matched</h3>
             <p className="mx-auto mt-1.5 max-w-sm text-[13.5px] leading-relaxed text-muted">Try fewer words, widen the location to a country or Remote, or pick a different field.</p>
-            <div className="mt-5 flex flex-wrap justify-center gap-2"><Link href={`/discover?${new URLSearchParams({ q: "", location, field: field ?? "" })}`} className="btn-ghost h-9">Clear the search words</Link><Link href={`/discover?${new URLSearchParams({ q, location: "Remote", field: field ?? "" })}`} className="btn-ghost h-9">Show remote roles</Link></div>
+            <div className="mt-5 flex flex-wrap justify-center gap-2"><Link href={`/discover?${new URLSearchParams({ q: "", location, field: field ?? "", posted, sort })}`} className="btn-ghost h-9">Clear the search words</Link><Link href={`/discover?${new URLSearchParams({ q, location: "Remote", field: field ?? "", posted, sort })}`} className="btn-ghost h-9">Show remote roles</Link>{posted !== "all" && <Link href={`/discover?${new URLSearchParams({ q, location, field: field ?? "", posted: "all", sort })}`} className="btn-ghost h-9">Show older roles</Link>}</div>
           </div>
         ) : (
           <ul className="divide-rows">

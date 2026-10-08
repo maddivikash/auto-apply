@@ -189,14 +189,21 @@ export function findEmptyRequired(): string[] {
     if (!box) continue;
     const required = /\*|✱/.test(raw) || /required/i.test(lab.className) || !!(ctl && (ctl.hasAttribute("required") || ctl.getAttribute("aria-required") === "true")) || !!box.querySelector("[required], [aria-required=true]");
     if (!required) continue;
-    const scope = ctl && !/radio|checkbox/.test((ctl as HTMLInputElement).type || "") ? ctl.parentElement || box : box;
+    // A searchable dropdown's input sits deep inside its widget, away from the chosen value: check the whole field.
+    const combo = !!ctl && (ctl.getAttribute("role") === "combobox" || !!ctl.closest("[class*=select__], [class*=-container]"));
+    const scope = ctl && !combo && !/radio|checkbox/.test((ctl as HTMLInputElement).type || "") ? ctl.parentElement || box : box;
     const texts = Array.from(scope.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("input:not([type=hidden]):not([type=radio]):not([type=checkbox]):not([type=file]):not([type=submit]), textarea, select"));
     const files = Array.from(scope.querySelectorAll<HTMLInputElement>("input[type=file]"));
     const checks = Array.from(scope.querySelectorAll<HTMLInputElement>("input[type=radio], input[type=checkbox]"));
     const buttons = Array.from(scope.querySelectorAll<HTMLElement>("button, [role=radio], [role=checkbox]")).filter((b) => (b as HTMLButtonElement).type !== "submit");
     if (!texts.length && !files.length && !checks.length && !buttons.length) continue;
     const scopeText = scope.textContent || "";
-    const filled =
+    // Searchable dropdowns (react-select on Greenhouse's job-boards) keep their typing box empty and show the
+    // choice in a separate element, with the value in a hidden input: read those, not the empty box.
+    const chosen = !!Array.from(scope.querySelectorAll<HTMLElement>("[class*=single-value], [class*=multi-value], [class*=singleValue], [class*=multiValue]")).some((e) => (e.textContent || "").trim()) ||
+      !!scope.querySelector("[class*=value-container--has-value]") ||
+      Array.from(scope.querySelectorAll<HTMLInputElement>("input[type=hidden]")).some((h) => h.value.trim() && /question|answer|select|value/i.test(h.name || h.id || ""));
+    const filled = chosen ||
       texts.some((t) => (t as HTMLInputElement).value?.trim()) ||
       files.some((f) => (f.files?.length || 0) > 0) || (files.length > 0 && /\.(pdf|docx?|rtf|txt)\b/i.test(scopeText)) ||
       checks.some((c) => c.checked) ||

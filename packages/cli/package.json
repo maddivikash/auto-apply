@@ -1,6 +1,6 @@
 {
   "name": "lazy-apply",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "The Lazy Apply runner: fills your approved job applications in Chrome on your own computer. Run `npx lazy-apply`.",
   "type": "module",
   "bin": { "lazy-apply": "dist/cli.js" },

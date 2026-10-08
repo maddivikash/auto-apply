@@ -54,7 +54,18 @@ const or = (v: string | undefined, fallback?: string) => (v && v.trim()) || fall
 const links = (s: Settings) => [s.website, s.linkedin, s.github].filter(Boolean).join(" | ");
 
 /** Ordered: first matching rule wins. Each rule may decline by returning undefined. */
+const yesNo = (o: string[] | undefined, yes: boolean) => (o?.length ? pick(o, yes ? /^yes\b/i : /^no\b/i) : yes ? "Yes" : "No");
+/** Countries a question names, by the same hints as countryOf: "Canada, UK or Poland" -> Canada, United Kingdom, Poland. */
+const countriesIn = (text: string) => { const out = new Set<string>(); for (const part of text.split(/,|\bor\b|\band\b|\//i)) { const c = countryOf(part) ?? (/\bpoland\b/i.test(part) ? "Poland" : undefined); if (c) out.add(c); } return out; };
+
 const RULES: Rule[] = [
+  // Screening questions that sound like other rules but are not: answered before the broad rules below see them.
+  { test: /employment agreements?|post[- ]employment restrictions?|non[- ]?compete|non[- ]?solicit|restrictive covenants?/i, answer: (_s, o) => yesNo(o, false) },
+  { test: /(previously|ever|before) (worked|been employed|consulted|interned)( at| for| with)|former (employee|contractor) (of|at)/i, answer: (_s, o) => yesNo(o, false) },
+  // "...sponsorship to remain in your current location": about where the person lives, not where the job is.
+  { test: /sponsor[^?]*(current(ly)? (location|country)|where you (currently )?(live|reside|are based))/i, answer: (s, o) => { const home = countryOf(s.location); if (!home) return undefined; const ok = s.workAuthorizedCountries.split(",").some((c) => c.trim().toLowerCase() === home.toLowerCase()); return yesNo(o, !ok); } },
+  // "Are you currently located in either Canada, UK or Poland?"
+  { test: /(currently |presently )?(locat(ed|ion)|living|based|residing|reside) in (either )?[A-Z][^?]*\b(or|and)\b/i, answer: (s, o, _c, label) => { const home = countryOf(s.location); if (!home || !label) return undefined; const listed = countriesIn(label.replace(/^.*?\b(?:in|either)\b/i, "")); return listed.size ? yesNo(o, listed.has(home)) : undefined; } },
   { test: /^first\s*name/i, answer: (s) => or(s.firstName) },
   { test: /^last\s*name|surname|family name/i, answer: (s) => or(s.lastName) },
   { test: /^(full |legal )?name$/i, answer: (s) => or(`${s.firstName} ${s.lastName}`.trim()) },

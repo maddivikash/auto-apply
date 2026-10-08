@@ -23,7 +23,10 @@ const listed = (process.env.SCRUB_PHONES || "").split(",").map((d) => d.replace(
 const TARGETS = ["9876543210", ...listed];
 const MATCH = new RegExp(TARGETS.map(pattern).join("|"), "g");
 const has = (v: unknown) => typeof v === "string" && new RegExp(MATCH.source).test(v);
-const VERSION = TARGETS.length; // a new number in SCRUB_PHONES makes the clean-up run again
+// Email swaps for test accounts, also private: REPLACE_EMAILS="old@example.com=new@maildrop.cc,...".
+const EMAIL_SWAPS = (process.env.REPLACE_EMAILS || "").split(",").map((p) => p.split("=").map((x) => x.trim().toLowerCase())).filter((p): p is [string, string] => p.length === 2 && p.every((x) => x.includes("@")));
+const swapEmail = (v: string | undefined) => { const hit = EMAIL_SWAPS.find(([from]) => (v || "").trim().toLowerCase() === from); return hit ? hit[1] : undefined; };
+const VERSION = TARGETS.length + EMAIL_SWAPS.length; // a new number or email swap makes the clean-up run again
 const done = new Set<string>();
 
 export async function scrubSamplePhone(uid: string): Promise<number> {
@@ -38,14 +41,19 @@ export async function scrubSamplePhone(uid: string): Promise<number> {
   const fix = (v: string) => v.replace(new RegExp(MATCH.source, "g"), own).trim();
   let changes = 0;
   let fixedProfile: Profile | null = null;
-  if (profile && has(profile.phone)) { fixedProfile = { ...profile, phone: own }; await saveProfile(uid, fixedProfile); changes++; }
-  if (settings && has(settings.phone)) { await saveSettings(uid, { ...settings, phone: own }); changes++; }
+  const profileEmail = swapEmail(profile?.email);
+  if (profile && (has(profile.phone) || profileEmail)) { fixedProfile = { ...profile, phone: has(profile.phone) ? own : profile.phone, email: profileEmail ?? profile.email }; await saveProfile(uid, fixedProfile); changes++; }
+  const settingsEmail = swapEmail(settings?.email);
+  if (settings && (has(settings.phone) || settingsEmail)) { await saveSettings(uid, { ...settings, phone: has(settings.phone) ? own : settings.phone, email: settingsEmail ?? settings.email }); changes++; }
   let bankChanged = false;
   for (const e of Object.values(bank)) if (has(e.answer)) { e.answer = fix(e.answer); bankChanged = true; changes++; }
   if (bankChanged) await saveBank(uid, bank);
   for (const a of apps) {
     let touched = false;
-    for (const q of a.questions) if (has(q.answer)) { q.answer = fix(q.answer || ""); touched = true; }
+    for (const q of a.questions) {
+      if (has(q.answer)) { q.answer = fix(q.answer || ""); touched = true; }
+      const e = swapEmail(q.answer); if (e) { q.answer = e; touched = true; }
+    }
     if (touched) { await saveApplication(a); changes++; }
   }
   // PDFs already rendered print the old number in their header: render them again from the fixed profile.
