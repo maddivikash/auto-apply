@@ -16,6 +16,7 @@ import { LinkInput } from "@/components/link-input";
 import { SubmitButton } from "@/components/submit-button";
 import { PageHeader } from "@/components/page-header";
 import { getBank } from "@/lib/apply/bank";
+import { repairMatches } from "@/lib/apply/match-repair";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -28,6 +29,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   if (!profile && apps.length === 0) redirect("/profile?welcome=1");
   const known = withProfileFallback(Settings.parse(settings ?? {}), profile);
   await Promise.all(apps.filter((a) => markStale(a)).map((a) => saveApplication(a)));
+  // Scores written as 0 by the old template-switch bug are repaired here too, not only when the application is opened.
+  if (profile) await Promise.all(apps.map(async (a) => { if (await repairMatches(a, profile).catch(() => false)) await saveApplication(a); }));
   for (const a of apps) refreshAnswers(a, known, bank);
   const s = summarize(apps);
   const counts: { label: string; n: number; tone: string }[] = [
