@@ -475,7 +475,7 @@ export async function saveResumeEditAction(id: string, input: { resume: unknown;
     const userId = await requireUserId();
     const app = await getApplication(userId, id);
     if (!app?.job || !app.variants) return { ok: false, error: "This application has no resume to edit yet." };
-    if (!["ready", "approved", "failed"].includes(app.status)) return { ok: false, error: `The resume is locked once the form is ${LABEL[app.status].toLowerCase()}.` };
+    if (!["ready", "approved", "failed", "filled"].includes(app.status)) return { ok: false, error: `The resume is locked while the application is ${LABEL[app.status].toLowerCase()}.` };
     if (!isTemplateId(input.template)) return { ok: false, error: "Unknown template." };
     const parsed = parseEdited(input.resume);
     if (!parsed.ok) return { ok: false, error: parsed.error };
@@ -508,11 +508,14 @@ export async function saveResumeEditAction(id: string, input: { resume: unknown;
       applyResumeChoice(app, choice);
       app.resumeWarnings = validate(mine.resume, profile).map((w) => w.replace(/ in master/, " in your profile"));
       const wasApproved = app.status === "approved";
+      const wasFilled = app.status === "filled";
       if (wasApproved) { app.status = "ready"; app.approvedAt = undefined; }
+      // The open form has the old PDF attached: send it back to the runner, which refills it with the new one.
+      if (wasFilled) { app.status = "approved"; app.error = undefined; }
       await saveApplication(app);
       revalidatePath(`/a/${id}`);
       const trimmed = mine.trims.length ? ` To fit one page: ${mine.trims.join(", ")}.` : "";
-      return { ok: true, message: `Saved. Match ${app.match?.tailored ?? 0}%.${trimmed}${wasApproved ? " Approval was cleared; approve again." : ""}` };
+      return { ok: true, message: `Saved. Match ${app.match?.tailored ?? 0}%.${trimmed}${wasApproved ? " Approval was cleared; approve again." : ""}${wasFilled ? " The runner refills the form with the new PDF; press Submit when it is filled again." : ""}` };
     } finally {
       await (browser as Awaited<ReturnType<typeof launchBrowser>> | null)?.close().catch(() => {});
     }

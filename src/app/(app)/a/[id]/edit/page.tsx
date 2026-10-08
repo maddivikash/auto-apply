@@ -24,7 +24,7 @@ export default async function EditResumePage({ params }: { params: Promise<{ id:
   }
   const jd = app.jobDescription || app.job.descriptionPreview;
   const template = app.template ?? Settings.parse(settings ?? {}).resumeTemplate;
-  const locked = ["ready", "approved", "failed"].includes(app.status) ? undefined : `Editing is read-only while the application is ${LABEL[app.status].toLowerCase()}: the form already has this PDF.`;
+  const locked = ["ready", "approved", "failed", "filled"].includes(app.status) ? undefined : `Editing is read-only while the application is ${LABEL[app.status].toLowerCase()}.`;
   return (
     <ResumeEditor
       id={app.id}

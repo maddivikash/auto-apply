@@ -691,7 +691,12 @@ async function loop() {
         if (inFlight.has(app.id)) continue;
         inFlight.add(app.id);
         try {
-          if (app.status === "approved" && !live.has(app.id)) await fill(app);
+          if (app.status === "approved") {
+            // Approved again while its form is open (the resume or answers changed): start over with a fresh form.
+            const stale = live.get(app.id);
+            if (stale) { await stale.page.close().catch(() => {}); live.delete(app.id); log(`refilling ${app.id}: the application changed after it was filled`); }
+            await fill(app);
+          }
           else if (app.status === "submit_requested") { await paceSubmit(app.job!.applyUrl); await submit(app); lastSubmitAt = Date.now(); }
           else if (app.status === "code_required" && app.verificationCode) await enterCode(app);
         } finally { inFlight.delete(app.id); }
