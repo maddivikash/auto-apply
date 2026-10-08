@@ -3,6 +3,8 @@ import { requireUserId } from "@/lib/auth";
 import { listNotifications, markNotificationsRead } from "@/lib/store";
 import { PageHeader } from "@/components/page-header";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { Bell } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 
 export const dynamic = "force-dynamic";
 const TONE: Record<string, string> = { ready: "bg-go", needs_details: "bg-signal", filled: "bg-signal", submitted: "bg-go", failed: "bg-danger", unsupported: "bg-danger", info: "bg-muted" };
@@ -17,7 +19,7 @@ export default async function NotificationsPage() {
     <div className="space-y-8">
       <AutoRefresh seconds={30} />
       <PageHeader title="Notifications" description="Resume ready, details needed, form filled, submitted. The same events also reach your email." />
-      {list.length === 0 ? <div className="panel px-6 py-14 text-center text-[13.5px] text-muted">Nothing yet. Resume-ready, filled and submitted events show up here and in your email.</div> : (
+      {list.length === 0 ? <EmptyState icon={<Bell size={26} />} title="You are all caught up" body="When a resume is ready, a form needs your answer, a form is filled or an application is submitted, it shows up here and in your email." primary={{ href: "/discover", label: "Find roles" }} secondary={{ href: "/dashboard", label: "Paste a job link" }} /> : (
         <ul className="panel divide-rows overflow-hidden">
           {list.map((n) => (
             <li key={n.id} className={`flex gap-4 px-5 py-4 ${fresh.has(n.id) ? "bg-accent-soft/40" : ""}`}>

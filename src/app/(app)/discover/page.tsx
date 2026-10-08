@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, SearchX } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
 import { getProfile, getSettings, saveSettings } from "@/lib/store";
 import { Settings } from "@/lib/profile/types";
@@ -83,7 +83,14 @@ export default async function Discover({ searchParams }: { searchParams: Promise
 
       <section className="panel overflow-hidden">
         <div className="panel-head"><h2 className="text-[15px] font-semibold">{needsCountry ? "Matches everywhere" : "Best matches"}</h2><span className="meta">{ranked.length ? `${(page - 1) * PAGE_SIZE + 1}–${(page - 1) * PAGE_SIZE + results.length} of ${ranked.length}${ranked.length >= 200 ? "+" : ""}` : "0"}{needsCountry ? ", set a country above to rank by place" : ""}</span></div>
-        {results.length === 0 ? <p className="px-5 py-10 text-center text-[13.5px] text-muted">Nothing matched those words in that location. Try fewer words, or widen the location to a country or Remote.</p> : (
+        {results.length === 0 ? (
+          <div className="px-6 py-12 text-center">
+            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-[14px] bg-surface-2 text-accent"><SearchX size={22} /></span>
+            <h3 className="mt-4 text-[16px] font-medium">No roles matched</h3>
+            <p className="mx-auto mt-1.5 max-w-sm text-[13.5px] leading-relaxed text-muted">Try fewer words, widen the location to a country or Remote, or pick a different field.</p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2"><Link href={`/discover?${new URLSearchParams({ q: "", location, field: field ?? "" })}`} className="btn-ghost h-9">Clear the search words</Link><Link href={`/discover?${new URLSearchParams({ q, location: "Remote", field: field ?? "" })}`} className="btn-ghost h-9">Show remote roles</Link></div>
+          </div>
+        ) : (
           <ul className="divide-rows">
             {results.map((l) => (
               <li key={`${l.board}/${l.id}`} className="grid gap-3 px-5 py-3.5 md:grid-cols-[1fr_auto_auto] md:items-center md:gap-5">

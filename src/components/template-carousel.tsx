@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { ResumeFrame } from "./resume-frame";
+import { TemplateLightbox } from "./template-lightbox";
 
 type Page = { id: string; name: string; tier: string; blurb: string; html: string };
 
@@ -12,6 +13,7 @@ export function TemplateCarousel({ pages }: { pages: Page[] }) {
   const n = pages.length;
   const go = useCallback((d: number) => setI((x) => (x + d + n) % n), [n]);
   const [hover, setHover] = useState(false);
+  const [full, setFull] = useState<number | null>(null);
   // Each preview is a full page with its own web fonts: build them only once the section is near.
   const root = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
@@ -23,10 +25,10 @@ export function TemplateCarousel({ pages }: { pages: Page[] }) {
     return () => io.disconnect();
   }, []);
   useEffect(() => {
-    if (hover || !near) return;
+    if (hover || !near || full !== null) return;
     const t = setInterval(() => go(1), 4500);
     return () => clearInterval(t);
-  }, [go, hover, near]);
+  }, [go, hover, near, full]);
   const cur = pages[i];
   return (
     <div ref={root} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onKeyDown={(e) => { if (e.key === "ArrowLeft") go(-1); if (e.key === "ArrowRight") go(1); }} tabIndex={0} role="region" aria-roledescription="carousel" aria-label="Resume templates" className="outline-none">
@@ -38,7 +40,7 @@ export function TemplateCarousel({ pages }: { pages: Page[] }) {
           const abs = Math.abs(off);
           const hidden = abs > 1;
           return (
-            <button key={p.id} type="button" onClick={() => (off === 0 ? undefined : go(off))} aria-label={off === 0 ? `${p.name}, selected` : `Show ${p.name}`} tabIndex={hidden ? -1 : 0}
+            <button key={p.id} type="button" onClick={() => (off === 0 ? setFull(j) : go(off))} aria-label={off === 0 ? `Open ${p.name} full size` : `Show ${p.name}`} tabIndex={hidden ? -1 : 0}
               className="absolute left-1/2 top-0 w-[var(--card-w)] origin-bottom transition-[transform,opacity,filter] duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)]"
               style={{
                 transform: `translateX(calc(-50% + ${off * 78}%)) translateY(${abs * 34}px) scale(${1 - abs * 0.16})`,
@@ -59,11 +61,13 @@ export function TemplateCarousel({ pages }: { pages: Page[] }) {
         <div className="flex items-center gap-2.5">
           <span className="text-[19px] font-medium tracking-[-0.02em]">{cur.name}</span>
           <span className="meta rounded-full bg-surface-2 px-2 py-0.5">{cur.tier} tier</span>
+          <button type="button" onClick={() => setFull(i)} className="btn-ghost h-8 px-3 text-[12.5px]">View full size</button>
           <Link href="/sign-up" className="btn-primary h-8 px-3 text-[12.5px]">Use {cur.name}</Link>
         </div>
         <p className="mt-1.5 min-h-[2.6em] text-[13px] leading-snug text-muted">{cur.blurb}</p>
         <div className="mt-3 flex gap-1.5">{pages.map((p, j) => <button key={p.id} type="button" onClick={() => setI(j)} aria-label={`Go to ${p.name}`} className={`h-1.5 rounded-full transition-all ${j === i ? "w-6 bg-accent" : "w-1.5 bg-line-strong hover:bg-muted"}`} />)}</div>
       </div>
+      {full !== null && <TemplateLightbox pages={pages} index={full} onIndex={(k) => { setFull(k); setI(k); }} onClose={() => setFull(null)} footer={(p) => <Link href="/sign-up" className="btn-primary h-9">Use {p.name}</Link>} />}
     </div>
   );
 }

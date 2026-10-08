@@ -38,8 +38,9 @@ export function ResumeFrame({ html, title, className = "", interactive = false, 
             doc.fonts.ready.then(() => {
               page.style.minHeight = "0";
               if (fill) fillPage(page);
-              const h = page.scrollHeight;
-              page.style.minHeight = "";
+              const h = page.scrollHeight * Number(page.style.getPropertyValue("zoom") || 1);
+              // Keep the sheet exactly one page tall at whatever zoom fillPage chose, so nothing spills out of the frame.
+              page.style.minHeight = fill ? `${11 / Number(page.style.getPropertyValue("zoom") || 1)}in` : "";
               onMeasure?.(h / PAGE_H);
             });
           } : undefined}
@@ -50,13 +51,16 @@ export function ResumeFrame({ html, title, className = "", interactive = false, 
 }
 
 /**
- * Grow a short page to fill the sheet: zoom the content while narrowing the page by the same factor,
- * so the paper size stays put and lines rewrap. Binary search on the zoom that lands just under one page.
+ * Fit the content to exactly one sheet, as the PDF renderer does: grow a short page, and shrink a long
+ * one instead of cutting it off. Zoom the content while widening or narrowing the page by the same
+ * factor, so the paper size stays put and lines rewrap. Binary search on the largest zoom that fits.
  */
 function fillPage(page: HTMLElement) {
   const height = (z: number) => { page.style.setProperty("zoom", String(z)); page.style.width = `${8.5 / z}in`; return page.scrollHeight * z; };
-  if (height(1) >= PAGE_H * 0.94) { height(1); return; }
-  let lo = 1, hi = 1.6;
-  for (let i = 0; i < 9; i++) { const mid = (lo + hi) / 2; if (height(mid) <= PAGE_H * 0.985) lo = mid; else hi = mid; }
+  const fits = (z: number) => height(z) <= PAGE_H * 0.985;
+  const natural = height(1);
+  if (natural >= PAGE_H * 0.94 && natural <= PAGE_H * 0.985) return;
+  let lo = natural > PAGE_H ? 0.5 : 1, hi = natural > PAGE_H ? 1 : 1.6;
+  for (let i = 0; i < 10; i++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
   height(lo);
 }

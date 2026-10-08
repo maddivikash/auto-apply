@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { CheckCircle2, ExternalLink } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
+import { summarize } from "@/lib/stats";
 import { requireUserId } from "@/lib/auth";
 import { listApplications } from "@/lib/store";
 import { PageHeader } from "@/components/page-header";
@@ -9,11 +11,25 @@ export const dynamic = "force-dynamic";
 /** Everything that has actually gone out: one line per company, newest first. */
 export default async function Applied() {
   const uid = await requireUserId();
-  const apps = (await listApplications(uid)).filter((a) => a.status === "submitted").sort((a, b) => (b.submittedAt || b.updatedAt).localeCompare(a.submittedAt || a.updatedAt));
+  const all = await listApplications(uid);
+  const s = summarize(all);
+  const apps = all.filter((a) => a.status === "submitted").sort((a, b) => (b.submittedAt || b.updatedAt).localeCompare(a.submittedAt || a.updatedAt));
   const companies = new Set(apps.map((a) => (a.job?.company || "").toLowerCase()));
   return (
     <div className="space-y-8">
-      <PageHeader title="Applied" description={apps.length ? `${apps.length} application${apps.length > 1 ? "s" : ""} submitted to ${companies.size} compan${companies.size > 1 ? "ies" : "y"}.` : "Nothing submitted yet. Submitted applications collect here, one line per company."} />
+      <PageHeader title="Applied" description={apps.length ? `${apps.length} application${apps.length > 1 ? "s" : ""} submitted to ${companies.size} compan${companies.size > 1 ? "ies" : "y"}.` : "Everything you have sent, one line per company."} />
+      {apps.length === 0 && (
+        <EmptyState icon={<CheckCircle2 size={26} />} title={s.total ? "Nothing submitted yet" : "Your first submission lands here"}
+          body={s.total ? "An application moves here the moment you press Submit on it. These are on their way:" : "Prepare an application from Discover or by pasting a job link. Once you approve it and press Submit, it is listed here with the date and the resume you sent."}
+          steps={[
+            { label: "Waiting for your Submit", count: s.awaitingSubmit, href: "/dashboard", tone: "signal" },
+            { label: "Ready to approve", count: s.readyToApprove, href: "/dashboard", tone: "go" },
+            { label: "Need your answers", count: s.needsDetails, href: "/dashboard", tone: "signal" },
+            { label: "Being prepared or filled", count: s.inProgress, href: "/dashboard", tone: "accent" }
+          ]}
+          primary={s.total ? { href: "/dashboard", label: "Go to applications" } : { href: "/discover", label: "Find roles" }}
+          secondary={s.total ? { href: "/discover", label: "Find more roles" } : { href: "/dashboard", label: "Paste a job link" }} />
+      )}
       {apps.length > 0 && (
         <section className="panel overflow-hidden">
           <table className="w-full text-left text-[13.5px]">
