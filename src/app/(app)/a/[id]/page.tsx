@@ -92,7 +92,9 @@ export default async function ApplicationPage({ params, searchParams }: { params
       ) : (
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-6">
-          {app.match && app.resume && <MatchCard match={app.match} />}
+          {app.match && app.resume && (app.match.unscored
+            ? <section className="panel-pad"><h2 className="text-[13px] text-muted">Job match</h2><div className="mt-2 text-[44px] font-medium leading-none tracking-[-0.04em]">—</div><p className="mt-3 text-[13px] leading-relaxed text-muted">This posting was taken down before its full text was saved, so the match cannot be calculated. The resume itself is unaffected.</p></section>
+            : <MatchCard match={app.match} />)}
           {app.jdSummary && (
             <section className="panel-pad">
               <h2 className="text-[15px] font-semibold">What they want</h2>
@@ -163,7 +165,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
             <section className="panel overflow-hidden">
               <div className="panel-head">
                 <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2"><span className="text-[15px] font-semibold">{app.resumeChoice === "full" ? "Original resume" : "Tailored resume"}</span>{app.variants && <ResumeToggle id={app.id} choice={app.resumeChoice || "tailored"} tailored={app.variants.tailored.match.tailored} full={app.variants.full.match.tailored} locked={!["ready", "approved"].includes(app.status)} action={chooseResumeAction} />}</div>
+                  <div className="flex flex-wrap items-center gap-2"><span className="text-[15px] font-semibold">{app.resumeChoice === "full" ? "Original resume" : "Tailored resume"}</span>{app.variants && <ResumeToggle id={app.id} choice={app.resumeChoice || "tailored"} tailored={app.variants.tailored.match.unscored ? null : app.variants.tailored.match.tailored} full={app.variants.full.match.unscored ? null : app.variants.full.match.tailored} locked={!["ready", "approved"].includes(app.status)} action={chooseResumeAction} />}</div>
                   <div className="truncate text-[12.5px] text-muted">{app.editedAt ? "Edited by you. " : ""}{app.headline}{app.trims?.length ? `. Trimmed to fit: ${app.trims.join(", ")}` : ""}</div>
                 </div>
                 <div className="flex flex-wrap gap-2">{app.resume && <Link href={`/a/${app.id}/edit`} className="btn-primary h-8"><PenLine size={14} /> Edit resume</Link>}{app.resume && <TemplateSwitch id={app.id} value={app.template ?? Settings.parse(settings ?? {}).resumeTemplate} action={applyTemplateAction} disabled={!["ready", "approved", "failed"].includes(app.status)} />}<a href={`/api/applications/${app.id}/pdf`} target="_blank" rel="noreferrer" className="btn-ghost h-8">Open PDF</a><RegeneratePanel id={app.id} action={reprocessAction} disabled={processing} lastNotes={app.revisionNotes} /></div>

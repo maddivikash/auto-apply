@@ -18,6 +18,28 @@ export type LiveField = {
 
 export function discoverFields(): LiveField[] {
   const clean = (s: string | null | undefined) => (s || "").replace(/\s+/g, " ").replace(/[✱*]/g, "").trim();
+  // Visible label text only: Lever's <label> wraps the input and a hidden suggestion list, and textContent
+  // would read every suggestion into the label ("Current location Gurugram, Haryana, INDGurgaon, ...").
+  const NOISE = "input, select, textarea, button, svg, script, style, [class*=dropdown], [role=listbox], [role=option], [aria-hidden=true]";
+  const textOf = (el: Element | null | undefined): string => {
+    if (!el) return "";
+    let out = "";
+    const walk = (n: Node) => {
+      for (const c of Array.from(n.childNodes)) {
+        if (c.nodeType === 3) out += c.textContent;
+        else if (c.nodeType === 1) {
+          const e = c as HTMLElement;
+          if (e.matches(NOISE)) continue;
+          const cs = getComputedStyle(e);
+          if (cs.display === "none" || cs.visibility === "hidden") continue;
+          walk(e);
+        }
+      }
+    };
+    walk(el);
+    return out;
+  };
+
   const optionLabel = (el: HTMLInputElement) => clean((el.id && document.querySelector(`label[for="${el.id}"]`)?.textContent) || el.closest("label")?.textContent);
   const out: LiveField[] = [];
   const seen = new Set<string>();
@@ -37,7 +59,7 @@ export function discoverFields(): LiveField[] {
   let gi = 0;
   for (const [box, buttons] of buttonGroups) {
     if (buttons.length < 2 || buttons.length > 8) continue;
-    const label = clean(box.querySelector("label, legend, [class*=question-title], [class*=title], [class*=label]")?.textContent);
+    const label = clean(textOf(box.querySelector("label, legend, [class*=question-title], [class*=title], [class*=label]")));
     if (!label) continue;
     const key = `aa-btn-${gi++}`;
     box.setAttribute("data-aa-group", key);
@@ -63,7 +85,7 @@ export function discoverFields(): LiveField[] {
         const controls = Array.from(node.querySelectorAll<HTMLInputElement>("input, textarea, select")).filter((i) => !["hidden", "submit", "button"].includes(i.type));
         if (!controls.every((i) => (i.type === "radio" || i.type === "checkbox") && i.name === input.name)) break;
         const cand = node.querySelector("legend, h3, h4, h5, h6, [class*=question], [class*=Label], [class*=label]:not(label), .application-label");
-        const t = clean(cand?.textContent);
+        const t = clean(textOf(cand));
         if (t && t !== opt) question = t;
         node = node.parentElement;
       }
@@ -84,8 +106,8 @@ export function discoverFields(): LiveField[] {
     // The question text wins over the input's own placeholder: Lever's custom questions carry the question in
     // an .application-label above an input whose placeholder is just "Type your response".
     let label = "";
-    if (el.id) label = document.querySelector(`label[for="${el.id}"]`)?.textContent || "";
-    if (!label) label = el.closest("label")?.textContent || "";
+    if (el.id) label = textOf(document.querySelector(`label[for="${el.id}"]`));
+    if (!label.trim()) label = textOf(el.closest("label"));
     if (!label) {
       // Walk up to the smallest container that holds only this control and carries a label-like element.
       let node: HTMLElement | null = el.parentElement;
@@ -93,7 +115,7 @@ export function discoverFields(): LiveField[] {
         const controls = node.querySelectorAll("input:not([type=hidden]):not([type=submit]):not([type=button]), textarea, select").length;
         if (controls > 1) break;
         const lab = node.querySelector(".application-label, label, legend, [class*=question-title], [class*=label]:not(input)");
-        if (lab?.textContent?.trim()) { label = lab.textContent; break; }
+        if (textOf(lab).trim()) { label = textOf(lab); break; }
         node = node.parentElement;
       }
     }
@@ -136,10 +158,32 @@ export async function discoverLiveFields(page: Page): Promise<LiveField[]> {
  */
 export function findEmptyRequired(): string[] {
   const clean = (s: string | null | undefined) => (s || "").replace(/\s+/g, " ").replace(/[✱*]/g, "").trim();
+  // Visible label text only: Lever's <label> wraps the input and a hidden suggestion list, and textContent
+  // would read every suggestion into the label ("Current location Gurugram, Haryana, INDGurgaon, ...").
+  const NOISE = "input, select, textarea, button, svg, script, style, [class*=dropdown], [role=listbox], [role=option], [aria-hidden=true]";
+  const textOf = (el: Element | null | undefined): string => {
+    if (!el) return "";
+    let out = "";
+    const walk = (n: Node) => {
+      for (const c of Array.from(n.childNodes)) {
+        if (c.nodeType === 3) out += c.textContent;
+        else if (c.nodeType === 1) {
+          const e = c as HTMLElement;
+          if (e.matches(NOISE)) continue;
+          const cs = getComputedStyle(e);
+          if (cs.display === "none" || cs.visibility === "hidden") continue;
+          walk(e);
+        }
+      }
+    };
+    walk(el);
+    return out;
+  };
+
   const seen = new Set<string>(); const out: string[] = [];
   const labels = Array.from(document.querySelectorAll<HTMLElement>("label, legend, [class*=question-title]"));
   for (const lab of labels) {
-    const raw = lab.textContent || "";
+    const raw = textOf(lab);
     const ctl = (lab as HTMLLabelElement).control as HTMLElement | null;
     const box = (lab.closest("[data-field-entry-id], fieldset, [class*=field-entry], [class*=question], [class*=field], li") || lab.parentElement) as HTMLElement | null;
     if (!box) continue;

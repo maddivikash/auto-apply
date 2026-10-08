@@ -11,7 +11,7 @@ type Choice = "tailored" | "full";
  * Safe inside a link: clicks are stopped before they navigate.
  */
 export function ResumeToggle({ id, choice, tailored, full, locked, action, size = "sm" }: {
-  id: string; choice: Choice; tailored: number; full: number; locked?: boolean;
+  id: string; choice: Choice; tailored: number | null; full: number | null; locked?: boolean;
   action: (id: string, choice: Choice) => Promise<ActionResult>; size?: "sm" | "md";
 }) {
   const router = useRouter();
@@ -27,8 +27,8 @@ export function ResumeToggle({ id, choice, tailored, full, locked, action, size 
   const cls = (c: Choice) => `${size === "sm" ? "px-2 py-[2px] text-[11.5px]" : "px-2.5 py-1 text-[12px]"} rounded-full tabular-nums transition-colors ${c === choice ? "bg-accent text-on-accent font-medium" : locked ? "text-faint" : "text-muted hover:bg-surface-2 hover:text-fg"}`;
   return (
     <span className={`inline-flex items-center gap-0.5 rounded-full bg-surface p-[2px] shadow-[var(--ring)] ${busy ? "opacity-60" : ""}`} role="radiogroup" aria-label="Resume version" title={locked ? "Locked once the form is filled" : "Which resume is attached to this application"}>
-      <button type="button" role="radio" aria-checked={choice === "tailored"} onClick={pick("tailored")} className={cls("tailored")} disabled={busy}>Tailored {tailored}%</button>
-      <button type="button" role="radio" aria-checked={choice === "full"} onClick={pick("full")} className={cls("full")} disabled={busy}>Original {full}%</button>
+      <button type="button" role="radio" aria-checked={choice === "tailored"} onClick={pick("tailored")} className={cls("tailored")} disabled={busy}title={tailored === null ? "Could not be scored: the posting was taken down before its text was stored" : undefined}>Tailored {tailored === null ? "—" : `${tailored}%`}</button>
+      <button type="button" role="radio" aria-checked={choice === "full"} onClick={pick("full")} className={cls("full")} disabled={busy}title={full === null ? "Could not be scored: the posting was taken down before its text was stored" : undefined}>Original {full === null ? "—" : `${full}%`}</button>
     </span>
   );
 }

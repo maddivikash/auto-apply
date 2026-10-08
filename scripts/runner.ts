@@ -49,6 +49,16 @@ const hostBackoffUntil = new Map<string, number>();
 const SUBMIT_GAP_MS = 90_000;
 const SPAM_BACKOFF_MS = 6 * 60_000;
 const jitter = (min: number, max: number) => min + Math.random() * (max - min);
+/**
+ * Type an answer the way a person would, without hitting Playwright's 30 s action limit: short values
+ * key by key, long ones (essay answers run to hundreds of characters) pasted in one go and then
+ * nudged with a final keystroke so the form's input handlers still fire.
+ */
+async function typeAnswer(el: Locator, value: string) {
+  if (value.length <= 120) { await el.pressSequentially(value, { delay: jitter(35, 80), timeout: 0 }); return; }
+  await el.fill(value.slice(0, -1));
+  await el.pressSequentially(value.slice(-1), { delay: 40 });
+}
 
 // One runner per machine. A second instance would fill the same form twice.
 import { existsSync, readFileSync as readSync, unlinkSync } from "node:fs";
@@ -132,7 +142,7 @@ async function greenhouseRoot(page: Page): Promise<Page> {
 
 async function fillGreenhouse(page: Page, app: Application, notes: string[]) {
   const root = await greenhouseRoot(page);
-  const type = async (sel: string, value: string) => { const el = root.locator(sel).first(); if (!(await el.count())) return false; await el.scrollIntoViewIfNeeded(); await el.click(); await el.fill(""); await el.pressSequentially(value, { delay: jitter(35, 80) }); return true; };
+  const type = async (sel: string, value: string) => { const el = root.locator(sel).first(); if (!(await el.count())) return false; await el.scrollIntoViewIfNeeded(); await el.click(); await el.fill(""); await typeAnswer(el, value); return true; };
   const norm = (t: string) => t.replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"').replace(/\s+/g, " ").trim().toLowerCase();
   const labelOf = async (cb: Locator) => {
     const id = await cb.getAttribute("id");
@@ -504,7 +514,7 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
         // Location-like fields are usually autocompletes: type the city alone, then take the suggestion that names it.
         const isPlace = /location|city|where (are|do) you/i.test(f.label);
         const typed = isPlace ? value.split(",")[0].trim() : value;
-        await el.pressSequentially(typed, { delay: jitter(35, 80) });
+        await typeAnswer(el, typed);
         const picked = await pickSuggestion(page, typed, isPlace ? 8000 : 1300);
         if (picked) notes.push(`${f.label}: chose "${picked}" from the suggestions`);
         else if (isPlace && (await el.inputValue()) !== typed) notes.push(`${f.label}: the field did not keep "${typed}"; check it in the window`);
@@ -518,7 +528,9 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
   await fillAshbyEducation(page, notes);
   // Education rows are filled above; do not report their fields as unanswered.
   const eduLabel = /search schools|^degree$|field of study|still (a )?student/i;
-  const stillOpen = unanswered.filter((u) => !eduLabel.test(u.label));
+  // Optional fields with no known answer are left blank, as a person would: Twitter, pronouns, "anything
+  // else". Only required ones come back as questions.
+  const stillOpen = unanswered.filter((u) => !eduLabel.test(u.label) && u.required);
   if (stillOpen.length) {
     notes.push(`${stillOpen.length} field(s) need your answer: ${stillOpen.map((u) => u.label).join("; ")}`);
     await report(app.id, { questions: stillOpen });

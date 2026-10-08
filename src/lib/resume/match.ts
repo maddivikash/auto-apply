@@ -24,6 +24,8 @@ export type Match = {
   focus: number;
   matched: string[];
   missing: string[];
+  /** Set when the score could not be computed (the posting is gone and its text was never stored): show "—", never 0. */
+  unscored?: boolean;
 };
 
 /** Short tokens that are real technical terms and must survive the length filter. */

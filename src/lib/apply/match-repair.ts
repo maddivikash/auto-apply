@@ -34,7 +34,13 @@ export async function repairMatches(app: Application, profile: Profile): Promise
   const broken = (["tailored", "full"] as const).filter((k) => scoredAgainstNothing(app.variants![k].match));
   if (!broken.length) return false;
   const jd = await ensureJobDescription(app);
-  if (jd.trim().length < 200) return false;
+  if (jd.trim().length < 200) {
+    // Nothing left to score against. Say so instead of showing a 0 that looks like a real result.
+    if (broken.every((k) => app.variants![k].match.unscored)) return false;
+    for (const k of broken) app.variants[k].match = { ...app.variants[k].match, unscored: true };
+    if (app.resumeChoice && broken.includes(app.resumeChoice)) app.match = app.variants[app.resumeChoice].match;
+    return true;
+  }
   for (const k of broken) app.variants[k].match = matchResume(jd, app.variants[k].resume, profile, app.job.company);
   if (app.resumeChoice && broken.includes(app.resumeChoice)) app.match = app.variants[app.resumeChoice].match;
   return true;

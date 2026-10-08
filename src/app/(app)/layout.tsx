@@ -12,10 +12,14 @@ import { NavLink } from "@/components/nav-link";
 import { Brand } from "@/components/brand";
 import { HideOn } from "@/components/hide-on";
 import { ClerkShell } from "@/components/clerk-shell";
+import { after } from "next/server";
+import { scrubSamplePhone } from "@/lib/scrub-sample-phone";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const uid = await userId();
   if (!uid) redirect("/sign-in");
+  // Removes the old sample number from the account if it is still there; runs after the response, once.
+  after(() => scrubSamplePhone(uid).catch((e) => console.error("phone scrub failed", e)));
   const preview = process.env.NODE_ENV !== "production" && !!process.env.DEV_FAKE_USER;
   const account = preview ? <span className="h-7 w-7 rounded-full bg-surface-2" /> : <UserButton appearance={{ elements: { avatarBox: "h-7 w-7" } }} />;
   return (

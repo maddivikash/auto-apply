@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Upload } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
 import { listApplications, getProfile, getSettings, saveApplication } from "@/lib/store";
@@ -15,6 +14,7 @@ import { StatusBadge, StageTrack } from "@/components/status";
 import { LinkInput } from "@/components/link-input";
 import { SubmitButton } from "@/components/submit-button";
 import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/empty-state";
 import { getBank } from "@/lib/apply/bank";
 import { repairMatches } from "@/lib/apply/match-repair";
 
@@ -25,8 +25,15 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const uid = await requireUserId();
   const { error } = await searchParams;
   const [apps, profile, settings, bank] = await Promise.all([listApplications(uid), getProfile(uid), getSettings(uid), getBank(uid)]);
-  // A new account starts on the upload step: nothing else works until the profile exists.
-  if (!profile && apps.length === 0) redirect("/profile?welcome=1");
+  // A new account (or one whose profile was removed) sees the first step here, instead of being bounced to Profile.
+  if (!profile && apps.length === 0) return (
+    <div className="space-y-8">
+      <PageHeader title="Applications" description="Paste a job link and Lazy Apply prepares the whole application for your review." />
+      <EmptyState icon={<Upload size={26} />} title="Start with your resume"
+        body="Upload the resume you already have. It becomes your profile: every tailored resume and every form answer is written only from it. Then paste a job link here, or pick roles on Discover."
+        primary={{ href: "/profile?welcome=1#import", label: "Upload your resume" }} secondary={{ href: "/discover", label: "Browse roles first" }} />
+    </div>
+  );
   const known = withProfileFallback(Settings.parse(settings ?? {}), profile);
   await Promise.all(apps.filter((a) => markStale(a)).map((a) => saveApplication(a)));
   // Scores written as 0 by the old template-switch bug are repaired here too, not only when the application is opened.
@@ -99,7 +106,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                         {a.job && <span className="capitalize">{a.job.board}</span>}
                         <span>{date}</span>
                         {a.variants ? (
-                          <ResumeToggle id={a.id} choice={a.resumeChoice || "tailored"} tailored={a.variants.tailored.match.tailored} full={a.variants.full.match.tailored} locked={!["ready", "approved"].includes(a.status)} action={chooseResumeAction} />
+                          <ResumeToggle id={a.id} choice={a.resumeChoice || "tailored"} tailored={a.variants.tailored.match.unscored ? null : a.variants.tailored.match.tailored} full={a.variants.full.match.unscored ? null : a.variants.full.match.tailored} locked={!["ready", "approved"].includes(a.status)} action={chooseResumeAction} />
                         ) : a.match && a.resume ? (
                           <span className={`tabular-nums ${a.match.tailored > a.match.profile ? "text-go" : a.match.tailored < a.match.profile ? "text-signal" : ""}`} title="Keyword match with the posting: your full profile vs the tailored resume">
                             Match {a.match.profile}% <span aria-hidden>→</span><span className="sr-only">to</span> {a.match.tailored}%
