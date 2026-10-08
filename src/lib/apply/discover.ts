@@ -185,6 +185,28 @@ export function findEmptyRequired(): string[] {
   for (const lab of labels) {
     const raw = textOf(lab);
     const ctl = (lab as HTMLLabelElement).control as HTMLElement | null;
+    // An option's own label in a radio or checkbox group is not a question: judge the whole group, once,
+    // under the group's question (Lever renders every option as a separate required <label>).
+    const opt = ctl as HTMLInputElement | null;
+    if (opt && /radio|checkbox/.test(opt.type || "") && opt.name) {
+      if (seen.has(`name:${opt.name}`)) continue;
+      seen.add(`name:${opt.name}`);
+      const group = Array.from(document.querySelectorAll<HTMLInputElement>(`input[name="${CSS.escape(opt.name)}"]`));
+      const required = group.some((g) => g.required || g.getAttribute("aria-required") === "true");
+      if (!required || group.some((g) => g.checked)) continue;
+      let node: HTMLElement | null = opt.parentElement, question = "";
+      while (node && node !== document.body) {
+        if (group.every((g) => node!.contains(g))) {
+          const q = node.querySelector(".application-label, legend, [class*=question-title], [class*=question] > div:first-child, h3, h4");
+          question = clean(textOf(q));
+          if (question) break;
+        }
+        node = node.parentElement;
+      }
+      const label = question || clean(raw);
+      if (label && !seen.has(label)) { seen.add(label); out.push(label); }
+      continue;
+    }
     const box = (lab.closest("[data-field-entry-id], fieldset, [class*=field-entry], [class*=question], [class*=field], li") || lab.parentElement) as HTMLElement | null;
     if (!box) continue;
     const required = /\*|✱/.test(raw) || /required/i.test(lab.className) || !!(ctl && (ctl.hasAttribute("required") || ctl.getAttribute("aria-required") === "true")) || !!box.querySelector("[required], [aria-required=true]");

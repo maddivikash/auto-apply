@@ -558,6 +558,17 @@ async function submitGeneric(page: Page) {
   throw new Error("No confirmation text after submit");
 }
 
+/**
+ * Job boards show their own cookie banner (Lever: "... uses cookies. DISMISS"). It is not ours, it can sit
+ * over the Submit button, and nobody needs to see it: close it with the site's own button.
+ */
+async function dismissCookieBanner(page: Page) {
+  await page.waitForTimeout(800);
+  const button = page.getByRole("button", { name: /^(dismiss|accept( all)?( cookies)?|got it|i agree|agree|ok(ay)?|allow all)$/i })
+    .filter({ visible: true }).first();
+  if (await button.count().catch(() => 0)) await button.click({ timeout: 3000 }).catch(() => {});
+}
+
 // ---- Orchestration ----------------------------------------------------------
 
 async function fill(app: Application) {
@@ -567,6 +578,7 @@ async function fill(app: Application) {
   const page = await b.newPage({ viewport: { width: 1380, height: 940 } });
   try {
     await page.goto(app.job!.applyUrl.replace(/#app$/, ""), { waitUntil: "domcontentloaded" });
+    await dismissCookieBanner(page);
     if (app.job!.board === "greenhouse") await fillGreenhouse(page, app, notes);
     else await discoverAndFillGeneric(page, app, notes);
     await page.waitForTimeout(800);

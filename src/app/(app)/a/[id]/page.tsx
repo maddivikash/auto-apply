@@ -64,7 +64,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
             <StatusBadge status={app.status} />
             {app.status === "ready" && open.length > 0 && <a href="#answers" className="btn-ghost h-9">Answer {open.length} question{open.length > 1 ? "s" : ""}</a>}
             {app.status === "ready" && !blocked && <ActionButton action={approveAction} id={app.id} pending="Approving" className="btn-go h-9">Approve for filling</ActionButton>}
-            {app.status === "filled" && <ActionButton action={requestSubmitAction} id={app.id} pending="Submitting" className="btn-go h-9">Submit application</ActionButton>}
+            {app.status === "filled" && <ActionButton action={requestSubmitAction} id={app.id} pending="Submitting" className="btn-go h-9">{app.error ? "Submit again" : "Submit application"}</ActionButton>}
             {app.status === "code_required" && !app.verificationCode && <a href="#top-code" className="btn-primary h-9">Enter the email code</a>}
             {["approved", "filling"].includes(app.status) && <span className="text-[12.5px] text-muted">The runner is filling the form</span>}
           </div>
@@ -72,6 +72,10 @@ export default async function ApplicationPage({ params, searchParams }: { params
         <div className="mt-6"><StageTrack status={app.status} needsDetails={open.length > 0} /></div>
       </div>
 
+      {/* A Submit that did not go through comes back as "filled" with the reason; say so plainly at the top. */}
+      {app.status === "filled" && app.error && (
+        <Notice tone="danger"><span className="font-medium">The last Submit did not go through.</span> {app.error.replace(/\s+/g, " ").slice(0, 400)} <span className="text-fg">Fix anything listed, then press Submit again.</span></Notice>
+      )}
       {busy && (needsRunner
         ? <Notice tone="accent">{LABEL[app.status]}. This step runs on your computer, so the runner must be running: start it with <code className="kbd">npx lazy-apply</code> and leave its window open. First time? <Link href="/runner" className="text-accent hover:underline">Set up the runner</Link>. This page updates on its own.</Notice>
         : <Notice tone="accent">{LABEL[app.status]}. This page updates on its own. Writing the resume takes about a minute, and the runner is not needed until you approve.</Notice>)}

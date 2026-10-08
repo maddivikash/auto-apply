@@ -27,6 +27,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     refreshAnswers(app, settings, await getBank(uid));
   }
   if (body.error) app.error = body.error;
+  // A clean fill or a submit clears the reason a previous attempt failed.
+  else if (body.status && ["filling", "filled", "submitted"].includes(body.status)) app.error = undefined;
   if (body.status && ALLOWED.includes(body.status)) {
     app.status = body.status;
     if (body.status === "submitted") { app.submittedAt = new Date().toISOString(); await saveApplication(app); await addNotification({ userId: uid, kind: "submitted", applicationId: id, title: `Submitted to ${app.job?.company}` }); await emailSubmitted(to, app); }

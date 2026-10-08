@@ -20,14 +20,6 @@ const cutoff = (posted: string) => (posted === "all" ? 0 : Date.now() - Number(p
 const PAGE_SIZE = 20;
 const BOARD_NAME: Record<Board, string> = { greenhouse: "Greenhouse", ashby: "Ashby", lever: "Lever" };
 
-/** A starting query from the profile: the current title plus the skill groups that name a specialty. */
-function defaultQuery(title: string, skills: Record<string, string[]>): string {
-  const words = new Set<string>();
-  for (const w of title.split(/[\s,/&-]+/)) if (w.length > 2 && !/^(senior|junior|staff|lead|developer|engineer|software|sde|ii|iii)$/i.test(w)) words.add(w);
-  for (const k of Object.keys(skills)) { if (/ai|agent|llm|ml|data|platform|backend|frontend|full/i.test(k)) for (const w of k.split(/[\s,/&-]+/)) if (/ai|agent|llm|ml|platform|backend|frontend|full|stack|data/i.test(w)) words.add(w); }
-  return [...words].slice(0, 7).join(" ") || "software engineer";
-}
-
 export default async function Discover({ searchParams }: { searchParams: Promise<{ q?: string; location?: string; board?: string; added?: string; error?: string; page?: string; field?: string; from?: string; sort?: string; posted?: string }> }) {
   const uid = await requireUserId();
   const sp = await searchParams;
@@ -38,13 +30,14 @@ export default async function Discover({ searchParams }: { searchParams: Promise
   const picked = sp.field ?? known.jobField;
   const field: JobField | undefined = picked && isField(picked) ? picked : undefined;
   if (sp.field !== undefined && sp.field !== (settings?.jobField ?? "")) await saveSettings(uid, { ...Settings.parse(settings ?? {}), jobField: field ?? "" });
-  // Title words default from the profile only for software roles; other fields start from the field itself.
-  const q = sp.q ?? (field && field !== "software" ? "" : profile ? defaultQuery(known.currentTitle || profile.roles[0]?.title || "", profile.skills) : field ? "" : "software engineer");
-  const country = known.workAuthorizedCountries.split(",")[0].trim();
+  // Title words start empty: the person types what they want. The field and location already narrow the list.
+  const q = sp.q ?? "";
+  const rawCountry = known.workAuthorizedCountries.split(",")[0].trim();
+  const country = rawCountry ? rawCountry.charAt(0).toUpperCase() + rawCountry.slice(1) : "";
   const needsCountry = !country && !sp.location;
   const location = sp.location ?? (country ? `${country}, Remote` : "");
-  // Anything different from what a fresh visit shows: words and place from the profile, all fields and boards, 30 days, best match.
-  const defaultQ = profile ? defaultQuery(known.currentTitle || profile.roles[0]?.title || "", profile.skills) : "software engineer";
+  // Anything different from what a fresh visit shows: no words, the home country plus Remote, all fields and boards, 30 days, best match.
+  const defaultQ = "";
   const defaultLocation = country ? `${country}, Remote` : "";
   const filtered = !!field || q !== defaultQ || location !== defaultLocation || (sp.posted ?? "30") !== "30" || sp.sort === "newest" || !!sp.board;
   const boards = (sp.board || "").split(",").filter((b): b is Board => BOARDS.includes(b as Board));
