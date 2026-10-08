@@ -1,8 +1,9 @@
 /**
- * One-off clean-up. The fictional sample applicant once carried +91 98765 43210, which is a real
- * person's number, and test profiles built from it ended up in live accounts. Wherever an account
- * still holds it (profile, standing answers, saved answers, form answers on applications), it is
- * replaced with the phone on the account's Answers page, or removed when there is none.
+ * One-off clean-up of phone numbers that must not be on file. The fictional sample applicant once
+ * carried a real person's number, and test accounts ended up holding a real owner's number next to a
+ * made-up identity. Wherever an account still holds one (profile, standing answers, saved answers,
+ * form answers on applications, rendered resume PDFs), it is replaced with the account's own phone,
+ * or with a fictional one when the account's phone is itself being removed.
  */
 import { getDoc, putDoc } from "./docs";
 import { getProfile, getSettings, listApplications, saveApplication, saveProfile, saveSettings } from "./store";
@@ -14,19 +15,27 @@ import { saveFile, type Application } from "./store";
 import { resumeProfileFor } from "./apply/pipeline";
 import type { Profile } from "./profile/types";
 
-const SAMPLE = /\+?\s*91[\s-]*98765[\s-]*43210|\b98765[\s-]*43210\b|\b9876543210\b/g;
-const has = (v: unknown) => typeof v === "string" && new RegExp(SAMPLE.source).test(v);
+const FICTIONAL = "+1 555 010 0199";
+/** A phone number in any common formatting: "+91 98765 43210", "+919876543210", "98765-43210". */
+const pattern = (digits: string) => `(?:\\+?\\s*91[\\s-]*)?${digits.slice(0, 5)}[\\s-]*${digits.slice(5)}`;
+// The old sample number, plus numbers listed privately in SCRUB_PHONES (never in source: this repository is public).
+const listed = (process.env.SCRUB_PHONES || "").split(",").map((d) => d.replace(/\D/g, "").slice(-10)).filter((d) => d.length === 10);
+const TARGETS = ["9876543210", ...listed];
+const MATCH = new RegExp(TARGETS.map(pattern).join("|"), "g");
+const has = (v: unknown) => typeof v === "string" && new RegExp(MATCH.source).test(v);
+const VERSION = TARGETS.length; // a new number in SCRUB_PHONES makes the clean-up run again
 const done = new Set<string>();
 
 export async function scrubSamplePhone(uid: string): Promise<number> {
   if (done.has(uid)) return 0;
   done.add(uid);
   const marker = `users/${uid}/scrubbed-sample-phone.json`;
-  if (await getDoc(marker)) return 0;
+  const prev = await getDoc<{ version?: number }>(marker);
+  if (prev && (prev.version ?? 1) >= VERSION) return 0;
   const [profile, settings, bank, apps] = await Promise.all([getProfile(uid), getSettings(uid), getBank(uid), listApplications(uid)]);
-  // The replacement: the account's own phone, if it is a real one.
-  const own = [settings?.phone, profile?.phone].find((p) => p && !has(p)) || "";
-  const fix = (v: string) => v.replace(new RegExp(SAMPLE.source, "g"), own).trim();
+  // The replacement: the account's own phone if it is not one of the numbers being removed, else a fictional one.
+  const own = [settings?.phone, profile?.phone].find((p) => p && !has(p)) || FICTIONAL;
+  const fix = (v: string) => v.replace(new RegExp(MATCH.source, "g"), own).trim();
   let changes = 0;
   let fixedProfile: Profile | null = null;
   if (profile && has(profile.phone)) { fixedProfile = { ...profile, phone: own }; await saveProfile(uid, fixedProfile); changes++; }
@@ -41,7 +50,7 @@ export async function scrubSamplePhone(uid: string): Promise<number> {
   }
   // PDFs already rendered print the old number in their header: render them again from the fixed profile.
   if (fixedProfile) changes += await rerenderOpenResumes(uid, apps, fixedProfile, Settings.parse(settings ?? {}).resumeTemplate);
-  await putDoc(marker, { at: new Date().toISOString(), changes });
+  await putDoc(marker, { at: new Date().toISOString(), changes, version: VERSION });
   if (changes) console.log(`scrubbed the sample phone number from ${changes} place(s) for ${uid}`);
   return changes;
 }

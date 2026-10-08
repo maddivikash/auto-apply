@@ -23,7 +23,8 @@ export type RenderResult = {
 const PAGE_PX = 1056; // 11in at 96dpi, which is what page.pdf uses
 const FULL = 0.965; // a page at least this full is considered filled
 const SPARSE = 0.88; // below this even after growing the type, suggest adding content
-const GROW = [1.03, 1.06, 1.09, 1.12]; // type scale steps tried on a short page
+// Type and spacing scale steps tried on a short page. Dense layouts (Compact) need the upper steps to fill the sheet.
+const GROW = [1.03, 1.06, 1.09, 1.12, 1.14, 1.16, 1.18, 1.2, 1.22, 1.24, 1.27, 1.3, 1.35, 1.4];
 
 /**
  * Render with Chromium via launchBrowser (local Playwright install, or @sparticuz/chromium on Vercel).

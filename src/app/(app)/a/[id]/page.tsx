@@ -172,7 +172,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
               </div>
               {app.resumeWarnings?.length ? <p className="border-b border-line bg-signal-soft px-5 py-2 text-[12.5px] text-signal">Checks flagged: {app.resumeWarnings.join("; ")}</p> : null}
 {/* The same HTML the PDF is printed from, so it shows everywhere (phones and headless browsers have no PDF viewer). */}
-              {app.resume && profile && app.job ? <div className="bg-surface-2 p-3"><div className="overflow-hidden rounded-[6px] shadow-[0_1px_2px_rgba(18,24,38,0.08),0_12px_30px_-18px_rgba(18,24,38,0.4)]"><ResumeFrame html={resumeHtml(app.resume, resumeProfileFor(profile, app.job.title, app.jobDescription || app.job.descriptionPreview), app.scale ?? 1, app.template ?? Settings.parse(settings ?? {}).resumeTemplate)} title="Resume preview" /></div></div> : null}
+              {app.resume && profile && app.job ? <div className="bg-surface-2 p-3"><div className="overflow-hidden rounded-[6px] shadow-[0_1px_2px_rgba(18,24,38,0.08),0_12px_30px_-18px_rgba(18,24,38,0.4)]"><ResumeFrame html={resumeHtml(app.resume, resumeProfileFor(profile, app.job.title, app.jobDescription || app.job.descriptionPreview), app.scale ?? 1, app.template ?? Settings.parse(settings ?? {}).resumeTemplate)} title="Resume preview" fill /></div></div> : null}
             </section>
           ) : (
             <section className="panel flex h-64 items-center justify-center text-[13.5px] text-muted">{busy ? "The resume preview appears here when it is ready." : "No resume yet."}</section>

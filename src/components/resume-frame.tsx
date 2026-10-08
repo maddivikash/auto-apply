@@ -37,8 +37,9 @@ export function ResumeFrame({ html, title, className = "", interactive = false, 
             if (!doc || !page) return;
             doc.fonts.ready.then(() => {
               page.style.minHeight = "0";
+              // Measure the content as written first, so "runs over a page" is still reported when fill shrinks it to fit.
+              const h = page.scrollHeight;
               if (fill) fillPage(page);
-              const h = page.scrollHeight * Number(page.style.getPropertyValue("zoom") || 1);
               // Keep the sheet exactly one page tall at whatever zoom fillPage chose, so nothing spills out of the frame.
               page.style.minHeight = fill ? `${11 / Number(page.style.getPropertyValue("zoom") || 1)}in` : "";
               onMeasure?.(h / PAGE_H);

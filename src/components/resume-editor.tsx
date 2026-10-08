@@ -187,7 +187,7 @@ export function ResumeEditor({ id, title, initial, profile, renderProfile, templ
             <button type="button" onClick={() => setHighlight((v) => !v)} aria-pressed={highlight} className={`chip ${highlight ? "bg-go-soft text-go" : "text-muted hover:text-fg"}`}><Highlighter size={12} /> Highlight matched keywords</button>
           </div>
           <div className="overflow-hidden rounded-[10px] shadow-[0_1px_2px_rgba(18,24,38,0.08),0_24px_50px_-24px_rgba(18,24,38,0.45)]">
-            <ResumeFrame html={previewHtml} title="Resume preview" onMeasure={setFit} />
+            <ResumeFrame html={previewHtml} title="Resume preview" onMeasure={setFit} fill />
           </div>
         </section>
 
