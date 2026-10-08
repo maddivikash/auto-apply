@@ -59,7 +59,15 @@ export default async function ApplicationPage({ params, searchParams }: { params
             <h1 className="text-[28px] font-medium leading-tight tracking-[-0.03em]">{app.job ? `${app.job.company}, ${app.job.title}` : busy ? "Reading the job post" : "Could not prepare this one"}</h1>
             <p className="mt-1.5 flex flex-wrap items-center gap-x-3 text-[13.5px] text-muted">{app.job?.location && <span>{app.job.location}</span>}<a className="inline-flex items-center gap-1 hover:text-fg" href={app.url} target="_blank" rel="noreferrer">Open posting <ArrowUpRight size={13} /></a></p>
           </div>
-          <StatusBadge status={app.status} />
+          {/* The next thing to do sits at the top, not only in the Submission steps at the bottom. */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <StatusBadge status={app.status} />
+            {app.status === "ready" && open.length > 0 && <a href="#answers" className="btn-ghost h-9">Answer {open.length} question{open.length > 1 ? "s" : ""}</a>}
+            {app.status === "ready" && !blocked && <ActionButton action={approveAction} id={app.id} pending="Approving" className="btn-go h-9">Approve for filling</ActionButton>}
+            {app.status === "filled" && <ActionButton action={requestSubmitAction} id={app.id} pending="Submitting" className="btn-go h-9">Submit application</ActionButton>}
+            {app.status === "code_required" && !app.verificationCode && <a href="#top-code" className="btn-primary h-9">Enter the email code</a>}
+            {["approved", "filling"].includes(app.status) && <span className="text-[12.5px] text-muted">The runner is filling the form</span>}
+          </div>
         </div>
         <div className="mt-6"><StageTrack status={app.status} needsDetails={open.length > 0} /></div>
       </div>
@@ -68,10 +76,10 @@ export default async function ApplicationPage({ params, searchParams }: { params
         ? <Notice tone="accent">{LABEL[app.status]}. This step runs on your computer, so the runner must be running: start it with <code className="kbd">npx lazy-apply</code> and leave its window open. First time? <Link href="/runner" className="text-accent hover:underline">Set up the runner</Link>. This page updates on its own.</Notice>
         : <Notice tone="accent">{LABEL[app.status]}. This page updates on its own. Writing the resume takes about a minute, and the runner is not needed until you approve.</Notice>)}
       {waitingForCode && (
-        <Notice tone="signal">
+        <div id="top-code" className="scroll-mt-6"><Notice tone="signal">
           <span className="font-medium">Greenhouse emailed you a verification code.</span> Check {settings?.email || profile?.email || "your inbox"} for a message from Greenhouse with an 8-character security code, type it here, and the runner finishes the submit. {app.error && <span className="text-danger">{app.error}</span>}
           <CodeForm id={app.id} action={submitCodeAction} renew={requestNewCodeAction} />
-        </Notice>
+        </Notice></div>
       )}
       {app.status === "failed" && <Notice tone="danger">{app.error} <div className="mt-3 flex flex-wrap gap-2">{!profile && <Link href="/profile?welcome=1" className="btn-primary h-9"><Upload size={15} /> Upload resume</Link>}<ActionButton action={reprocessAction} id={app.id} pending="Starting" className={profile ? "btn-ghost h-8" : "btn-ghost h-9"}>Try again</ActionButton></div></Notice>}
       {app.status === "unsupported" && <Notice tone="signal">{app.error} Supported boards: Greenhouse, Lever and Ashby.</Notice>}
@@ -94,7 +102,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
           )}
 
           {app.job && (
-            <section className="panel">
+            <section id="answers" className="panel scroll-mt-6">
               <div className="panel-head"><h2 className="text-[15px] font-semibold">Form answers</h2>{app.questions.length > 0 && <span className="text-[12.5px] text-muted">{answered.length} filled, {open.length} open</span>}</div>
               {app.questions.length === 0 ? (
                 <p className="px-5 py-4 text-[13.5px] text-muted">{app.job.board === "greenhouse" ? "This form has no extra questions." : "This board does not publish its questions. The runner reads them from the live form and reports anything it cannot answer."}</p>

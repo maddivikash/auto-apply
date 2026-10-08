@@ -4,7 +4,7 @@ import type { TailoredResume } from "./schema";
 
 export const SAMPLE_PROFILE = Profile.parse({
   name: "John Doe",
-  phone: "+91 98765 43210",
+  phone: "+1 555 010 0199",
   email: "john.doe@example.com",
   linkedin: "linkedin.com/in/john-doe-test",
   github: "github.com/john-doe-test",
