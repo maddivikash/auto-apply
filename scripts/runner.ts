@@ -475,6 +475,8 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
   const fields = await discoverLiveFields(page);
 
   const unanswered: { label: string; required: boolean; type: string; options?: string[] }[] = [];
+  /** Plain text fields we typed, re-checked at the end: Lever parses the uploaded resume and rewrites them seconds later. */
+  const typedText: { label: string; selector: string; value: string }[] = [];
   for (const f of fields) {
     if (!f.label || f.type === "file") continue;
     const stored = app.questions.find((q) => q.label.toLowerCase() === f.label.toLowerCase());
@@ -505,7 +507,16 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
           const el = inputs.nth(i);
           const id = await el.getAttribute("id");
           const text = ((id && (await page.locator(`label[for="${id}"]`).first().textContent().catch(() => ""))) || (await el.locator("xpath=ancestor::label[1]").first().textContent().catch(() => "")) || "").replace(/\s+/g, " ").trim();
-          if (text.toLowerCase() === value.toLowerCase()) { await el.scrollIntoViewIfNeeded(); await el.check({ force: true }); hit = true; }
+          if (text.toLowerCase() === value.toLowerCase()) {
+            // Lever and Ashby hide the real radio behind a styled label; clicking the hidden input does nothing,
+            // so click the label like a person does, then fall back to the input and finally to a DOM click.
+            const label = id ? page.locator(`label[for="${id}"]`).first() : el.locator("xpath=ancestor::label[1]").first();
+            if (await label.count()) { await label.scrollIntoViewIfNeeded(); await label.click({ timeout: 5000 }).catch(() => {}); }
+            if (!(await el.isChecked())) await el.check({ force: true, timeout: 5000 }).catch(() => {});
+            if (!(await el.isChecked())) await el.evaluate("n => n.click()");
+            if (!(await el.isChecked())) throw new Error(`"${value}" did not stay selected`);
+            hit = true;
+          }
         }
         if (!hit) notes.push(`Could not pick "${value}" for ${f.label}`);
       }
@@ -514,18 +525,31 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
         // Location-like fields are usually autocompletes: type the city alone, then take the suggestion that names it.
         const isPlace = /location|city|where (are|do) you/i.test(f.label);
         const typed = isPlace ? value.split(",")[0].trim() : value;
+        // Lever's location widget has its own rules (a hidden choice, suggestions that load late): use the routine built for it.
+        if (isPlace && (await page.locator("#location-input").count()) && (await el.evaluate("n => n.id")) === "location-input") {
+          const fixed = await ensureLeverLocation(page, typed);
+          notes.push(fixed ? `${f.label}: chose "${fixed}" from the suggestions` : `${f.label}: Lever did not accept a location; pick one in the window`);
+          continue;
+        }
         await typeAnswer(el, typed);
         const picked = await pickSuggestion(page, typed, isPlace ? 8000 : 1300);
         if (picked) notes.push(`${f.label}: chose "${picked}" from the suggestions`);
         else if (isPlace && (await el.inputValue()) !== typed) notes.push(`${f.label}: the field did not keep "${typed}"; check it in the window`);
-        if (isPlace && !(await leverLocationPicked(page))) {
-          const fixed = await ensureLeverLocation(page, typed);
-          notes.push(fixed ? `${f.label}: picked "${fixed}" on a second try` : `${f.label}: Lever did not accept a location; pick one in the window`);
-        }
+        else if (!isPlace) typedText.push({ label: f.label, selector: f.selector, value: typed });
       }
     } catch (e) { notes.push(`Could not fill "${f.label}": ${(e as Error).message.slice(0, 80)}`); }
   }
   await fillAshbyEducation(page, notes);
+  // Give the board's resume parser time to finish, then put back anything it emptied or replaced.
+  await page.waitForTimeout(2500);
+  for (const t of typedText) {
+    const el = page.locator(t.selector).first();
+    const now = await el.inputValue().catch(() => t.value);
+    if (now.trim() === t.value.trim()) continue;
+    await el.fill(t.value).catch(() => {});
+    if ((await el.inputValue().catch(() => "")).trim() === t.value.trim()) notes.push(`${t.label}: re-entered after the form ${now.trim() ? `changed it to "${now.trim().slice(0, 40)}"` : "cleared it"}`);
+    else notes.push(`${t.label}: the form keeps clearing it; check it in the window`);
+  }
   // Education rows are filled above; do not report their fields as unanswered.
   const eduLabel = /search schools|^degree$|field of study|still (a )?student/i;
   // Optional fields with no known answer are left blank, as a person would: Twitter, pronouns, "anything
@@ -538,6 +562,7 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
 }
 
 async function submitGeneric(page: Page) {
+  await dismissCookieBanner(page);
   const btn = page.getByRole("button", { name: /submit( application)?|apply/i }).last();
   await btn.scrollIntoViewIfNeeded(); await page.waitForTimeout(jitter(800, 2000));
   await btn.hover(); await page.waitForTimeout(jitter(200, 600));
@@ -581,7 +606,8 @@ async function fill(app: Application) {
     await dismissCookieBanner(page);
     if (app.job!.board === "greenhouse") await fillGreenhouse(page, app, notes);
     else await discoverAndFillGeneric(page, app, notes);
-    await page.waitForTimeout(800);
+    // Lever's cookie notice appears late and sits over the Submit button; close it before the screenshot too.
+    await dismissCookieBanner(page);
     const shot = await page.screenshot({ fullPage: true });
     live.set(app.id, { page, app, filledAt: Date.now() });
     await report(app.id, { status: "filled", notes, screenshotBase64: shot.toString("base64") });

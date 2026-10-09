@@ -34,14 +34,21 @@ const say = (s = "") => console.log(s);
 const fail = (s: string): never => { console.error(`${red("✗")} ${s}`); process.exit(1); };
 
 // ---- config -------------------------------------------------------------------------
+/**
+ * One config file per server: config.json for lazyapply.online, config.<host>.json for anything
+ * else (--app-url or LAZY_APPLY_URL, used for local testing). Connecting to a test server must
+ * never overwrite the production token that the login item depends on.
+ */
+const configPath = (appUrl: string) => (appUrl === DEFAULT_APP ? CONFIG : join(HOME, `config.${appUrl.replace(/^https?:\/\//, "").replace(/[^a-z0-9.-]+/gi, "_")}.json`));
 function load(): Config {
-  const fromFlag = flag("--app-url");
+  const target = (flag("--app-url") || process.env.LAZY_APPLY_URL || "").replace(/\/$/, "");
+  const file = target ? configPath(target) : CONFIG;
   try {
-    const c = JSON.parse(readFileSync(CONFIG, "utf8")) as Config;
-    return fromFlag && fromFlag !== c.appUrl ? { appUrl: fromFlag } : c;
-  } catch { return { appUrl: fromFlag || process.env.LAZY_APPLY_URL || DEFAULT_APP }; }
+    const c = JSON.parse(readFileSync(file, "utf8")) as Config;
+    return target && c.appUrl !== target ? { appUrl: target } : c;
+  } catch { return { appUrl: target || DEFAULT_APP }; }
 }
-function save(c: Config) { mkdirSync(HOME, { recursive: true }); writeFileSync(CONFIG, JSON.stringify(c, null, 2), { mode: 0o600 }); }
+function save(c: Config) { mkdirSync(HOME, { recursive: true }); writeFileSync(configPath(c.appUrl), JSON.stringify(c, null, 2), { mode: 0o600 }); }
 function flag(name: string): string | undefined { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : undefined; }
 
 // ---- connect this computer ----------------------------------------------------------
@@ -194,7 +201,7 @@ const autostartInstalled = () => existsSync(platform() === "darwin" ? plistPath(
 // ---- running ------------------------------------------------------------------------
 /** The runner's own lock file holds the pid of the instance that is running. */
 function runningPid(appUrl: string): number | null {
-  const lock = join(tmpdir(), `auto-apply-runner-chrome-profile-${appUrl.replace(/[^a-z0-9]+/gi, "_")}.lock`);
+  const lock = join(tmpdir(), `auto-apply-runner-${process.env.RUNNER_PROFILE || "chrome-profile"}-${appUrl.replace(/[^a-z0-9]+/gi, "_")}.lock`);
   try { const pid = Number(readFileSync(lock, "utf8")); process.kill(pid, 0); return pid; } catch { return null; }
 }
 
@@ -213,9 +220,11 @@ async function ask(question: string, yes = true): Promise<boolean> {
   // Never change login items for a script or CI run: only a person at a terminal can say yes.
   if (!process.stdin.isTTY) return false;
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  const a = (await rl.question(`${question} ${dim(yes ? "[Y/n]" : "[y/N]")} `)).trim().toLowerCase();
-  rl.close();
-  return a ? a.startsWith("y") : yes;
+  try {
+    const a = (await rl.question(`${question} ${dim(yes ? "[Y/n]" : "[y/N]")} `)).trim().toLowerCase();
+    return a ? a.startsWith("y") : yes;
+  } catch { say(); return false; } // Ctrl+D or closed stdin: no change, never a crash
+  finally { rl.close(); }
 }
 
 // ---- commands -----------------------------------------------------------------------
@@ -245,13 +254,17 @@ async function main() {
     say(`${bold("Lazy Apply runner")} ${dim(`v${VERSION}`)}`);
     say(`  Account          ${c.token ? (c.account || "connected") : yellow("not connected (run npx lazy-apply)")}`);
     say(`  Server           ${c.appUrl}`);
-    say(`  Automatic start  ${autostartInstalled() ? green("on") : "off"}`);
+    say(`  Automatic start  ${c.appUrl !== DEFAULT_APP ? dim(`not for this server (only ${DEFAULT_APP})`) : autostartInstalled() ? green("on") : "off"}`);
     say(`  Running          ${pid ? green(`yes (pid ${pid})`) : "no"}`);
     say(`  Log              ${LOG}`);
     return;
   }
 
+  // The login item always runs `lazy-apply@latest start`, which reads the lazyapply.online config: automatic
+  // start belongs to that server alone, and a test server must never add or remove it.
+  const defaultServer = c.appUrl === DEFAULT_APP;
   if (cmd === "autostart") {
+    if (!defaultServer) fail(`Automatic start is only for ${DEFAULT_APP}. Run npx lazy-apply --app-url ${c.appUrl} start instead.`);
     const on = (process.argv[process.argv.indexOf("autostart") + 1] || "on") !== "off";
     if (on) { if (!c.token) c = await connect(c); const how = enableAutostart(); save({ ...c, autostart: true }); say(`${green("✓")} Automatic start is on (${how}). It runs in the background whenever you log in.`); }
     else { disableAutostart(); save({ ...c, autostart: false }); say(`${green("✓")} Automatic start is off.`); }
@@ -259,9 +272,9 @@ async function main() {
   }
 
   if (cmd === "logout") {
-    disableAutostart();
+    if (defaultServer) disableAutostart();
     save({ appUrl: c.appUrl, autostart: false });
-    say(`${green("✓")} This computer is disconnected and will not start automatically. Run npx lazy-apply to connect again.`);
+    say(`${green("✓")} This computer is disconnected from ${c.appUrl}${defaultServer ? " and will not start automatically" : ""}. Run npx lazy-apply to connect again.`);
     return;
   }
 
@@ -281,7 +294,7 @@ async function main() {
 
   // On Linux a background service can only open Chrome inside a desktop session.
   const canAutostart = platform() !== "linux" || !!process.env.DISPLAY || !!process.env.WAYLAND_DISPLAY;
-  if (c.autostart === undefined && canAutostart) {
+  if (c.autostart === undefined && canAutostart && defaultServer) {
     const yes = await ask(`Start automatically in the background whenever you log in? It also keeps itself up to date.`);
     if (yes) {
       const how = enableAutostart();

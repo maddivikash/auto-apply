@@ -74,7 +74,8 @@ const RULES: Rule[] = [
   { test: /phone|mobile/i, answer: (s) => or(s.phone) },
   { test: /include your linkedin.*(website|blog)|linkedin.*personal website|website or blog/i, answer: (s) => or(links(s)) },
   { test: /linkedin/i, answer: (s) => or(s.linkedin) },
-  { test: /github/i, answer: (s) => or(s.github) },
+  // The profile link, not "experience with GitHub Actions": only short, link-shaped labels.
+  { test: /^(your )?github( (url|link|profile|username|account|handle))?$|github (url|link|profile)/i, answer: (s) => or(s.github) },
   { test: /portfolio|personal (web)?site|^website$/i, answer: (s) => or(s.website) },
   { test: /(authori[sz]ed|eligible|right) to work|work authori[sz]ation|work permit/i, answer: (s, o, ctx) => { const a = authorizedAnswer(s, ctx?.jobLocation); if (!a) return undefined; return o?.length ? pick(o, a === "Yes" ? /^yes\b/i : /^no\b/i) : a; } },
   { test: /sponsor(ship)?|visa|immigration/i, answer: (s, o, ctx) => { const a = sponsorshipAnswer(s, ctx?.jobLocation); if (!a) return undefined; return o?.length ? pick(o, a === "No" ? /^no\b/i : /^yes\b/i) : a; } },
@@ -95,7 +96,19 @@ const RULES: Rule[] = [
   { test: /^degree\b|type of degree|degree type/i, answer: (s, o) => { const l = latest(s); if (!l) return undefined; return o?.length ? degreeOption(l.level, o) : l.degreeText; } },
   { test: /discipline|field of study|^major\b|area of study|specializ/i, answer: (s) => or(latest(s)?.discipline) },
   { test: /graduation (year|date)|year of graduation|(expected )?graduat/i, answer: (s, o) => { const l = latest(s); if (!l?.endYear) return undefined; return o?.length ? pick(o, new RegExp(`\\b${l.endYear}\\b`)) : l.endYear; } },
-  { test: /notice period|earliest.*start|start date|availability|when (can|could|would) you (start|join)/i, answer: (s) => or(s.noticePeriod) },
+  { test: /notice period|earliest.*start|start date|availability|when (can|could|would) you (start|join)/i, answer: (s, o) => {
+    if (!o?.length) return or(s.noticePeriod);
+    // Choice lists bucket the notice: "Immediate Joiner", "30-45 days", "Less than 30 days", "90+ days". Find the bucket holding ours.
+    const n = /immediate|right away|now/i.test(s.noticePeriod) ? 0 : parseInt(s.noticePeriod, 10);
+    if (isNaN(n)) return undefined;
+    return o.find((x) => {
+      const range = /(\d+)\s*(?:-|–|to)\s*(\d+)/.exec(x); if (range) return n >= +range[1] && n <= +range[2];
+      const num = /(\d+)/.exec(x)?.[1]; if (!num) return n === 0 && /immediate/i.test(x);
+      if (/\+|more than|over|above|greater/i.test(x)) return n >= +num;
+      if (/less than|under|within|up to|below|at most/i.test(x)) return n <= +num;
+      return n === +num;
+    });
+  } },
   { test: /18 years|legal age|at least 18/i, answer: (_s, o) => pick(o, /^yes\b/i) },
   { test: /\b\d+\s*\+?\s*(or more\s*)?(years?|yrs)\b(?! of age)/i, answer: (s, o, _c, label) => { const n = Number((label || "").match(/(\d+)\s*\+?\s*(or more\s*)?(years?|yrs)/i)?.[1]); const mine = parseFloat(s.yearsExperience); if (!o?.length || !n || isNaN(mine)) return undefined; return pick(o, mine >= n ? /^yes\b/i : /^no\b/i); } },
   { test: /years? of (professional |relevant |work |industry )?experience/i, answer: (s, o) => o?.length ? (s.yearsExperience ? pick(o, new RegExp(`^${s.yearsExperience}\\b`)) : undefined) : or(s.yearsExperience) },
@@ -118,7 +131,18 @@ export function answerFor(settings: Settings, label: string, options?: string[],
   for (const r of RULES) {
     if (r.test.test(words)) {
       const v = r.answer(settings, options, ctx, words);
-      return v ? { value: v, source: "rule" } : undefined;
+      if (!v) return undefined;
+      // A rule's free-text answer is no use for a choice field: "Are you currently located in the New York
+      // area?" (Yes/No) must not become "Bengaluru, India". Leave it for the person instead.
+      if (options?.length) {
+        const want = v.trim().toLowerCase();
+        // "30 days" may be offered as "I can start within 30 days": take the one option that contains the answer.
+        const exact = options.find((o) => o.trim().toLowerCase() === want);
+        const containing = options.filter((o) => o.toLowerCase().includes(want));
+        const chosen = exact ?? (containing.length === 1 ? containing[0] : undefined);
+        return chosen ? { value: chosen, source: "rule" } : undefined;
+      }
+      return { value: v, source: "rule" };
     }
   }
   return undefined;

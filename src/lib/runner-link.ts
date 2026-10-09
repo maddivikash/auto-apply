@@ -38,7 +38,9 @@ export async function createLink(device: string): Promise<{ secret: string; code
 /** The pending link a code points to, for the confirmation page. */
 export async function linkForCode(code: string): Promise<{ secret: string; link: RunnerLink } | null> {
   const ref = await getDoc<{ secret: string; expiresAt: number }>(codeKey(normalizeCode(code)));
-  if (!ref || ref.expiresAt < Date.now()) return null;
+  if (!ref) return null;
+  // Expired codes are tidied the next time anyone looks them up, so the store does not fill with dead links.
+  if (ref.expiresAt < Date.now()) { await Promise.all([delDoc(codeKey(normalizeCode(code))), delDoc(linkKey(ref.secret))]).catch(() => {}); return null; }
   const link = await getDoc<RunnerLink>(linkKey(ref.secret));
   return link && link.expiresAt >= Date.now() ? { secret: ref.secret, link } : null;
 }
@@ -52,7 +54,8 @@ export async function approveLink(secret: string, userId: string, token: string,
 /** What the CLI's poll sees. The token is handed over exactly once, then the link is gone. */
 export async function takeLink(secret: string): Promise<{ status: "pending" | "expired" } | { status: "approved"; token: string; account: string }> {
   const link = await getDoc<RunnerLink>(linkKey(secret));
-  if (!link || link.expiresAt < Date.now()) return { status: "expired" };
+  if (!link) return { status: "expired" };
+  if (link.expiresAt < Date.now()) { await Promise.all([delDoc(linkKey(secret)), delDoc(codeKey(link.code))]).catch(() => {}); return { status: "expired" }; }
   if (link.status !== "approved" || !link.token) return { status: "pending" };
   await Promise.all([delDoc(linkKey(secret)), delDoc(codeKey(link.code))]);
   return { status: "approved", token: link.token, account: link.account || "" };

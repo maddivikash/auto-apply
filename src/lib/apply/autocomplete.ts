@@ -39,11 +39,14 @@ export async function leverLocationPicked(page: Page): Promise<boolean> {
 export async function ensureLeverLocation(page: Page, city: string): Promise<string | undefined> {
   const input = page.locator("#location-input");
   if (!(await input.count()) || !city) return undefined;
-  for (const how of ["click", "keyboard"] as const) {
+  // Keyboard first: the suggestion box renders before its entries arrive, and a click on the empty box
+  // blurs the field, which then throws the typed city away. ArrowDown + Enter waits for a real entry.
+  for (const how of ["keyboard", "click"] as const) {
     await input.scrollIntoViewIfNeeded(); await input.fill(""); await input.pressSequentially(city, { delay: 45 + Math.random() * 40 });
     if (how === "click") await pickSuggestion(page, city, 8000);
-    else { await page.locator(".dropdown-location").first().waitFor({ state: "visible", timeout: 8000 }).catch(() => {}); await input.press("ArrowDown"); await input.press("Enter"); await page.waitForTimeout(500); }
-    if (await leverLocationPicked(page)) return input.inputValue();
+    else { await page.locator(".dropdown-location").first().waitFor({ state: "visible", timeout: 8000 }).catch(() => {}); await page.waitForTimeout(1200); await input.press("ArrowDown"); await input.press("Enter"); await page.waitForTimeout(500); }
+    // Both must hold: the hidden choice Lever validates and the text the person sees.
+    if ((await leverLocationPicked(page)) && (await input.inputValue()).trim()) return input.inputValue();
   }
   return undefined;
 }

@@ -1,8 +1,9 @@
 import { runnerUserId } from "@/lib/auth";
-import { listApplications, getSettings, getProfile } from "@/lib/store";
+import { listApplications, getSettings, getProfile, saveApplication } from "@/lib/store";
 import { Settings } from "@/lib/profile/types";
-import { withProfileFallback } from "@/lib/apply/answers";
+import { refreshAnswers, withProfileFallback } from "@/lib/apply/answers";
 import { markRunnerSeen } from "@/lib/runner-link";
+import { getBank } from "@/lib/apply/bank";
 
 /** The local runner polls this. Returns the user's work plus the answers it needs to fill forms. */
 export async function GET(req: Request) {
@@ -12,5 +13,12 @@ export async function GET(req: Request) {
   await markRunnerSeen(uid, req.headers.get("x-runner-client") || "runner").catch(() => {});
   const [apps, settings, profile] = await Promise.all([listApplications(uid), getSettings(uid), getProfile(uid)]);
   const work = apps.filter((a) => a.status === "approved" || a.status === "submit_requested" || (a.status === "code_required" && !!a.verificationCode));
-  return Response.json({ work, settings: withProfileFallback(Settings.parse(settings ?? {}), profile) });
+  const merged = withProfileFallback(Settings.parse(settings ?? {}), profile);
+  // Rule answers were computed when the application was prepared; recompute them now so a changed
+  // standing answer, or a corrected rule, reaches the form without a regenerate. User answers stay.
+  if (work.length) {
+    const bank = await getBank(uid);
+    await Promise.all(work.filter((a) => refreshAnswers(a, merged, bank)).map((a) => saveApplication(a)));
+  }
+  return Response.json({ work, settings: merged });
 }
