@@ -19,11 +19,19 @@ type Rule = { test: RegExp; answer: (s: Settings, opts?: string[], ctx?: AnswerC
 
 const COUNTRY_HINTS: [RegExp, string][] = [
   [/\b(india|bengaluru|bangalore|hyderabad|gurugram|gurgaon|mumbai|pune|chennai|delhi|noida|kolkata)\b/i, "India"],
-  [/\b(united states|usa|u\.s\.|new york|san francisco|seattle|austin|boston|chicago|los angeles|denver|atlanta)\b|,\s*[A-Z]{2}(\s*\(|$|\s*\||\s*;)/, "United States"],
+  // Two patterns on purpose: place names are matched regardless of case, a trailing ", CA"-style state code only in capitals.
+  // (One case-sensitive pattern used to miss "United States" itself, so US jobs never got their authorization or sponsorship answers.)
+  [/\b(united states|usa|u\.s\.a?|us remote|remote,? us|new york|nyc|san francisco|bay area|silicon valley|palo alto|mountain view|menlo park|san jose|sunnyvale|redwood city|oakland|seattle|austin|boston|chicago|los angeles|denver|atlanta|miami|dallas|houston|phoenix|philadelphia|san diego|portland|washington,? d\.?c\.?|salt lake city|minneapolis|raleigh|nashville)\b/i, "United States"],
+  [/,\s*[A-Z]{2}(\s*\(|$|\s*\||\s*;)/, "United States"],
   [/\b(united kingdom|uk|london|manchester|edinburgh)\b/i, "United Kingdom"],
   [/\b(ireland|dublin)\b/i, "Ireland"], [/\b(netherlands|amsterdam)\b/i, "Netherlands"], [/\b(germany|berlin|munich)\b/i, "Germany"],
   [/\b(france|paris)\b/i, "France"], [/\b(canada|toronto|vancouver|montreal)\b/i, "Canada"], [/\b(singapore)\b/i, "Singapore"],
-  [/\b(australia|sydney|melbourne)\b/i, "Australia"], [/\b(uae|dubai|abu dhabi)\b/i, "United Arab Emirates"], [/\b(japan|tokyo)\b/i, "Japan"]
+  [/\b(australia|sydney|melbourne)\b/i, "Australia"], [/\b(uae|dubai|abu dhabi)\b/i, "United Arab Emirates"], [/\b(japan|tokyo)\b/i, "Japan"],
+  [/\b(chile|santiago)\b/i, "Chile"], [/\b(pakistan|karachi|lahore|islamabad)\b/i, "Pakistan"], [/\b(vietnam|viet nam|ho chi minh|hanoi)\b/i, "Vietnam"],
+  [/\b(philippines|manila|cebu)\b/i, "Philippines"], [/\b(brazil|brasil|são paulo|sao paulo|rio de janeiro)\b/i, "Brazil"], [/\b(mexico|méxico|mexico city|guadalajara|monterrey)\b/i, "Mexico"],
+  [/\b(spain|madrid|barcelona)\b/i, "Spain"], [/\b(italy|milan|rome)\b/i, "Italy"], [/\b(poland|warsaw|krakow|kraków|wrocław|wroclaw)\b/i, "Poland"], [/\b(portugal|lisbon|porto)\b/i, "Portugal"],
+  [/\b(sweden|stockholm)\b/i, "Sweden"], [/\b(switzerland|zurich|zürich|geneva)\b/i, "Switzerland"], [/\b(israel|tel aviv)\b/i, "Israel"], [/\b(south africa|cape town|johannesburg)\b/i, "South Africa"],
+  [/\b(new zealand|auckland|wellington)\b/i, "New Zealand"], [/\b(indonesia|jakarta)\b/i, "Indonesia"], [/\b(malaysia|kuala lumpur)\b/i, "Malaysia"], [/\b(argentina|buenos aires)\b/i, "Argentina"], [/\b(colombia|bogot[aá])\b/i, "Colombia"]
 ];
 export function countryOf(location?: string): string | undefined {
   if (!location) return undefined;
@@ -64,6 +72,9 @@ const RULES: Rule[] = [
   { test: /(previously|ever|before) (worked|been employed|consulted|interned)( at| for| with)|former (employee|contractor) (of|at)/i, answer: (_s, o) => yesNo(o, false) },
   // "...sponsorship to remain in your current location": about where the person lives, not where the job is.
   { test: /sponsor[^?]*(current(ly)? (location|country)|where you (currently )?(live|reside|are based))/i, answer: (s, o) => { const home = countryOf(s.location); if (!home) return undefined; const ok = s.workAuthorizedCountries.split(",").some((c) => c.trim().toLowerCase() === home.toLowerCase()); return yesNo(o, !ok); } },
+  // "Are you currently located in the New York area?" / "Do you live in the Bay Area?": compare the named area with where the person lives.
+  { test: /(located|based|live|living|reside|residing) (in|near|within) (the )?(greater )?[A-Z][\w.' -]*?\s?(area|region|metro(politan)?( area)?|bay area)\b/i, answer: (s, o, _c, label) => { const m = (label || "").match(/(located|based|live|living|reside|residing) (?:in|near|within) (?:the )?(?:greater )?([A-Z][\w.' -]*?)\s?(?:area|region|metro)/i); const area = m?.[2]?.trim(); if (!area || !s.location) return undefined; const words = area.split(/\s+/).filter((w) => w.length > 2 && !/^(the|and|or)$/i.test(w)); const here = words.some((w) => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i").test(s.location)); return here ? yesNo(o, true) : undefined; } },
+  // Not in that area is left to the person: "No" often auto-rejects, and they may be about to move there.
   // "Are you currently located in either Canada, UK or Poland?"
   { test: /(currently |presently )?(locat(ed|ion)|living|based|residing|reside) in (either )?[A-Z][^?]*\b(or|and)\b/i, answer: (s, o, _c, label) => { const home = countryOf(s.location); if (!home || !label) return undefined; const listed = countriesIn(label.replace(/^.*?\b(?:in|either)\b/i, "")); return listed.size ? yesNo(o, listed.has(home)) : undefined; } },
   { test: /^first\s*name/i, answer: (s) => or(s.firstName) },
@@ -83,7 +94,7 @@ const RULES: Rule[] = [
   { test: /open to (working )?(in[- ]?person|hybrid|in one of our offices)|onsite|on-site/i, answer: (s, o) => pick(o, s.openToOnsite === "Yes" ? /^yes\b/i : /^no\b/i) },
   { test: /remote/i, answer: (_s, o) => pick(o, /^yes\b/i, /open|either|flexible/i) },
   { test: /office of choice|which office|preferred (office|location)|office location|work location preference/i, answer: (s, o, ctx) => { if (!o?.length) return undefined; const cities = [s.location, ctx?.jobLocation].filter(Boolean).flatMap((v) => v!.split(/[,/]/)).map((c) => c.trim()).filter((c) => c.length > 2); for (const c of cities) { const hit = o.find((x) => new RegExp(`\\b${c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(x) || (/^bengaluru$/i.test(c) && /bangalore/i.test(x)) || (/^bangalore$/i.test(c) && /bengaluru/i.test(x))); if (hit) return hit; } return undefined; } },
-  { test: /^(what('s| is) )?(your )?(current |present )?location( \([^)]*\))?$|^(current )?city( \([^)]*\))?$|city of residence|which city (are you|do you) (currently )?(based|located|live|reside)|city (you|do you) (currently )?(live|are based|reside) in|where (are you|do you) (currently )?(based|live|reside|located)|current(ly)? (city|located|residing)|(your|preferred|present) location\b|location in (india|the )/i, answer: (s) => or(s.location) },
+  { test: /^(what('s| is) )?(your )?(current |present )?location( \([^)]*\))?$|^(current )?city( \([^)]*\))?$|city of residence|(which|what) city (are you|do you) (currently )?(based|located|live|reside|in)|city (you|do you) (currently )?(live|are based|reside) in|where (are you|do you) (currently )?(based|live|reside|located)|current(ly)? (city|located|residing)|(your|preferred|present) location\b|location in (india|the )/i, answer: (s) => or(s.location) },
   { test: /flexible (to |with )?(work|working|relocat)|willing to work (from|in|at)|open to (working|relocating) (from|in|to)|comfortable (working|commuting) (from|to|in)/i, answer: (s, o) => o?.length ? pick(o, s.willingToRelocate === "Yes" ? /^yes\b/i : /^no\b/i) : s.willingToRelocate },
   { test: /country of residence|(country|where) (are|do) you (currently )?(based|reside|live|located)/i, answer: (s) => countryOf(s.location) },
   { test: /(how|where) did you (hear|find|learn)|referral source|^source$/i, answer: (s, o) => o?.length ? pick(o, new RegExp(s.heardFrom || "linkedin", "i")) : or(s.heardFrom, "LinkedIn") },
@@ -111,6 +122,7 @@ const RULES: Rule[] = [
   } },
   { test: /18 years|legal age|at least 18/i, answer: (_s, o) => pick(o, /^yes\b/i) },
   { test: /\b\d+\s*\+?\s*(or more\s*)?(years?|yrs)\b(?! of age)/i, answer: (s, o, _c, label) => { const n = Number((label || "").match(/(\d+)\s*\+?\s*(or more\s*)?(years?|yrs)/i)?.[1]); const mine = parseFloat(s.yearsExperience); if (!o?.length || !n || isNaN(mine)) return undefined; return pick(o, mine >= n ? /^yes\b/i : /^no\b/i); } },
+  { test: /how many years\b.*\bexperience/i, answer: (s, o) => o?.length ? undefined : or(s.yearsExperience) },
   { test: /years? of (professional |relevant |work |industry )?experience/i, answer: (s, o) => o?.length ? (s.yearsExperience ? pick(o, new RegExp(`^${s.yearsExperience}\\b`)) : undefined) : or(s.yearsExperience) },
   { test: /(current|most recent|latest|present)[^.?]{0,25}(employer|company|organi[sz]ation)\b/i, answer: (s) => or(s.currentCompany) },
   { test: /(current|most recent|latest|present)[^.?]{0,25}(job )?(title|role|position|designation)\b/i, answer: (s) => or(s.currentTitle) },
