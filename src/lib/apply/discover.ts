@@ -190,6 +190,9 @@ export function findEmptyRequired(): string[] {
   const labels = Array.from(document.querySelectorAll<HTMLElement>("label, legend, [class*=question-title]"));
   for (const lab of labels) {
     const raw = textOf(lab);
+    // Greenhouse gives every upload button a hidden label reading "Attach" / "Dropbox" / "Enter manually":
+    // those are controls, not questions; the question's own label is handled on its own.
+    if (/^\s*(attach( file)?|dropbox|google drive|enter manually)\s*$/i.test(raw)) continue;
     const ctl = (lab as HTMLLabelElement).control as HTMLElement | null;
     // An option's own label in a radio or checkbox group is not a question: judge the whole group, once,
     // under the group's question (Lever renders every option as a separate required <label>).
@@ -228,7 +231,9 @@ export function findEmptyRequired(): string[] {
     const texts = Array.from(scope.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("input:not([type=hidden]):not([type=radio]):not([type=checkbox]):not([type=file]):not([type=submit]), textarea, select"));
     const files = Array.from(scope.querySelectorAll<HTMLInputElement>("input[type=file]"));
     const checks = Array.from(scope.querySelectorAll<HTMLInputElement>("input[type=radio], input[type=checkbox]"));
-    const buttons = Array.from(scope.querySelectorAll<HTMLElement>("button, [role=radio], [role=checkbox]")).filter((b) => (b as HTMLButtonElement).type !== "submit");
+    // A <button> with no type attribute reports .type === "submit", which used to drop Ashby's Yes/No buttons here and
+    // flag every "No" answer as empty (its hidden checkbox is only checked for Yes). Exclude real submit buttons only.
+    const buttons = Array.from(scope.querySelectorAll<HTMLElement>("button, [role=radio], [role=checkbox]")).filter((b) => b.getAttribute("type") !== "submit" && !/^\s*submit/i.test(b.textContent || ""));
     if (!texts.length && !files.length && !checks.length && !buttons.length) continue;
     const scopeText = scope.textContent || "";
     // Searchable dropdowns (react-select on Greenhouse's job-boards) keep their typing box empty and show the
