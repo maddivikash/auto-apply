@@ -152,9 +152,21 @@ function enableAutostart(): string {
     mkdirSync(dirname(plistPath()), { recursive: true });
     writeFileSync(plistPath(), launchAgentPlist(npxPath(), path, LOG));
     const uid = process.getuid?.() ?? 501;
-    try { execFileSync("launchctl", ["bootout", `gui/${uid}/${LABEL}`], { stdio: "ignore" }); } catch { /* not loaded yet */ }
-    execFileSync("launchctl", ["bootstrap", `gui/${uid}`, plistPath()], { stdio: "ignore" });
-    return "macOS login item";
+    const launchctl = (...args: string[]) => execFileSync("launchctl", args, { stdio: ["ignore", "ignore", "pipe"] });
+    try { launchctl("bootout", `gui/${uid}/${LABEL}`); } catch { /* not loaded yet */ }
+    // launchd often answers "Input/output error" to a bootstrap that follows a bootout within a second;
+    // a short pause and a retry is the documented workaround, and a loaded service only needs a kickstart.
+    let lastError = "";
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try { launchctl("bootstrap", `gui/${uid}`, plistPath()); return "macOS login item"; }
+      catch (e) {
+        lastError = String((e as { stderr?: Buffer }).stderr ?? (e as Error).message).trim();
+        if (/already (bootstrapped|loaded)|service already loaded/i.test(lastError)) { try { launchctl("kickstart", "-k", `gui/${uid}/${LABEL}`); } catch { /* fine */ } return "macOS login item"; }
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 700 * (attempt + 1));
+      }
+    }
+    try { launchctl("print", `gui/${uid}/${LABEL}`); return "macOS login item"; } catch { /* really not loaded */ }
+    return fail(`macOS refused to install the login item (${lastError || "launchctl bootstrap failed"}). Run npx lazy-apply start to use it in this terminal, or try npx lazy-apply autostart on again in a minute.`);
   }
   if (p === "linux") {
     mkdirSync(dirname(unitPath()), { recursive: true });
@@ -196,6 +208,17 @@ function disableAutostart() {
   } else if (p === "win32") rmSync(startupPath(), { force: true });
 }
 
+/** After the token changes, the background runner must restart to pick up the new account. */
+function restartBackground() {
+  const p = platform();
+  try {
+    if (p === "darwin") execFileSync("launchctl", ["kickstart", "-k", `gui/${process.getuid?.() ?? 501}/${LABEL}`], { stdio: "ignore" });
+    else if (p === "linux") execFileSync("systemctl", ["--user", "restart", "lazy-apply.service"], { stdio: "ignore" });
+    else return false;
+    return true;
+  } catch { return false; }
+}
+
 const autostartInstalled = () => existsSync(platform() === "darwin" ? plistPath() : platform() === "linux" ? unitPath() : startupPath());
 
 // ---- running ------------------------------------------------------------------------
@@ -227,6 +250,16 @@ async function ask(question: string, yes = true): Promise<boolean> {
   finally { rl.close(); }
 }
 
+/** `npx lazy-apply` reuses whatever version npx cached; say so when the registry has a newer one. */
+async function newerVersionNotice() {
+  try {
+    const r = await fetch("https://registry.npmjs.org/lazy-apply/latest", { signal: AbortSignal.timeout(2000) });
+    const { version } = (await r.json()) as { version?: string };
+    if (version && version !== VERSION && version.localeCompare(VERSION, undefined, { numeric: true }) > 0)
+      say(`${yellow("!")} Version ${version} is out (you are on ${VERSION}). Run ${bold("npx lazy-apply@latest")} to use it.`);
+  } catch { /* offline or registry slow: not worth a word */ }
+}
+
 // ---- commands -----------------------------------------------------------------------
 async function main() {
   const cmd = process.argv.slice(2).find((a) => !a.startsWith("--") && a !== flag("--app-url")) || "setup";
@@ -240,6 +273,7 @@ async function main() {
     say(`  npx lazy-apply autostart on     start automatically when you log in`);
     say(`  npx lazy-apply autostart off    stop starting automatically`);
     say(`  npx lazy-apply start            run now, in this terminal`);
+    say(`  npx lazy-apply switch           connect this computer to a different Lazy Apply account`);
     say(`  npx lazy-apply logout           disconnect this computer`);
     return;
   }
@@ -271,6 +305,15 @@ async function main() {
     return;
   }
 
+  if (cmd === "switch" || cmd === "login" || cmd === "connect") {
+    if (c.account) say(`Currently connected as ${bold(c.account)}. Sign in to the account you want in the browser tab that opens.`);
+    c = await connect({ appUrl: c.appUrl, autostart: c.autostart });
+    save(c);
+    const restarted = defaultServer && c.autostart && autostartInstalled() && restartBackground();
+    say(`${green("✓")} This computer now fills applications for ${bold(c.account || "the new account")}.${restarted ? " The background runner restarted with it." : ""}`);
+    return;
+  }
+
   if (cmd === "logout") {
     if (defaultServer) disableAutostart();
     save({ appUrl: c.appUrl, autostart: false });
@@ -282,9 +325,19 @@ async function main() {
 
   // Setup: connect, check Chrome, offer automatic start, then run.
   say(`${bold(teal("Lazy Apply"))} ${dim(`runner v${VERSION}`)}`);
+  await newerVersionNotice();
   say();
   if (!c.token) { c = await connect(c); say(); }
-  else say(`${green("✓")} Connected${c.account ? ` as ${bold(c.account)}` : ""}.`);
+  else {
+    say(`${green("✓")} Connected${c.account ? ` as ${bold(c.account)}` : ""}. ${dim("Not you? Run npx lazy-apply switch.")}`);
+    // Someone who signed in to a different account in the browser lands here with the old token; let them switch now.
+    if (c.account && !(await ask(`Keep using ${c.account}?`))) {
+      c = await connect({ appUrl: c.appUrl, autostart: c.autostart });
+      save(c);
+      if (defaultServer && c.autostart && autostartInstalled()) restartBackground();
+      say();
+    }
+  }
 
   if (!chromeInstalled()) {
     say(`${yellow("!")} Google Chrome was not found. The runner fills forms in Chrome, so install it from ${bold("https://www.google.com/chrome/")} and run ${bold("npx lazy-apply")} again.`);

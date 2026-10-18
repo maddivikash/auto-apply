@@ -23,7 +23,7 @@ async function connection(uid: string) {
   const detail = online
     ? `Last seen ${ago(age)}, from ${where(seen!.client)}. Approved applications are filled automatically.`
     : seen ? `Last seen ${ago(age)}. Start it again with the command below, or turn on automatic start so this never happens.`
-      : "Run the command below once. This page updates on its own when it connects.";
+      : "Run the command below once. This page updates on its own when it connects. Already set it up for another Lazy Apply account on this computer? Run npx lazy-apply switch instead.";
   return { online, title, detail };
 }
 
@@ -47,13 +47,13 @@ export default async function RunnerPage() {
       <section className="panel grid gap-6 p-5 md:grid-cols-[200px_1fr] md:p-6">
         <div><h2 className="text-[15px] font-semibold">Set up in one step</h2><p className="mt-1 text-[12.5px] leading-relaxed text-muted">Needs Node.js 18 or newer and Google Chrome. Works on macOS, Windows and Linux.</p></div>
         <div className="space-y-4">
-          <div><p className="mb-2 text-[13.5px]">Open Terminal and run:</p><CopyField value="npx lazy-apply" label="Command" /></div>
+          <div><p className="mb-2 text-[13.5px]">Open Terminal and run:</p><CopyField value="npx lazy-apply@latest" label="Command" /></div>
           <ol className="space-y-2.5 text-[13.5px] text-muted">
             <li className="flex gap-3"><span className="mono text-faint">1</span><span>Your browser opens on Lazy Apply. Check the code matches your terminal and press <span className="text-fg">Connect this computer</span>. No token to copy.</span></li>
             <li className="flex gap-3"><span className="mono text-faint">2</span><span>Answer <span className="text-fg">yes</span> to starting automatically. From then on it runs in the background whenever you log in, and updates itself.</span></li>
             <li className="flex gap-3"><span className="mono text-faint">3</span><span>That is all. Approve an application here and watch the form fill in Chrome.</span></li>
           </ol>
-          <p className="text-[12.5px] text-muted">Later: <code className="kbd">npx lazy-apply status</code> shows what it is doing, and <code className="kbd">npx lazy-apply autostart off</code> stops the automatic start.</p>
+          <p className="text-[12.5px] text-muted">Later: <code className="kbd">npx lazy-apply status</code> shows what it is doing, <code className="kbd">npx lazy-apply switch</code> moves it to a different account, and <code className="kbd">npx lazy-apply autostart off</code> stops the automatic start.</p>
         </div>
       </section>
 
