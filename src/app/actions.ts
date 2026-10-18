@@ -1,5 +1,6 @@
 "use server";
 
+import { openQuestions } from "@/lib/stats";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { nanoid } from "nanoid";
@@ -111,6 +112,8 @@ export async function requestSubmitAction(id: string): Promise<ActionResult> {
     const app = await getApplication(userId, id);
     if (!app) return { ok: false, error: "This application no longer exists." };
     if (app.status !== "filled") return { ok: false, error: "The runner has to fill the form before you can submit." };
+    const open = openQuestions(app);
+    if (open.length) return { ok: false, error: `Answer ${open.length === 1 ? "this first" : `these ${open.length} first`}: ${open.map((q) => q.label).join("; ").slice(0, 200)}. The site will not accept the form without them.` };
     app.status = "submit_requested"; await saveApplication(app);
     revalidatePath("/", "layout");
     return { ok: true, message: "Submit requested. The runner presses Submit on the live form." };
@@ -416,8 +419,9 @@ export async function retryFailedAction(): Promise<ActionResult> {
 export async function submitAllAction(): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
-    const apps = (await listApplications(userId)).filter((a) => a.status === "filled");
-    if (!apps.length) return { ok: false, error: "No filled applications are waiting for Submit." };
+    const all = (await listApplications(userId)).filter((a) => a.status === "filled");
+    const apps = all.filter((a) => !openQuestions(a).length);
+    if (!apps.length) return { ok: false, error: all.length ? `${all.length === 1 ? "This application needs" : "These applications need"} your answers before Submit.` : "No filled applications are waiting for Submit." };
     await Promise.all(apps.map((a) => { a.status = "submit_requested"; return saveApplication(a); }));
     revalidatePath("/", "layout");
     return { ok: true, message: `Submit requested for ${apps.length} application${apps.length > 1 ? "s" : ""}. The runner presses Submit on each live form.` };

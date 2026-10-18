@@ -383,6 +383,9 @@ function countryFromPhone(phone: string): string {
   return map[m[1]] || map[m[1].slice(0, 2)] || map[m[1].slice(0, 1)] || "";
 }
 
+/** Statements a form asks the applicant to agree to; a required one is ticked rather than asked about. */
+const ACKNOWLEDGEMENT = /acknowledg|certif|i agree|agree to|agreement|consent|i confirm|i understand|accept the|attest|declare|i have read|authori[sz]e/i;
+
 const CODE_INPUTS = 'input[autocomplete="one-time-code"], input[maxlength="1"], input[name*="code" i], input[id*="code" i], input[aria-label*="code" i]';
 
 /** After Submit, Greenhouse may ask for an emailed code before it accepts the application. */
@@ -483,8 +486,18 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
     const kind = f.type === "group" ? "select" : f.type;
     const value = stored?.answer || answerFor(SETTINGS, f.label, f.options, kind, { jobLocation: app.job?.location })?.value;
     if (!value) {
-      // A lone checkbox with no rule is left alone (marketing consent), unless it is phrased as a question.
-      if (f.type !== "checkbox" || /\?/.test(f.label)) unanswered.push({ label: f.label, required: f.required, type: kind, options: f.options });
+      if (f.type === "checkbox" && !/\?/.test(f.label)) {
+        // A required statement to agree with (arbitration acknowledgement, "I certify that...") gets ticked, as a
+        // person would before pressing Submit. An optional opt-in is left alone. A required box that is not an
+        // acknowledgement goes back as a question rather than being guessed.
+        if (f.required && ACKNOWLEDGEMENT.test(f.label)) {
+          try { const el = page.locator(f.selector).first(); if (!(await el.isChecked())) await el.check({ force: true }); notes.push(`Ticked the required acknowledgement: ${f.label.slice(0, 70)}`); }
+          catch (e) { notes.push(`Could not tick "${f.label.slice(0, 60)}": ${(e as Error).message.slice(0, 60)}`); unanswered.push({ label: f.label, required: true, type: "checkbox" }); }
+          continue;
+        }
+        if (!f.required) continue;
+      }
+      unanswered.push({ label: f.label, required: f.required, type: kind, options: f.options });
       continue;
     }
     try {
@@ -532,8 +545,20 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
           continue;
         }
         await typeAnswer(el, typed);
-        const picked = await pickSuggestion(page, typed, isPlace ? 8000 : 1300);
+        let picked = await pickSuggestion(page, typed, isPlace ? 8000 : 1300);
+        const combobox = (await el.getAttribute("role")) === "combobox" || !!(await el.getAttribute("aria-autocomplete"));
+        if (!picked && isPlace && combobox) {
+          // Ashby's location (and others like it) throw the typed text away unless a suggestion is chosen:
+          // take the highlighted one with the keyboard, then check the list closed with a value in place.
+          await el.press("ArrowDown").catch(() => {}); await page.waitForTimeout(300); await el.press("Enter").catch(() => {}); await page.waitForTimeout(600);
+          const value = (await el.inputValue()).trim();
+          if (value && (await el.getAttribute("aria-expanded")) !== "true") picked = value;
+        }
         if (picked) notes.push(`${f.label}: chose "${picked}" from the suggestions`);
+        else if (isPlace && combobox) {
+          notes.push(`${f.label}: no suggestion matched "${typed}"; the site will not keep typed text, so this needs your pick`);
+          unanswered.push({ label: f.label, required: f.required, type: "text" });
+        }
         else if (isPlace && (await el.inputValue()) !== typed) notes.push(`${f.label}: the field did not keep "${typed}"; check it in the window`);
         else if (!isPlace) typedText.push({ label: f.label, selector: f.selector, value: typed });
       }
@@ -561,6 +586,11 @@ async function discoverAndFillGeneric(page: Page, app: Application, notes: strin
   }
 }
 
+/** The site rejected the submit and named the fields; each becomes a question for the user. */
+class CorrectionsError extends Error {
+  constructor(public fields: string[], extra: string[]) { super(`The form reported corrections: ${[...fields, ...extra].join("; ") || "see the window"}.`); }
+}
+
 async function submitGeneric(page: Page) {
   await dismissCookieBanner(page);
   const btn = page.getByRole("button", { name: /submit( application)?|apply/i }).last();
@@ -573,7 +603,7 @@ async function submitGeneric(page: Page) {
   const corrections = [...text.matchAll(/missing entry for required field:\s*([^\n]+)/gi)].map((m) => m[1].trim());
   if (/needs corrections|could not read this file/i.test(text) || corrections.length) {
     const fileProblem = /could not read this file/i.test(text) ? ["Resume upload was rejected; re-attach it in the window"] : [];
-    throw new Error(`The form reported corrections: ${[...corrections, ...fileProblem].join("; ") || "see the window"}.`);
+    throw new CorrectionsError(corrections, fileProblem);
   }
   if (/flagged as (possible )?spam|couldn'?t submit your application|unusual (traffic|activity)/i.test(text)) {
     hostBackoffUntil.set(new URL(page.url()).host, Date.now() + SPAM_BACKOFF_MS);
@@ -677,6 +707,18 @@ async function submit(app: Application) {
       }
       await report(app.id, { status: "filled", error: "The site flagged this submission as possible spam twice, even from a fresh page. The form is refilled and open in the window: press Submit there when convenient, then Mark as submitted here.", notes: ["Submit flagged twice; handed over"] });
       log(`spam flag for ${app.id} persisted after ${MAX_FLAG_RETRIES} retries; handed to the user`);
+      return;
+    }
+    if (e instanceof CorrectionsError && e.fields.length) {
+      // Hand the named fields back as questions so the app shows "needs your details" instead of offering Submit again.
+      const known = new Set(app.questions.map((q) => q.label.toLowerCase()));
+      await report(app.id, {
+        status: "filled",
+        error: `The site would not accept the form: ${e.fields.join("; ")}. Answer these here and press Submit again.`,
+        notes: [`Submit attempt: site asked for corrections: ${e.fields.join("; ").slice(0, 160)}`],
+        questions: e.fields.filter((l) => !known.has(l.toLowerCase())).map((label) => ({ label, required: true, type: "text" })),
+      });
+      log(`submit rejected for ${app.id}; corrections: ${e.fields.join("; ")}`);
       return;
     }
     await report(app.id, { status: "filled", error: msg.slice(0, 220), notes: [`Submit attempt: ${msg.slice(0, 160)}`] });

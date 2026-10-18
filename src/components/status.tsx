@@ -21,11 +21,13 @@ const TONE_CLASS: Record<Tone, string> = {
   danger: "bg-danger-soft text-danger",
   done: "bg-go text-white"
 };
-export function StatusBadge({ status }: { status: ApplicationStatus }) {
+export function StatusBadge({ status, needsDetails = false }: { status: ApplicationStatus; needsDetails?: boolean }) {
+  // A filled form the site or runner sent back for answers is not awaiting Submit; say what it is waiting for.
+  const label = status === "filled" && needsDetails ? "Needs your answers" : LABEL[status];
   return (
     <span className={`pill ${TONE_CLASS[TONE[status]]}`}>
       <span className={`h-1.5 w-1.5 rounded-full bg-current ${IN_PROGRESS.includes(status) ? "pulse-soft" : ""}`} />
-      {LABEL[status]}
+      {label}
     </span>
   );
 }
@@ -33,6 +35,7 @@ export function StatusBadge({ status }: { status: ApplicationStatus }) {
 const STAGES = ["Read", "Resume", "Answers", "Filled", "Submitted"] as const;
 export function stageIndex(status: ApplicationStatus, needsDetails: boolean): number {
   if (status === "submitted") return 5;
+  if (status === "filled" && needsDetails) return 2;
   if (["filled", "submit_requested", "code_required"].includes(status)) return 4;
   if (["approved", "filling"].includes(status)) return 3;
   if (status === "ready") return needsDetails ? 2 : 3;

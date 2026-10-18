@@ -61,7 +61,7 @@ export default async function ApplicationPage({ params, searchParams }: { params
           </div>
           {/* The next thing to do sits at the top, not only in the Submission steps at the bottom. */}
           <div className="flex flex-wrap items-center gap-2.5">
-            <StatusBadge status={app.status} />
+            <StatusBadge status={app.status} needsDetails={open.length > 0} />
             {app.status === "ready" && open.length > 0 && <a href="#answers" className="btn-ghost h-9">Answer {open.length} question{open.length > 1 ? "s" : ""}</a>}
             {app.status === "ready" && !blocked && <ActionButton action={approveAction} id={app.id} pending="Approving" className="btn-go h-9">Approve for filling</ActionButton>}
             {app.status === "filled" && <ActionButton action={requestSubmitAction} id={app.id} pending="Submitting" className="btn-go h-9">{app.error ? "Submit again" : "Submit application"}</ActionButton>}

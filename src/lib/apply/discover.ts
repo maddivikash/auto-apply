@@ -92,7 +92,10 @@ export function discoverFields(): LiveField[] {
       const g = groups.get(input.name) || { question, options: [], required: false, kind: input.type as "radio" | "checkbox", count: 0 };
       if (question) g.question = question;
       if (opt) g.options.push(opt);
-      g.required = g.required || input.required || el.getAttribute("aria-required") === "true" || /\*|✱/.test(question);
+      // Ashby marks a required question on the label's class, not on the hidden checkbox input.
+      const entry = el.closest("[data-field-entry-id], fieldset, [class*=field-entry], [class*=question]");
+      const markedRequired = !!entry?.querySelector("label[class*=required], legend[class*=required], [class*=required-indicator], [class*=requiredIndicator]");
+      g.required = g.required || input.required || el.getAttribute("aria-required") === "true" || /\*|✱/.test(question) || markedRequired;
       g.count++;
       groups.set(input.name, g);
       return;
@@ -123,7 +126,10 @@ export function discoverFields(): LiveField[] {
     label = clean(label);
     // Lever appends helper text to some labels ("Current location No location found..."); keep the first sentence.
     label = label.replace(/(ATTACH RESUME|No location found|Couldn't auto-read|Analyzing resume|Loading).*$/i, "").trim();
-    const required = input.required || el.getAttribute("aria-required") === "true" || /\*|✱/.test(el.closest("div, li")?.querySelector("label")?.textContent || "");
+    const fieldBox = el.closest("[data-field-entry-id], fieldset, [class*=field-entry], [class*=question], li");
+    const required = input.required || el.getAttribute("aria-required") === "true" || /\*|✱/.test(el.closest("div, li")?.querySelector("label")?.textContent || "")
+      // Ashby: "required" lives on the question label's class, and its autocomplete input carries no attribute at all.
+      || !!fieldBox?.querySelector("label[class*=required], legend[class*=required]");
     // A radio or checkbox without a name never joined a group above; it is a lone checkbox, not a text field.
     const type: LiveField["type"] = el.tagName === "SELECT" ? "select" : el.tagName === "TEXTAREA" ? "textarea" : input.type === "file" ? "file" : input.type === "checkbox" || input.type === "radio" ? "checkbox" : "text";
     const options = el.tagName === "SELECT" ? Array.from((el as HTMLSelectElement).options).map((o) => o.text.trim()).filter(Boolean) : undefined;
@@ -192,7 +198,10 @@ export function findEmptyRequired(): string[] {
       if (seen.has(`name:${opt.name}`)) continue;
       seen.add(`name:${opt.name}`);
       const group = Array.from(document.querySelectorAll<HTMLInputElement>(`input[name="${CSS.escape(opt.name)}"]`));
-      const required = group.some((g) => g.required || g.getAttribute("aria-required") === "true");
+      // Ashby puts "required" on the question label's class, never on the checkbox itself.
+      const entry = opt.closest("[data-field-entry-id], fieldset, [class*=field-entry], [class*=question], li");
+      const markedRequired = /\*|✱/.test(raw) || /required/i.test(lab.className) || !!entry?.querySelector("label[class*=required], legend[class*=required]");
+      const required = markedRequired || group.some((g) => g.required || g.getAttribute("aria-required") === "true");
       if (!required || group.some((g) => g.checked)) continue;
       let node: HTMLElement | null = opt.parentElement, question = "";
       while (node && node !== document.body) {
@@ -207,7 +216,9 @@ export function findEmptyRequired(): string[] {
       if (label && !seen.has(label)) { seen.add(label); out.push(label); }
       continue;
     }
-    const box = (lab.closest("[data-field-entry-id], fieldset, [class*=field-entry], [class*=question], [class*=field], li") || lab.parentElement) as HTMLElement | null;
+    // Search from the parent: Ashby's label is itself classed "...question-title", and a label that matches
+    // becomes its own box, with no inputs inside, so the field is silently skipped.
+    const box = (lab.parentElement?.closest("[data-field-entry-id], fieldset, [class*=field-entry], [class*=question], [class*=field], li") || lab.parentElement) as HTMLElement | null;
     if (!box) continue;
     const required = /\*|✱/.test(raw) || /required/i.test(lab.className) || !!(ctl && (ctl.hasAttribute("required") || ctl.getAttribute("aria-required") === "true")) || !!box.querySelector("[required], [aria-required=true]");
     if (!required) continue;
@@ -225,8 +236,11 @@ export function findEmptyRequired(): string[] {
     const chosen = !!Array.from(scope.querySelectorAll<HTMLElement>("[class*=single-value], [class*=multi-value], [class*=singleValue], [class*=multiValue]")).some((e) => (e.textContent || "").trim()) ||
       !!scope.querySelector("[class*=value-container--has-value]") ||
       Array.from(scope.querySelectorAll<HTMLInputElement>("input[type=hidden]")).some((h) => h.value.trim() && /question|answer|select|value/i.test(h.name || h.id || ""));
+    // An autocomplete with its list still open holds typed text that the site throws away on blur
+    // (Ashby's location does exactly that): it only counts once a suggestion closed the list.
+    const settled = (t: Element) => !(t.getAttribute("role") === "combobox" && t.getAttribute("aria-expanded") === "true");
     const filled = chosen ||
-      texts.some((t) => (t as HTMLInputElement).value?.trim()) ||
+      texts.some((t) => (t as HTMLInputElement).value?.trim() && settled(t)) ||
       files.some((f) => (f.files?.length || 0) > 0) || (files.length > 0 && /\.(pdf|docx?|rtf|txt)\b/i.test(scopeText)) ||
       checks.some((c) => c.checked) ||
       buttons.some((b) => b.getAttribute("aria-pressed") === "true" || b.getAttribute("aria-checked") === "true" || /selected|active|checked/i.test(b.className) && !/unselected/i.test(b.className));

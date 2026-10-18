@@ -112,13 +112,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                             Match {a.match.profile}% <span aria-hidden>→</span><span className="sr-only">to</span> {a.match.tailored}%
                           </span>
                         ) : null}
-                        {open > 0 && a.status === "ready" && <span className="text-signal">{open} question{open > 1 ? "s need" : " needs"} you</span>}
+                        {open > 0 && (a.status === "ready" || a.status === "filled") && <span className="text-signal">{open} question{open > 1 ? "s need" : " needs"} you</span>}
                         {a.status === "code_required" && !a.verificationCode && <span className="text-signal">Enter the code Greenhouse emailed you</span>}
                         {a.error && ["failed", "unsupported"].includes(a.status) && <span className="truncate text-danger">{a.error.slice(0, 80)}</span>}
                       </div>
                     </div>
                     <StageTrack status={a.status} needsDetails={open > 0} compact />
-                    <StatusBadge status={a.status} />
+                    <StatusBadge status={a.status} needsDetails={open > 0} />
                   </Link>
                 </li>
               );
