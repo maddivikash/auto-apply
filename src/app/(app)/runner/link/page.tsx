@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Laptop } from "lucide-react";
-import { requireUserId } from "@/lib/auth";
+import { SignOutButton } from "@clerk/nextjs";
+import { requireUserId, userEmail } from "@/lib/auth";
 import { formatCode, linkForCode } from "@/lib/runner-link";
 import { approveRunnerLinkAction } from "../../../actions";
 import { ConnectButton } from "@/components/connect-runner";
@@ -10,6 +11,7 @@ export const dynamic = "force-dynamic";
 /** Opened by `npx lazy-apply`: the signed-in user confirms the code shown in their terminal. */
 export default async function RunnerLinkPage({ searchParams }: { searchParams: Promise<{ code?: string }> }) {
   await requireUserId();
+  const email = await userEmail();
   const { code = "" } = await searchParams;
   const found = code ? await linkForCode(code) : null;
   return (
@@ -23,6 +25,15 @@ export default async function RunnerLinkPage({ searchParams }: { searchParams: P
             <p className="mt-5 text-[12.5px] text-muted">Check this matches the code in your terminal</p>
             <div className="mono mt-1.5 text-[30px] font-medium tracking-[0.12em]">{formatCode(found.link.code)}</div>
             <ConnectButton code={found.link.code} action={approveRunnerLinkAction} />
+            {/* The computer belongs to whichever account presses Connect, so say which one that is before it happens. */}
+            {email && (
+              <p className="mt-4 text-[12.5px] text-muted">
+                It will fill applications for <span className="text-fg">{email}</span>.{" "}
+                <SignOutButton redirectUrl={`/sign-in?redirect_url=${encodeURIComponent(`/runner/link?code=${found.link.code}`)}`}>
+                  <button type="button" className="underline underline-offset-2 hover:text-fg">Not you? Switch account</button>
+                </SignOutButton>
+              </p>
+            )}
           </>
         ) : (
           <>
