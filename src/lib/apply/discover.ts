@@ -186,13 +186,28 @@ export function findEmptyRequired(): string[] {
     return out;
   };
 
-  const seen = new Set<string>(); const out: string[] = [];
+  const seen = new Set<string>(); const out: string[] = []; const uploadBlocks = new Set<Element>();
   const labels = Array.from(document.querySelectorAll<HTMLElement>("label, legend, [class*=question-title]"));
   for (const lab of labels) {
     const raw = textOf(lab);
-    // Greenhouse gives every upload button a hidden label reading "Attach" / "Dropbox" / "Enter manually":
-    // those are controls, not questions; the question's own label is handled on its own.
-    if (/^\s*(attach( file)?|dropbox|google drive|enter manually)\s*$/i.test(raw)) continue;
+    // Greenhouse gives every upload button a hidden label reading "Attach" / "Dropbox" / "Enter manually". The
+    // question itself ("Please upload your transcripts *") is a plain div above the buttons, so judge the whole
+    // upload block once, under that text, instead of reporting a missing file as "Attach".
+    if (/^\s*(attach( file)?|dropbox|google drive|enter manually)\s*$/i.test(raw)) {
+      let wrap = lab.closest("[class*=file-upload], [class*=upload], [class*=attachment]") as HTMLElement | null;
+      if (!wrap) continue;
+      // The buttons sit in their own wrapper; the question text is a sibling one or two levels up. Climb to it.
+      const titleIn = (el: HTMLElement) => Array.from(el.children).map((c) => (c.textContent || "").replace(/\s+/g, " ").trim()).find((t) => t && !/^(attach|dropbox|google drive|enter manually)/i.test(t) && !/^accepted file types/i.test(t)) || "";
+      let title = titleIn(wrap);
+      for (let up = 0; !title && up < 3 && wrap.parentElement && wrap.parentElement !== document.body; up++) { wrap = wrap.parentElement; title = titleIn(wrap); }
+      if (uploadBlocks.has(wrap)) continue;
+      uploadBlocks.add(wrap);
+      const required = /\*|✱/.test(title) || !!wrap.querySelector("[class*=required], [required], [aria-required=true]");
+      const hasFile = Array.from(wrap.querySelectorAll<HTMLInputElement>("input[type=file]")).some((f) => (f.files?.length || 0) > 0) || /\.(pdf|docx?|rtf|txt)\b/i.test(wrap.textContent || "");
+      const label = clean(title);
+      if (required && !hasFile && label && !seen.has(label)) { seen.add(label); out.push(label); }
+      continue;
+    }
     const ctl = (lab as HTMLLabelElement).control as HTMLElement | null;
     // An option's own label in a radio or checkbox group is not a question: judge the whole group, once,
     // under the group's question (Lever renders every option as a separate required <label>).
