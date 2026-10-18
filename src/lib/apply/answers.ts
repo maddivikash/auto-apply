@@ -72,7 +72,10 @@ export function refreshAnswers(app: Application, settings: Settings, bank?: Answ
     // Standing answers and profile facts first; otherwise what the user typed for the same question before.
     let a: { value: string; source: QuestionState["source"] } | null | undefined = answerFor(settings, q.label, q.options, q.type, { jobLocation: app.job?.location });
     if (!a && bank) { const v = bankAnswer(bank, q, app.job?.company); if (v) a = { value: v, source: "saved" }; }
-    const human = q.type !== "file" && !a && (needsHuman(q.label, q.type) || q.required);
+    // The resume (and a cover letter, when wanted) are attached by the runner. Any other required upload, such as
+    // transcripts or a portfolio, is something only the person can supply: surface it instead of discovering it at Submit.
+    const extraUpload = q.type === "file" && q.required && !/resume|\bcv\b|cover letter/i.test(q.label);
+    const human = extraUpload || (q.type !== "file" && !a && (needsHuman(q.label, q.type) || q.required));
     if (q.answer !== a?.value || q.source !== a?.source || q.needsHuman !== human) {
       q.answer = a?.value;
       q.source = a?.source;

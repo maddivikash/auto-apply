@@ -8,7 +8,8 @@
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from "playwright";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir, homedir } from "node:os";
+import { tmpdir, homedir, platform } from "node:os";
+import { execFile, execFileSync } from "node:child_process";
 import { answerFor } from "../src/lib/defaults";
 import { resumeFileName } from "../src/lib/resume/filename";
 import { parsedEducation, degreeOptionPatterns, disciplineScore, schoolQueries, DISCIPLINE_MIN, type ParsedEducation } from "../src/lib/apply/education";
@@ -79,15 +80,40 @@ process.on("SIGTERM", () => process.exit(0));
  * and history, not Playwright's bundled Chromium announcing itself as automated. These are the user's own
  * applications; the point is not to be misfiled as spam, not to hide anything.
  */
+// ---- Keep the person's focus -------------------------------------------------------
+/**
+ * Chrome activates itself whenever the runner launches it or opens a tab, which yanks the person out of
+ * whatever they were doing. On macOS, remember the app in front and hand focus straight back to it
+ * (lsappinfo and `open -b` need no accessibility permission). Chrome stays visible, just behind.
+ */
+function frontApp(): string | undefined {
+  if (platform() !== "darwin") return undefined;
+  try {
+    const asn = execFileSync("lsappinfo", ["front"], { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    const info = execFileSync("lsappinfo", ["info", "-only", "bundleid", asn], { stdio: ["ignore", "pipe", "ignore"] }).toString();
+    return /"CFBundleIdentifier"="([^"]+)"/.exec(info)?.[1];
+  } catch { return undefined; }
+}
+function restoreFocus(bundle: string | undefined) {
+  if (!bundle || /chrome|chromium/i.test(bundle)) return;
+  // Chrome may grab focus a moment after the tab opens; give it back a few times over two seconds.
+  for (const ms of [0, 400, 1200, 2200]) setTimeout(() => { if (frontApp() !== bundle) execFile("open", ["-b", bundle], () => {}); }, ms);
+}
+/** Run a browser action that would otherwise steal focus, then put the person's app back in front. */
+async function withFocusKept<T>(action: () => Promise<T>): Promise<T> {
+  const before = frontApp();
+  try { return await action(); } finally { restoreFocus(before); }
+}
+
 async function getBrowser(): Promise<Browser | BrowserContext> {
   if (browser && (("isConnected" in browser && browser.isConnected()) || !("isConnected" in browser))) return browser;
   const profile = join(homedir(), ".auto-apply", PROFILE_DIR); mkdirSync(profile, { recursive: true });
   try {
-    browser = await chromium.launchPersistentContext(profile, { channel: "chrome", headless: false, viewport: null, args: ["--window-size=1400,1000", "--disable-blink-features=AutomationControlled"], ignoreDefaultArgs: ["--enable-automation"] });
+    browser = await withFocusKept(() => chromium.launchPersistentContext(profile, { channel: "chrome", headless: false, viewport: null, args: ["--window-size=1400,1000", "--disable-blink-features=AutomationControlled"], ignoreDefaultArgs: ["--enable-automation"] }));
     log("using installed Chrome with a persistent profile");
   } catch (e) {
     log("installed Chrome not available, falling back to bundled Chromium:", (e as Error).message.split("\n")[0]);
-    browser = await chromium.launch({ headless: false, args: ["--window-size=1400,1000"] });
+    browser = await withFocusKept(() => chromium.launch({ headless: false, args: ["--window-size=1400,1000"] }));
   }
   return browser;
 }
@@ -630,9 +656,9 @@ async function fill(app: Application) {
   const notes: string[] = [];
   await report(app.id, { status: "filling", notes: ["Runner picked up the application"] });
   const b = await getBrowser();
-  const page = await b.newPage({ viewport: { width: 1380, height: 940 } });
+  const page = await withFocusKept(() => b.newPage({ viewport: { width: 1380, height: 940 } }));
   try {
-    await page.goto(app.job!.applyUrl.replace(/#app$/, ""), { waitUntil: "domcontentloaded" });
+    await withFocusKept(() => page.goto(app.job!.applyUrl.replace(/#app$/, ""), { waitUntil: "domcontentloaded" }));
     await dismissCookieBanner(page);
     if (app.job!.board === "greenhouse") await fillGreenhouse(page, app, notes);
     else await discoverAndFillGeneric(page, app, notes);

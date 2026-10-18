@@ -78,8 +78,45 @@ const ghType = (t: string): JobQuestion["type"] =>
   t === "input_text" ? "text" : t === "textarea" ? "textarea" : t === "input_file" ? "file"
   : t === "multi_value_single_select" ? "select" : t === "multi_value_multi_select" ? "multiselect" : "unknown";
 
+/**
+ * A company careers page that embeds one of the boards: "opswat.com/jobs/123?gh_jid=123" and friends.
+ * The embed names the board somewhere on the page, or the Greenhouse id in the query matches a board
+ * named after the company's domain. Tried only when the URL itself is not a board link.
+ */
+async function resolveEmbeddedBoard(rawUrl: string): Promise<{ board: Board; company: string; jobId: string } | undefined> {
+  const url = new URL(rawUrl);
+  const ghJid = url.searchParams.get("gh_jid");
+  const ok = async (u: string) => { try { const r = await fetch(u, { signal: AbortSignal.timeout(8000) }); return r.ok; } catch { return false; } };
+  let html = "";
+  try { const r = await fetch(rawUrl, { headers: { "user-agent": "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/130 Safari/537.36", accept: "text/html" }, redirect: "follow", signal: AbortSignal.timeout(10000) }); if (r.ok) html = await r.text(); } catch { /* page unreachable: fall through to the domain guess */ }
+  const m =
+    html.match(/greenhouse\.io\/embed\/job_app\?[^"'\s]*?for=([\w.-]+)[^"'\s]*?token=(\d+)/) ||
+    html.match(/greenhouse\.io\/(?:embed\/job_board\/js\?for=|)([\w.-]+)\/jobs\/(\d+)/);
+  if (m) return { board: "greenhouse", company: m[1], jobId: m[2] };
+  const ghBoard = html.match(/greenhouse\.io\/embed\/job_board(?:\/js)?\?for=([\w.-]+)/)?.[1];
+  const lv = html.match(/jobs\.lever\.co\/([\w.-]+)\/([0-9a-f-]{36})/);
+  if (lv) return { board: "lever", company: lv[1], jobId: lv[2] };
+  const ab = html.match(/jobs\.ashbyhq\.com\/([\w.-]+)\/([0-9a-f-]{36})/);
+  if (ab) return { board: "ashby", company: ab[1], jobId: ab[2] };
+  if (ghJid) {
+    const labels = url.hostname.replace(/^www\./, "").split(".");
+    const guesses = [ghBoard, labels[0], labels.length > 2 ? labels[1] : undefined, ...url.pathname.split("/").filter((p) => /^[a-z][\w-]{2,}$/i.test(p) && !/^(jobs?|careers?|openings?|positions?|job-details?)$/i.test(p))].filter((g): g is string => !!g);
+    for (const token of [...new Set(guesses.map((g) => g.toLowerCase()))]) {
+      if (await ok(`https://boards-api.greenhouse.io/v1/boards/${token}/jobs/${ghJid}`)) return { board: "greenhouse", company: token, jobId: ghJid };
+    }
+  }
+  return undefined;
+}
+
 export async function fetchJob(rawUrl: string): Promise<JobPosting> {
-  const { board, company, jobId } = detectBoard(rawUrl);
+  let detected: { board: Board; company: string; jobId: string };
+  try { detected = detectBoard(rawUrl); }
+  catch (e) {
+    const embedded = /^https?:/i.test(rawUrl) ? await resolveEmbeddedBoard(rawUrl) : undefined;
+    if (!embedded) throw e;
+    detected = embedded;
+  }
+  const { board, company, jobId } = detected;
 
   if (board === "greenhouse") {
     const r = await fetch(`https://boards-api.greenhouse.io/v1/boards/${company}/jobs/${jobId}?questions=true`);
