@@ -7,8 +7,11 @@ import { cache } from "react";
 import { scanDocs } from "./docs";
 import { userEmail, userId } from "./auth";
 
+/** The owner's accounts. ADMIN_EMAILS in the environment adds to this list; it never needs to be set for these. */
+const OWNER_EMAILS = ["vikashmaddi@gmail.com", "vickyvikashmaddi@gmail.com", "vikashmaddi1@gmail.com", "praneat.data@vmock.com"];
+
 export async function isAdmin(): Promise<boolean> {
-  const emails = (process.env.ADMIN_EMAILS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  const emails = [...OWNER_EMAILS, ...(process.env.ADMIN_EMAILS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)];
   const ids = (process.env.ADMIN_USER_IDS || "").split(",").map((e) => e.trim()).filter(Boolean);
   if (!emails.length && !ids.length) return false;
   const [email, uid] = await Promise.all([userEmail(), userId()]);
