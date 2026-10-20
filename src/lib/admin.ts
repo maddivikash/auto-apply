@@ -10,6 +10,9 @@ import { userEmail, userId } from "./auth";
 /** The owner's accounts. ADMIN_EMAILS in the environment adds to this list; it never needs to be set for these. */
 const OWNER_EMAILS = ["vikashmaddi@gmail.com", "vickyvikashmaddi@gmail.com", "vikashmaddi1@gmail.com", "praneat.data@vmock.com"];
 
+/** Accounts that are the owner's own or test logins; hidden from the numbers unless asked for. */
+export const INTERNAL_EMAILS = new Set([...OWNER_EMAILS, "maddivikash@gmail.com", "skillsync.mailer@gmail.com"]);
+
 export async function isAdmin(): Promise<boolean> {
   const emails = [...OWNER_EMAILS, ...(process.env.ADMIN_EMAILS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)];
   const ids = (process.env.ADMIN_USER_IDS || "").split(",").map((e) => e.trim()).filter(Boolean);
@@ -39,6 +42,12 @@ export type AdminUser = {
   lastActivityAt?: string;
   runnerSeenAt?: string;
   apiKey: boolean;
+  /** Notification emails that Resend refused for this user. */
+  emailFailures: number;
+  /** Owner or test account. */
+  internal: boolean;
+  /** One line on what is stopping this user from getting a submission out. */
+  blockedBy?: string;
 };
 
 export type DayCount = { date: string; value: number };
@@ -76,6 +85,9 @@ export type AdminData = {
   /** The same failures grouped by normalised error text, so repeat bugs stand out. */
   errorGroups: ErrorGroup[];
   sprintRequests: { createdAt: string; name: string; email: string; country?: string; roles?: string }[];
+  /** Refused notification emails across all users, with the most common reason. */
+  emailFailures: { count: number; reason?: string };
+  includeInternal: boolean;
   fetchedAt: string;
 };
 
@@ -106,7 +118,7 @@ function series(days: number, to: Date, dates: string[]): DayCount[] {
   return out;
 }
 
-export const loadAdminData = cache(async (range: number): Promise<AdminData> => {
+export const loadAdminData = cache(async (range: number, includeInternal = false): Promise<AdminData> => {
   const to = new Date();
   const from = new Date(to.getTime() - (range - 1) * 86400_000);
   const prevFrom = new Date(from.getTime() - range * 86400_000);
@@ -118,17 +130,17 @@ export const loadAdminData = cache(async (range: number): Promise<AdminData> => 
       console.error("clerk users", e);
       return [] as ClerkUserLite[];
     }),
-    scanDocs("users/", ["status", "createdAt", "submittedAt", "at", "error", "url", "job.title", "job.company"]),
+    scanDocs("users/", ["status", "createdAt", "submittedAt", "at", "error", "url", "job.title", "job.company", "title", "body"]),
     scanDocs("sprint-requests/", ["createdAt", "name", "email", "country", "roles"]).catch(() => [])
   ]);
 
   // One bucket per user id, filled from the document paths.
   type App = { createdAt: string; updatedAt: string; status: string; submittedAt: string | null; error: string | null; url: string; job: string };
-  type Bucket = { hasProfile: boolean; apps: App[]; lastActivityAt: string; runnerSeenAt?: string; apiKey: boolean };
+  type Bucket = { hasProfile: boolean; apps: App[]; lastActivityAt: string; runnerSeenAt?: string; apiKey: boolean; emailFailures: number; emailReason?: string };
   const buckets = new Map<string, Bucket>();
   const bucket = (uid: string) => {
     let b = buckets.get(uid);
-    if (!b) buckets.set(uid, (b = { hasProfile: false, apps: [], lastActivityAt: "", apiKey: false }));
+    if (!b) buckets.set(uid, (b = { hasProfile: false, apps: [], lastActivityAt: "", apiKey: false, emailFailures: 0 }));
     return b;
   };
   for (const d of docs) {
@@ -143,10 +155,27 @@ export const loadAdminData = cache(async (range: number): Promise<AdminData> => 
       const at = Number(d.fields.at);
       if (at) b.runnerSeenAt = new Date(at).toISOString();
     } else if (rest === "settings.json") b.apiKey = true; // settings exist once the user has visited Connect or Runner
+    else if (rest.startsWith("notifications/") && (d.fields.title ?? "").startsWith("Notification email not delivered")) {
+      b.emailFailures++;
+      b.emailReason ??= d.fields.body ?? undefined;
+    }
   }
 
   const WAITING = new Set(["ready", "code_required", "unsupported"]);
-  const users: AdminUser[] = clerkUsers.map((u) => {
+  const blockedBy = (b: Bucket | undefined, hasProfile: boolean, apps: App[], submitted: number): string | undefined => {
+    if (submitted) return undefined;
+    if (!hasProfile) return "has not uploaded a resume";
+    if (!apps.length) return "has not pasted a job link";
+    const waiting = apps.filter((a) => a.status === "ready" || a.status === "code_required").length;
+    const unsupported = apps.filter((a) => a.status === "unsupported").length;
+    const parts: string[] = [];
+    if (waiting) parts.push(`${waiting} resume${waiting > 1 ? "s" : ""} waiting for their answers and Submit`);
+    if (unsupported && unsupported === apps.length) parts.push("every link was unsupported");
+    if (!b?.runnerSeenAt) parts.push("runner never installed");
+    if (b?.emailFailures) parts.push(`${b.emailFailures} email${b.emailFailures > 1 ? "s" : ""} not delivered`);
+    return parts.join("; ") || undefined;
+  };
+  const allClerk: AdminUser[] = clerkUsers.map((u) => {
     const b = buckets.get(u.id);
     const apps = b?.apps ?? [];
     const sorted = [...apps].sort((a, c) => a.createdAt.localeCompare(c.createdAt));
@@ -168,20 +197,30 @@ export const loadAdminData = cache(async (range: number): Promise<AdminData> => 
       lastApplicationAt: sorted.at(-1)?.createdAt,
       lastActivityAt: b?.lastActivityAt || undefined,
       runnerSeenAt: b?.runnerSeenAt,
-      apiKey: b?.apiKey ?? false
+      apiKey: b?.apiKey ?? false,
+      emailFailures: b?.emailFailures ?? 0,
+      internal: INTERNAL_EMAILS.has(email.toLowerCase()),
+      blockedBy: blockedBy(b, b?.hasProfile ?? false, apps, apps.filter((a) => a.status === "submitted").length)
     };
   });
+  const users: AdminUser[] = allClerk;
   // Users who have documents but no Clerk record any more (deleted accounts) still count as activity.
   for (const [uid, b] of buckets) {
     if (clerkUsers.some((u) => u.id === uid)) continue;
     const sorted = [...b.apps].sort((a, c) => a.createdAt.localeCompare(c.createdAt));
-    users.push({ id: uid, name: "(deleted account)", email: "", createdAt: sorted[0]?.createdAt ?? b.lastActivityAt, hasProfile: b.hasProfile, applications: b.apps.length, submitted: b.apps.filter((a) => a.status === "submitted").length, failed: b.apps.filter((a) => a.status === "failed").length, waiting: 0, firstApplicationAt: sorted[0]?.createdAt, lastApplicationAt: sorted.at(-1)?.createdAt, lastActivityAt: b.lastActivityAt || undefined, runnerSeenAt: b.runnerSeenAt, apiKey: b.apiKey });
+    users.push({ id: uid, name: "(deleted account)", email: "", createdAt: sorted[0]?.createdAt ?? b.lastActivityAt, hasProfile: b.hasProfile, applications: b.apps.length, submitted: b.apps.filter((a) => a.status === "submitted").length, failed: b.apps.filter((a) => a.status === "failed").length, waiting: 0, firstApplicationAt: sorted[0]?.createdAt, lastApplicationAt: sorted.at(-1)?.createdAt, lastActivityAt: b.lastActivityAt || undefined, runnerSeenAt: b.runnerSeenAt, apiKey: b.apiKey, emailFailures: b.emailFailures, internal: false });
   }
   users.sort((a, c) => (c.lastActivityAt ?? c.createdAt).localeCompare(a.lastActivityAt ?? a.createdAt));
 
-  const allApps = [...buckets.values()].flatMap((b) => b.apps);
+  // Owner and test accounts are not customers; keep them out of the numbers unless asked for.
+  const external = includeInternal ? users : users.filter((u) => !u.internal);
+  const externalIds = new Set(external.map((u) => u.id));
+  const allApps = [...buckets.entries()].filter(([uid]) => externalIds.has(uid) || !clerkUsers.some((u) => u.id === uid)).flatMap(([, b]) => b.apps);
+  const emailFailTotal = [...buckets.entries()].filter(([uid]) => externalIds.has(uid)).reduce((a, [, b]) => a + b.emailFailures, 0);
+  const emailReason = [...buckets.values()].find((b) => b.emailReason)?.emailReason;
   const userLabel = new Map(users.map((u) => [u.id, u.email || u.name]));
   const failures: Failure[] = [...buckets.entries()]
+    .filter(([uid]) => externalIds.has(uid) || !clerkUsers.some((u) => u.id === uid))
     .flatMap(([uid, b]) => b.apps.filter((a) => a.status === "failed").map((a) => ({ userId: uid, user: userLabel.get(uid) ?? uid, createdAt: a.createdAt, updatedAt: a.updatedAt, url: a.url, job: a.job, error: a.error ?? "(no error recorded)" })))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   // Same bug, different ids/numbers/urls -> one group.
@@ -206,15 +245,15 @@ export const loadAdminData = cache(async (range: number): Promise<AdminData> => 
     range,
     from: fromKey,
     to: iso(to),
-    users,
+    users: external,
     totals: {
-      users: users.length,
-      newInRange: users.filter((u) => inRange(u.createdAt)).length,
-      newPrevious: users.filter((u) => inPrev(u.createdAt)).length,
-      activeInRange: users.filter((u) => inRange(activity(u))).length,
-      withProfile: users.filter((u) => u.hasProfile).length,
-      withApplication: users.filter((u) => u.applications > 0).length,
-      withSubmission: users.filter((u) => u.submitted > 0).length,
+      users: external.length,
+      newInRange: external.filter((u) => inRange(u.createdAt)).length,
+      newPrevious: external.filter((u) => inPrev(u.createdAt)).length,
+      activeInRange: external.filter((u) => inRange(activity(u))).length,
+      withProfile: external.filter((u) => u.hasProfile).length,
+      withApplication: external.filter((u) => u.applications > 0).length,
+      withSubmission: external.filter((u) => u.submitted > 0).length,
       applications: allApps.length,
       applicationsInRange: allApps.filter((a) => inRange(a.createdAt)).length,
       applicationsPrevious: allApps.filter((a) => inPrev(a.createdAt)).length,
@@ -223,7 +262,7 @@ export const loadAdminData = cache(async (range: number): Promise<AdminData> => 
       failedInRange: allApps.filter((a) => a.status === "failed" && inRange(a.updatedAt || a.createdAt)).length,
       failed: allApps.filter((a) => a.status === "failed").length
     },
-    signupsByDay: series(range, to, users.map((u) => dayKey(u.createdAt))),
+    signupsByDay: series(range, to, external.map((u) => dayKey(u.createdAt))),
     applicationsByDay: series(range, to, allApps.map((a) => dayKey(a.createdAt))),
     submittedByDay: series(range, to, allApps.filter((a) => a.status === "submitted").map((a) => dayKey(a.submittedAt ?? a.createdAt))),
     statusCounts,
@@ -233,6 +272,8 @@ export const loadAdminData = cache(async (range: number): Promise<AdminData> => 
       .map((d) => ({ createdAt: d.fields.createdAt ?? d.updatedAt, name: d.fields.name ?? "", email: d.fields.email ?? "", country: d.fields.country ?? undefined, roles: d.fields.roles ?? undefined }))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, 20),
+    emailFailures: { count: emailFailTotal, reason: emailReason },
+    includeInternal,
     fetchedAt: new Date().toISOString()
   };
 });
