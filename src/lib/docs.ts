@@ -153,6 +153,36 @@ export async function listDocPaths(prefix: string): Promise<string[]> {
   }
 }
 
+export type DocMeta = { path: string; updatedAt: string; fields: Record<string, string | null> };
+
+/**
+ * Path, last-write time and a few top-level JSON fields for every document under a prefix, without
+ * shipping whole bodies. Used by the admin page, which needs one row per document across all users.
+ * `fields` are top-level keys (e.g. "status", "createdAt"); on Turso they are read with json_extract.
+ */
+export async function scanDocs(prefix: string, fields: string[]): Promise<DocMeta[]> {
+  const safe = fields.filter((f) => /^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$/.test(f));
+  switch (backend()) {
+    case "turso": {
+      const extracts = safe.map((f) => `json_extract(body, '$.${f}')`).join(", ");
+      const [rows] = await turso([{ sql: `SELECT path, updated_at${safe.length ? `, ${extracts}` : ""} FROM docs WHERE path >= ? AND path < ?`, args: prefixRange(prefix) }]);
+      return rows.map((r) => ({
+        path: text(r[0]),
+        updatedAt: text(r[1]),
+        fields: Object.fromEntries(safe.map((f, i) => [f, r[i + 2] && r[i + 2].type !== "null" ? text(r[i + 2]) : null]))
+      }));
+    }
+    default: {
+      // Blob and fs: list, then read each document. Fine for development-scale data.
+      const paths = await listDocPaths(prefix);
+      return Promise.all(paths.map(async (path) => {
+        const doc = (await getDoc<Record<string, unknown>>(path)) ?? {};
+        return { path, updatedAt: typeof doc.updatedAt === "string" ? doc.updatedAt : "", fields: Object.fromEntries(safe.map((f) => [f, doc[f] == null ? null : String(doc[f])])) };
+      }));
+    }
+  }
+}
+
 export async function delDoc(path: string): Promise<void> {
   switch (backend()) {
     case "turso":
