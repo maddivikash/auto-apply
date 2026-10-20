@@ -1,7 +1,8 @@
 import { Resend } from "resend";
 import type { Application } from "./store";
 
-const FROM = process.env.RESEND_FROM || "Lazy Apply <onboarding@resend.dev>";
+// Default sender is on the product domain; it delivers to anyone once lazyapply.online is verified in Resend.
+const FROM = process.env.RESEND_FROM || "Lazy Apply <hello@lazyapply.online>";
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
