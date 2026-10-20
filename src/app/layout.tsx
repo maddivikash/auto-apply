@@ -10,11 +10,7 @@ const serif = Merriweather({ subsets: ["latin"], weight: "400", style: "italic",
 
 export const metadata: Metadata = { title: "Lazy Apply", description: "Paste a job link. Get a tailored resume, a filled form, and the final say." };
 
-/** Clerk's frontend API host is encoded in the publishable key: pk_live_<base64("clerk.example.com$")>. */
-const CLERK_ORIGIN = (() => {
-  try { const host = atob((process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || "").split("_")[2] || "").replace(/\$$/, ""); return host ? `https://${host}` : ""; }
-  catch { return ""; }
-})();
+import { CLERK_ORIGIN } from "@/lib/clerk-origin";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -1,8 +1,14 @@
 import Link from "next/link";
+import { preconnect, preload } from "react-dom";
+import { CLERK_JS_URL, CLERK_ORIGIN } from "@/lib/clerk-origin";
 import { Brand } from "@/components/brand";
 import { StageTrack } from "@/components/status";
 
 export function AuthShell({ children, title, body }: { children: React.ReactNode; title: string; body: string }) {
+  // Start fetching Clerk's script with the HTML. Without this it begins only after React has hydrated,
+  // which is most of the time the sign-in card spends as a skeleton.
+  if (CLERK_ORIGIN) preconnect(CLERK_ORIGIN, { crossOrigin: "anonymous" });
+  if (CLERK_JS_URL) preload(CLERK_JS_URL, { as: "script", crossOrigin: "anonymous", fetchPriority: "high" });
   return (
     <main className="relative grid min-h-screen bg-bg text-fg lg:grid-cols-[1.1fr_1fr]">
       <section className="hero-grad navy relative m-3 hidden flex-col justify-between rounded-[20px] p-10 lg:flex">
