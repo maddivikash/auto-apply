@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { userId } from "@/lib/auth";
 import { isAdmin, loadAdminData, type AdminUser, type DayCount, type Failure } from "@/lib/admin";
 import { Brand } from "@/components/brand";
+import { sendTestEmailAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -96,7 +97,7 @@ function UserRow({ u }: { u: AdminUser }) {
   );
 }
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ range?: string; show?: string; internal?: string }> }) {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ range?: string; show?: string; internal?: string; test?: string }> }) {
   if (!(await userId())) redirect("/sign-in");
   if (!(await isAdmin())) notFound();
   const sp = await searchParams;
@@ -122,6 +123,14 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <div className="eyebrow">Admin · Lazy Apply</div>
         <h1 className="mt-1 text-[30px] font-medium leading-tight tracking-[-0.035em]">{n(t.users)} users, {n(t.newInRange)} new in the last {range} days.</h1>
         <p className="mt-1.5 text-[14.5px] text-muted">Signups and sign-ins come from Clerk; everything else from what users did in the app. {d.from} to {d.to}. {includeInternal ? <Link href={`/admin?range=${range}`} className="underline underline-offset-2">Hide my own accounts</Link> : <Link href={`/admin?range=${range}&internal=1`} className="underline underline-offset-2">Include my own accounts</Link>}</p>
+
+        <form action={sendTestEmailAction} className="mt-4 flex flex-wrap items-center gap-3 text-[13px]">
+          <input type="hidden" name="range" value={range} />
+          <button type="submit" className="btn-primary h-9">Send me a test email</button>
+          <span className="text-muted">Uses the live deployment&apos;s Resend key and sender. Proves user emails work.</span>
+          {sp.test?.startsWith("sent:") && <span className="rounded-full bg-go-soft px-2.5 py-1 font-medium text-go">Sent to {sp.test.slice(5)}. Check your inbox.</span>}
+          {sp.test?.startsWith("error:") && <span className="rounded-full bg-danger-soft px-2.5 py-1 font-medium text-danger">{sp.test.slice(6)}</span>}
+        </form>
 
         {d.emailFailures.count > 0 && (
           <div className="mt-4 rounded-[var(--radius-panel)] border border-danger/30 bg-danger-soft p-4 text-[13.5px]">

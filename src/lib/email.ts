@@ -65,3 +65,12 @@ export async function emailSprintRequest(to: string, r: Record<string, string>) 
   const rows = Object.entries(r).map(([k, v]) => `<tr><td style="color:#6B7280;padding:4px 12px 4px 0;vertical-align:top">${esc(k)}</td><td style="padding:4px 0">${esc(v)}</td></tr>`).join("");
   await send(to, `Free trial request (3 applications): ${r.name || r.email}`, wrap("New free trial: 3 applications", `<table style="border-collapse:collapse">${rows}</table><p>Reply to them at <a href="mailto:${esc(r.email)}">${esc(r.email)}</a>.</p>`));
 }
+
+/** Admin check: one message to `to`, returning Resend's answer so a bad key or unverified domain is visible. */
+export async function sendTestEmail(to: string): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  if (!process.env.RESEND_API_KEY) return { ok: false, error: "RESEND_API_KEY is not set on this deployment." };
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const { data, error } = await resend.emails.send({ from: FROM, to, subject: "Lazy Apply test email", html: wrap("Emails are working", `<p>This test was sent from <b>${esc(FROM)}</b> by the live Lazy Apply deployment.</p>`) });
+  if (error) return { ok: false, error: `${error.name}: ${error.message}` };
+  return { ok: true, id: data?.id ?? "sent" };
+}
