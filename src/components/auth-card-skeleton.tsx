@@ -6,12 +6,20 @@ import { useEffect, useState } from "react";
  * Shown in place of Clerk's sign-in or sign-up card while Clerk's script and its UI bundle load from
  * clerk.lazyapply.online (about one second on a normal connection, measured from India). It says what is
  * happening instead of drawing a fake form, keeps the real card's footprint so nothing jumps, and after
- * eight seconds explains the usual cause of a stall and offers a reload.
+ * six seconds reloads once by itself; if that did not help, it explains the usual cause and offers a reload.
  */
 export function AuthCardSkeleton({ title, subtitle }: { title: string; subtitle: string }) {
   const [slow, setSlow] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setSlow(true), 8000);
+    // A first load sometimes stalls on one of Clerk's requests and a reload fixes it. Do that once, by
+    // itself, after six seconds; if the reload did not help either, say so instead of looping.
+    const KEY = "la-auth-reloaded";
+    const t = setTimeout(() => {
+      let already = false;
+      try { already = sessionStorage.getItem(KEY) === "1"; if (!already) sessionStorage.setItem(KEY, "1"); } catch { already = true; }
+      if (already) setSlow(true);
+      else window.location.reload();
+    }, 6000);
     return () => clearTimeout(t);
   }, []);
   return (
@@ -26,7 +34,7 @@ export function AuthCardSkeleton({ title, subtitle }: { title: string; subtitle:
         <p className="mt-4 text-[13.5px] text-muted">{slow ? "Still loading the secure sign-in." : "Loading the secure sign-in…"}</p>
         {slow && (
           <p className="mt-3 max-w-[300px] text-[13px] leading-relaxed text-muted">
-            It usually takes a second. If it does not appear, an ad blocker or privacy extension may be holding back clerk.lazyapply.online: allow it for this site, then{" "}
+            It usually takes a second, and one automatic reload did not help. An ad blocker or privacy extension may be holding back clerk.lazyapply.online: allow it for this site, then{" "}
             <a href="" onClick={(e) => { e.preventDefault(); window.location.reload(); }} className="font-medium text-fg underline underline-offset-2">reload</a>.
           </p>
         )}
